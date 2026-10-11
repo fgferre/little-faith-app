@@ -576,6 +576,18 @@ function Report(
     issue.severity !== "divergence"
   );
   const plan = manifest?.content.plan;
+  const holderId = manifest?.content.responsible.ticketHolderPersonId ?? null;
+  const holderLine = !manifest || !plan
+    ? null
+    : plan.participationMode === "official"
+    ? "Bolão oficial: cada pessoa recebe o próprio recibo da Caixa."
+    : plan.participationMode === "internal"
+    ? holderId
+      ? `O bilhete original fica com ${
+        personName(manifest, holderId) ?? "Participante"
+      }. Sem ele ninguém recebe o prêmio.`
+      : "O bolão foi travado sem titular dos bilhetes."
+    : null;
   return (
     <Card className="pool-card" label="O que foi registrado">
       <div className="pool-card-head">
@@ -602,6 +614,7 @@ function Report(
           : formatBRL(comparison.observedBetCostCents)}
         {reports.length > 1 && ` · conferência ${report.version}`}
       </p>
+      {holderLine && <p className="ui-sec">{holderLine}</p>}
       {plan && (
         <ul className="pool-games">
           {plan.tickets.map((ticket, index) => {

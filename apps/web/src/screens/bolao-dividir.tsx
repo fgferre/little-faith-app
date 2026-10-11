@@ -468,6 +468,13 @@ export function BolaoDividir(
               <Chip status="confirmed">Prêmio todo resgatado</Chip>
             </p>
           )}
+        <p className="ui-sec">
+          {holder
+            ? `O prêmio cai no nome de ${name(manifest, holder)} e ${
+              name(manifest, holder)
+            } repassa a cada pessoa. Imposto e repasse entre pessoas pedem um contador; o app não dá orientação fiscal.`
+            : "O prêmio cai no nome de quem resgatar e essa pessoa repassa a cada um. Imposto e repasse entre pessoas pedem um contador; o app não dá orientação fiscal."}
+        </p>
       </>
     );
   }

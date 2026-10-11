@@ -675,6 +675,16 @@ export function BolaoSorteio(
     );
   }
 
+  const holderId = plan?.responsible.ticketHolderPersonId ?? null;
+  const redeemLine = plan?.plan.participationMode === "official"
+    ? "Cada pessoa resgata com o próprio recibo."
+    : plan?.plan.participationMode === "internal"
+    ? holderId
+      ? `Quem resgata: ${
+        nameOf(holderId) ?? "Participante"
+      }, titular dos bilhetes. É quem leva o bilhete original à Caixa.`
+      : "O bolão foi travado sem titular dos bilhetes."
+    : null;
   const prizeView = (
     <>
       {prizeCents !== null
@@ -692,6 +702,7 @@ export function BolaoSorteio(
           ? "Há cartelas sem conferência; o valor sai quando todas forem conferidas."
           : "O valor de cada faixa ainda não foi publicado."}
       </p>
+      {redeemLine && <p className="ui-sec">{redeemLine}</p>}
       {split
         ? (
           <p className="ui-sec">
