@@ -34,9 +34,10 @@ redirect_uri = ""
 enabled = true
 file_size_limit = "10MiB"
 
+# A função valida a sessão sozinha (middleware); o cartão do participante (POST /v1/participant_card) é público por desenho.
 [functions.api]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 entrypoint = "./functions/api/index.ts"
 
 # This single-purpose entry point validates its own private scheduler capability.

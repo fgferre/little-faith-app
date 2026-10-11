@@ -399,3 +399,74 @@ Deno.test('settlement HTTP routes forward human decisions, recover receipts and 
     assert((await app.request('/api/v1/settlement_pull', { method: 'POST', headers, body: JSON.stringify({ groupId: id }) })).status === 503, 'incomplete settlement history fails closed');
   } finally { globalThis.fetch = originalFetch; }
 });
+Deno.test('participant links: token only at creation, card opens by POST without a session, unknown 404, revoked 410, non-organizer refused', async () => {
+  // The mocked transport checks wiring; the SQL suite proves RLS, revocation and the card values.
+  const token = `fixture.${btoa(JSON.stringify({ sub: id, role: 'authenticated', session_id: id, app_metadata: {}, is_anonymous: false }))}.fixture`;
+  const linkId = '22222222-2222-4222-8222-222222222222';
+  const card = { version: 1, generatedAt: '2026-10-11T12:00:00.000Z', group: { name: 'Bolão da firma' }, person: { id, name: 'Pessoa B' }, pools: [] };
+  const links = new Map<string, 'active' | 'revoked'>();
+  const calls: { name: string; authorization: string | null; parameters: Record<string, string> }[] = [];
+  let organizer = true;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input, init) => {
+    const request = new Request(input, init);
+    const path = new URL(request.url).pathname;
+    if (path === '/auth/v1/user') return Response.json({ id, app_metadata: {}, is_anonymous: false });
+    const name = path.replace('/rest/v1/rpc/', '');
+    const parameters = await request.json();
+    calls.push({ name, authorization: request.headers.get('Authorization'), parameters });
+    if (name !== 'participant_card' && !organizer) return Response.json({ code: '42501', details: null, hint: null, message: 'group_access_denied' }, { status: 403 });
+    if (name === 'participant_link_create') {
+      links.set(parameters.p_token_hash, 'active');
+      return Response.json({ id: linkId, personId: parameters.p_person_id, createdAt: '2026-10-11T12:00:00.000Z' });
+    }
+    if (name === 'participant_link_revoke') {
+      for (const hash of links.keys()) links.set(hash, 'revoked');
+      return Response.json({ id: parameters.p_id, revokedAt: '2026-10-11T12:05:00.000Z' });
+    }
+    if (name === 'participant_links_pull') return Response.json({ links: [{ id: linkId, personId: id, createdAt: '2026-10-11T12:00:00.000Z', revokedAt: null }] });
+    if (name === 'participant_card') {
+      const state = links.get(parameters.p_token_hash);
+      return Response.json(state === 'active' ? card : { error: state === 'revoked' ? 'link_revoked' : 'link_unknown' });
+    }
+    throw new Error(`Unexpected mocked RPC: ${name}`);
+  };
+  try {
+    const open = (cardToken: string, headers: Record<string, string> = {}) => ({ method: 'POST', headers, body: JSON.stringify({ token: cardToken }) });
+    const config = { supabaseUrl: 'https://fixture.supabase.co', publishableKey: 'test-public-key', allowedOrigins: ['https://app.example'] };
+    const unconfigured = await createApi(config).request('/api/v1/participant_card', open('a'.repeat(43)));
+    assert(unconfigured.status === 503 && (await unconfigured.json()).code === 'participant_card_unconfigured' && calls.length === 0, 'card needs the server key');
+    const app = createApi({ ...config, serviceRoleKey: 'server-fixture' });
+    const headers = { Authorization: `Bearer ${token}`, Origin: 'https://app.example', 'Content-Type': 'application/json' };
+    const body = JSON.stringify({ groupId: id, personId: id });
+    const created = await app.request('/api/v1/participant_link', { method: 'POST', headers, body });
+    const link = await created.json();
+    assert(created.status === 201 && link.id === linkId && link.personId === id && /^[A-Za-z0-9_-]{43}$/.test(link.token), 'created with a 32-byte token');
+    const sent = calls.at(-1);
+    assert(sent?.authorization === `Bearer ${token}` && sent.parameters.p_group_id === id && sent.parameters.p_person_id === id
+      && sent.parameters.p_token_hash === await hashBytes(new TextEncoder().encode(link.token)) && !JSON.stringify(calls).includes(link.token), 'organizer session stores only the SHA-256');
+    const again = await (await app.request('/api/v1/participant_link', { method: 'POST', headers, body })).json();
+    assert(again.token !== link.token, 'every link gets a fresh random token');
+    const opened = await app.request('/api/v1/participant_card', open(link.token, { Origin: 'https://app.example', 'Content-Type': 'application/json' }));
+    assert(opened.status === 200 && JSON.stringify(await opened.json()) === JSON.stringify(card) && opened.headers.get('Cache-Control') === 'no-store', 'card opens without a session and is never cached');
+    assert(calls.at(-1)?.name === 'participant_card' && calls.at(-1)?.authorization === 'Bearer server-fixture', 'card read with the server key only');
+    const count = calls.length;
+    assert((await app.request('/api/v1/participant_card', open('short'))).status === 404 && calls.length === count, 'malformed token never reaches the database');
+    assert((await app.request(`/api/v1/participant_card?token=${link.token}`)).status === 401 && calls.length === count, 'token in the URL is not accepted');
+    assert((await app.request('/api/v1/participant_card', { method: 'POST', body: JSON.stringify({ token: link.token, extra: 1 }) })).status === 404 && calls.length === count, 'unexpected fields refused');
+    const unknown = await app.request('/api/v1/participant_card', open('b'.repeat(43)));
+    assert(unknown.status === 404 && (await unknown.json()).code === 'link_unknown', 'unknown link answers 404');
+    const pulled = await app.request('/api/v1/participant_links_pull', { method: 'POST', headers, body: JSON.stringify({ groupId: id }) });
+    assert(pulled.status === 200 && (await pulled.json()).links.length === 1 && JSON.stringify(calls.at(-1)?.parameters) === JSON.stringify({ p_group_id: id }), 'links listed for the organizer');
+    const revoked = await app.request('/api/v1/participant_link_revoke', { method: 'POST', headers, body: JSON.stringify({ groupId: id, id: linkId }) });
+    assert(revoked.status === 200 && JSON.stringify(await revoked.json()) === JSON.stringify({ id: linkId, revokedAt: '2026-10-11T12:05:00.000Z' })
+      && JSON.stringify(calls.at(-1)?.parameters) === JSON.stringify({ p_group_id: id, p_id: linkId }), 'link revoked');
+    const closed = await app.request('/api/v1/participant_card', open(link.token));
+    assert(closed.status === 410 && (await closed.json()).code === 'link_revoked', 'revoked link answers 410');
+    assert((await app.request('/api/v1/participant_link', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body })).status === 401, 'creating a link needs a session');
+    assert((await app.request('/api/v1/participant_link', { method: 'POST', headers, body: JSON.stringify({ groupId: id }) })).status === 400, 'person required');
+    organizer = false;
+    const refused = await app.request('/api/v1/participant_link', { method: 'POST', headers, body });
+    assert(refused.status === 403 && (await refused.json()).code === 'access_denied', 'non-organizer cannot create a link');
+  } finally { globalThis.fetch = originalFetch; }
+});

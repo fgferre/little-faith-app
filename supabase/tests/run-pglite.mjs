@@ -33,7 +33,7 @@ try {
   const { validateEvidenceMetadata } = await import(pathToFileURL(resolve(compiledCore, 'evidence.js')).href);
   const { validateResultReceipt, validateResultSnapshot } = await import(pathToFileURL(resolve(compiledCore, 'results.js')).href);
   const { parseCaixaResult } = await import(pathToFileURL(resolve(compiledCore, 'caixa-results.js')).href);
-  const { validateSettlementReceipt, validateSettlementSnapshot } = await import(pathToFileURL(resolve(compiledCore, 'settlement.js')).href);
+  const { computeSettlement, validateSettlementReceipt, validateSettlementSnapshot } = await import(pathToFileURL(resolve(compiledCore, 'settlement.js')).href);
   await db.exec(`
     create role authenticated nologin;
     create role anon nologin;
@@ -115,7 +115,28 @@ try {
       if (snapshot) settlementFacts = Math.max(settlementFacts, snapshot.expenses.length + snapshot.prizes.length + snapshot.redemptions.length + snapshot.distributions.length);
     } catch (error) { throw new Error(`SQL/core settlement contract mismatch: ${label}`, { cause: error }); }
   }
-  console.log(`Foundation, finance, planning, registration, results and settlement SQL passed; ${samples.length} financial + ${planningSamples.length} planning + ${stage5Samples.length} registration/result + ${settlementSamples.length} settlement responses (${settlementFacts} settlement facts rebuilt) validated by the real core; all 32 catalog rules match, manifests/raw sources independently hashed (Auth/Storage stubs; platform integration remains separate).`);
+  const participantResults = await db.exec(await readFile(new URL('./participant_links.sql', import.meta.url), 'utf8'));
+  const participantSamples = participantResults.flatMap(result => result.rows).filter(row => typeof row.label === 'string' && row.data && row.kind);
+  const settled = participantSamples.find(row => row.kind === 'settlement-snapshot');
+  const cards = participantSamples.filter(row => row.kind === 'participant-card');
+  if (!settled || cards.length === 0) throw new Error('Participant SQL must return a settlement snapshot and cards.');
+  // The card never drifts from Dividir: the real core rebuilds each person's share from the same facts.
+  const settledPools = computeSettlement(validateSettlementSnapshot(settled.data)).pools;
+  let cardShares = 0;
+  for (const { label, data } of cards) {
+    for (const pool of data.pools) {
+      const balance = settledPools[pool.id];
+      const person = balance?.persons.find(entry => entry.personId === data.person.id);
+      const expected = person ? [person.prizeRightCents, person.prizeReceivedCents, person.prizePendingCents, person.refundRightCents, person.refundedCents] : null;
+      const actual = pool.share ? [pool.share.rightCents, pool.share.receivedCents, pool.share.pendingCents, pool.share.refundRightCents, pool.share.refundedCents] : null;
+      if (JSON.stringify(expected) !== JSON.stringify(actual)) throw new Error(`SQL/core participant share mismatch: ${label} ${pool.id} ${JSON.stringify({ expected, actual })}`);
+      if (pool.result && balance && (pool.result.prizeCalculatedCents !== balance.calculatedPrizeCents || pool.result.prizeConfirmedCents !== balance.confirmedPrizeCents)) {
+        throw new Error(`SQL/core participant prize mismatch: ${label} ${pool.id}`);
+      }
+      if (person) cardShares++;
+    }
+  }
+  console.log(`Foundation, finance, planning, registration, results, settlement and participant SQL passed; ${samples.length} financial + ${planningSamples.length} planning + ${stage5Samples.length} registration/result + ${settlementSamples.length} settlement responses (${settlementFacts} settlement facts rebuilt) validated by the real core; ${cardShares} participant card shares match the core; all 32 catalog rules match, manifests/raw sources independently hashed (Auth/Storage stubs; platform integration remains separate).`);
 } catch (error) {
   for (let cause = error; cause; cause = cause.cause) console.error(cause.message, cause.where ?? '');
   process.exitCode = 1;

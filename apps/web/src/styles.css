@@ -1605,6 +1605,23 @@ tr:last-child td {
 .pool-person-state > .ui-btn {
   justify-self: end;
 }
+/* link pessoal: a data à esquerda e o botão à direita, com a largura do texto (não quebra nem estica) */
+.pool-person-link {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px 12px;
+  margin-top: 8px;
+}
+.pool-person-link > .ui-sec {
+  margin-right: auto;
+}
+.pool-person-link > .ui-btn {
+  flex: none;
+  white-space: nowrap;
+}
 .pool-actions {
   display: flex;
   flex-wrap: wrap;
@@ -2089,6 +2106,146 @@ tr:last-child td {
   .icon-tile {
     width: 28px;
     height: 28px;
+  }
+}
+/* Cartão do participante (#/p/<token>): uma coluna, sem a casca do app */
+/* altura da tela inteira: o fundo cobre a tela mesmo com pouco conteúdo e o rodapé fica embaixo */
+.card-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 0 16px 32px;
+}
+.card-main {
+  flex: 1;
+}
+.card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 64px;
+  font-size: 17px;
+  font-weight: 700;
+}
+.card-main > .ui-eyebrow {
+  margin: 8px 0 6px;
+}
+.card-pool {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.card-pool .pool-meta {
+  margin: 10px 0 8px;
+}
+.card-you {
+  margin: 0;
+  font-size: 15px;
+  color: var(--muted);
+}
+.card-you b {
+  color: var(--text);
+  font-weight: 700;
+}
+.card-line,
+.pool-card > .card-line {
+  margin: 6px 0 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--text);
+}
+.card-grid {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.card-prize {
+  display: grid;
+  gap: 2px;
+  margin-top: 14px;
+}
+.card-chip {
+  margin: 14px 0 0;
+}
+.card-others {
+  display: grid;
+  gap: 12px;
+  margin-top: 32px;
+}
+.card-more > summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  list-style: none;
+}
+.card-more > summary::-webkit-details-marker {
+  display: none;
+}
+.card-more > summary > span {
+  flex: 1;
+  min-width: 0;
+}
+.card-more > summary svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  color: var(--purple-ink);
+  transition: transform .2s;
+}
+.card-more[open] > summary svg {
+  transform: rotate(180deg);
+}
+.card-more .pool-title {
+  font-size: 19px;
+}
+.card-more .pool-meta {
+  margin: 8px 0 0;
+}
+.card-more > .card-pool {
+  margin-top: 16px;
+}
+.card-state {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  padding: 40px 0 8px;
+}
+.card-state > .ui-btn {
+  margin-top: 8px;
+}
+.card-state > .pool-card-title {
+  margin: 0;
+}
+.card-foot {
+  display: grid;
+  gap: 4px;
+  margin-top: 32px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+@media (min-width: 760px) {
+  .card-page {
+    padding: 0 24px 40px;
+  }
+  .card-top {
+    min-height: 76px;
+  }
+}
+/* computador: os cartões do bolão em duas colunas, na ordem de leitura (desce a primeira, depois a segunda) */
+@media (min-width: 1000px) {
+  .card-page {
+    max-width: 1060px;
+  }
+  .card-grid {
+    display: block;
+    columns: 2;
+    column-gap: 20px;
+  }
+  .card-grid > * {
+    break-inside: avoid;
+    margin-bottom: 20px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

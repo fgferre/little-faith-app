@@ -54,6 +54,7 @@ import { BoloesScreen } from "./screens/boloes";
 import { DadosScreen } from "./screens/dados";
 import { HistoricoScreen } from "./screens/historico";
 import { InicioScreen } from "./screens/inicio";
+import { ParticipanteScreen } from "./screens/participante";
 import { RevisaoScreen } from "./screens/revisao";
 import {
   browserTimeZone,
@@ -119,7 +120,26 @@ function useRoute() {
   };
 }
 
+/** O token do link pessoal (`#/p/<token>`); só letras, números, - e _, então pontuação colada ao link fica de fora. */
+function participantToken() {
+  const match = /^#\/p\/([A-Za-z0-9_-]*)/.exec(window.location.hash);
+  return match ? match[1]! : null;
+}
+
+/** O cartão do participante abre antes de tudo, sem conta e sem a casca; o resto é o app do organizador. */
 export function App() {
+  const [token, setToken] = useState(participantToken);
+  useEffect(() => {
+    const handler = () => setToken(participantToken());
+    window.addEventListener("hashchange", handler);
+    return () => window.removeEventListener("hashchange", handler);
+  }, []);
+  return token === null
+    ? <OrganizerApp />
+    : <ParticipanteScreen key={token} token={token} />;
+}
+
+function OrganizerApp() {
   const route = useRoute();
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });

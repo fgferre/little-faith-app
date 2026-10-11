@@ -4,6 +4,7 @@ export * from './planning-types';
 export * from './registration-types';
 export * from './result-types';
 export * from './settlement-types';
+export * from './participant-types';
 export * from './evidence';
 export * from './registration';
 export * from './registered-prizes';

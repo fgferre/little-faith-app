@@ -1,6 +1,15 @@
-import { MessageCircle, UserPlus } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link2, MessageCircle, UserPlus } from "lucide-react";
 import { formatBRL, formatQuotaUnits, LOTTERIES, sumCents } from "@bolao/core";
+import { browserTimeZone, errorMessage } from "../app-shared";
 import type { FormKind, Notice, Snapshot } from "../app-shared";
+import {
+  createParticipantLink,
+  ParticipantApiError,
+  pullParticipantLinks,
+  revokeParticipantLink,
+} from "../participant-client";
+import type { ParticipantLink } from "../participant-client";
 import {
   Avatars,
   Bar,
@@ -8,6 +17,7 @@ import {
   Card,
   Chip,
   copiar,
+  diaMes,
   Eyebrow,
   formatWhen,
   Money,
@@ -40,7 +50,7 @@ const missingCents = (person: PoolPerson) =>
   person.dueCents === null
     ? null
     : (BigInt(person.dueCents) - BigInt(person.paidCents)).toString();
-const cotas = (units: number) =>
+export const cotas = (units: number) =>
   `${formatQuotaUnits(units)} ${units < 200 ? "cota" : "cotas"}`;
 
 /** Mensagem curta para o grupo: quem ainda deve, quanto e até quando. */
@@ -68,6 +78,63 @@ function chargeText(view: PoolView) {
   ].join("\n");
 }
 
+/** A mensagem com o link pessoal; o token só existe agora, na criação. */
+function linkText(name: string, group: string, token: string) {
+  const url = `${location.origin}${location.pathname}#/p/${token}`;
+  return `Oi ${name}! Seu cartão do bolão ${group}: ${url}. Nele você vê suas cotas, os jogos, o resultado e a sua parte.`;
+}
+
+/**
+ * Os links pessoais do grupo: carregados do servidor ao abrir, quando há conexão e conta. `ready` só depois
+ * de carregar; antes disso (ou offline) as ações ficam desligadas com o motivo em `problem`; sem conta
+ * (demonstração, só no aparelho) elas nem aparecem (`hidden`).
+ */
+function useParticipantLinks(groupId: string | null) {
+  const [online, setOnline] = useState(navigator.onLine);
+  const [links, setLinks] = useState<ParticipantLink[] | null>(null);
+  const [failed, setFailed] = useState<
+    { text: string; noAccount: boolean } | null
+  >(null);
+  useEffect(() => {
+    const update = () => setOnline(navigator.onLine);
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    return () => {
+      window.removeEventListener("online", update);
+      window.removeEventListener("offline", update);
+    };
+  }, []);
+  useEffect(() => {
+    if (!online || !groupId) return;
+    let active = true;
+    pullParticipantLinks(groupId).then(
+      (pulled) => {
+        if (!active) return;
+        setLinks(pulled);
+        setFailed(null);
+      },
+      (error) =>
+        active && setFailed({
+          text: errorMessage(error),
+          noAccount: error instanceof ParticipantApiError && error.status === 0,
+        }),
+    );
+    return () => {
+      active = false;
+    };
+  }, [online, groupId]);
+  const problem = !online || !groupId
+    ? "Os links pessoais precisam de conexão."
+    : failed?.text ?? null;
+  return {
+    links,
+    setLinks,
+    ready: !problem && links !== null,
+    hidden: online && !!failed?.noAccount,
+    problem,
+  };
+}
+
 export function BolaoArrecadar(
   { snapshot, view, openForm, openReview, goPlay, setNotice }: {
     snapshot: Snapshot;
@@ -90,6 +157,123 @@ export function BolaoArrecadar(
   const ordered = [...people].sort((a, b) =>
     Number(states.get(a.id) !== "paid") - Number(states.get(b.id) !== "paid")
   );
+
+  const groupId = snapshot.groupId;
+  const groupName =
+    snapshot.groups.find((group) => group.id === groupId)?.data.name ?? "";
+  const { links, setLinks, ready, hidden, problem } = useParticipantLinks(
+    groupId,
+  );
+  const [busy, setBusy] = useState<string | null>(null);
+  // Mensagem com link criado que não deu para copiar (o navegador pediu outro toque); some ao sair da tela.
+  const [unsent, setUnsent] = useState<Record<string, string>>({});
+  const activeLinks = (personId: string) =>
+    (links ?? []).filter((link) => link.personId === personId && !link.revokedAt)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+  async function copyLink(person: PoolPerson, text: string) {
+    const copied = await copiar(text);
+    setUnsent(({ [person.id]: _, ...rest }) =>
+      copied ? rest : { ...rest, [person.id]: text }
+    );
+    setNotice(
+      copied
+        ? { text: `Mensagem copiada. Cole na conversa com ${person.name}.` }
+        : {
+          text: "O link foi criado. Toque em Copiar mensagem para enviar.",
+          error: true,
+        },
+    );
+  }
+
+  async function sendLink(person: PoolPerson) {
+    if (!groupId) return;
+    setBusy(person.id);
+    try {
+      const created = await createParticipantLink(groupId, person.id);
+      setLinks((list) => [...(list ?? []), {
+        id: created.id,
+        personId: created.personId,
+        createdAt: created.createdAt,
+        revokedAt: null,
+      }]);
+      await copyLink(person, linkText(person.name, groupName, created.token));
+    } catch (error) {
+      setNotice({ text: errorMessage(error), error: true });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function cancelLink(person: PoolPerson) {
+    if (!groupId) return;
+    setBusy(person.id);
+    try {
+      for (const link of activeLinks(person.id)) {
+        const revoked = await revokeParticipantLink(groupId, link.id);
+        setLinks((list) =>
+          (list ?? []).map((item) =>
+            item.id === revoked.id
+              ? { ...item, revokedAt: revoked.revokedAt }
+              : item
+          )
+        );
+      }
+      setUnsent(({ [person.id]: _, ...rest }) => rest);
+      setNotice({ text: `Link de ${person.name} cancelado. Ele não abre mais.` });
+    } catch (error) {
+      setNotice({ text: errorMessage(error), error: true });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const linkRow = (person: PoolPerson) => {
+    const active = activeLinks(person.id)[0];
+    const text = unsent[person.id];
+    const off = !ready || busy !== null;
+    return (
+      <div className="pool-person-link">
+        {active && (
+          <span className="ui-sec">
+            Link enviado em {diaMes(active.createdAt, browserTimeZone)}
+          </span>
+        )}
+        {text
+          ? (
+            <Button
+              small
+              disabled={busy !== null}
+              onClick={() => void copyLink(person, text)}
+            >
+              Copiar mensagem
+            </Button>
+          )
+          : active
+          ? (
+            <Button
+              variant="ghost"
+              small
+              disabled={off}
+              onClick={() => void cancelLink(person)}
+            >
+              Cancelar link
+            </Button>
+          )
+          : (
+            <Button
+              variant="ghost"
+              small
+              icon={<Link2 aria-hidden="true" />}
+              disabled={off}
+              onClick={() => void sendLink(person)}
+            >
+              Enviar link pessoal
+            </Button>
+          )}
+      </div>
+    );
+  };
 
   async function charge() {
     const copied = await copiar(chargeText(view));
@@ -209,6 +393,9 @@ export function BolaoArrecadar(
       </Card>
       <Card className="pool-card" label="Pessoas">
         <Eyebrow>Pessoas</Eyebrow>
+        {!!people.length && problem && (
+          <p className="ui-sec pool-sub">{problem}</p>
+        )}
         {!!people.length && (
           <ul className="pool-people">
             {people.map((person) => {
@@ -231,6 +418,7 @@ export function BolaoArrecadar(
                         {stateView(person, state)}
                       </div>
                     )}
+                  {!hidden && linkRow(person)}
                 </li>
               );
             })}

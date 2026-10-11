@@ -3,6 +3,7 @@ import { bodyLimit } from 'hono/body-limit';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { EvidenceFailure, evidenceMime, hashBytes, MAX_ORIGINAL_BYTES, uploadOriginal } from './evidence.ts';
 import { collectOfficialResult, ResultCollectionFailure, type CollectionContext } from './results.ts';
+import { createParticipantToken, isParticipantCard, isParticipantLink, participantTokenHash } from './participant.ts';
 import { validateEvidenceMetadata, validateEvidenceUploadMetadata } from '../../../packages/core/src/evidence.ts';
 import {
   exactKeys, isCursor, isFinancialReceipt, isFinancialSnapshot, isHumanSession, isObject,
@@ -63,6 +64,8 @@ export function createApi(config: ApiConfig): Hono<ApiEnvironment> {
       if (mismatch !== 0) return c.json({ code: 'job_access_denied', message: 'Capacidade de coleta não autorizada.' }, 403);
       await next(); return;
     }
+    // The participant card is opened by its link token alone; any session sent along is ignored.
+    if (c.req.method === 'POST' && c.req.path === '/api/v1/participant_card') { await next(); return; }
     if (!token) return c.json({ code: 'authentication_required', message: 'Entre na sua conta antes de sincronizar.' }, 401);
     const supabase = createClient(config.supabaseUrl, config.publishableKey, {
       global: { headers: { Authorization: `Bearer ${token}` } },
@@ -320,6 +323,48 @@ export function createApi(config: ApiConfig): Hono<ApiEnvironment> {
       } catch (error) { return { poolId: job.poolId, status: error instanceof ResultCollectionFailure ? error.code : 'unavailable' }; }
     }));
     return c.json({ outcomes });
+  });
+  app.post('/v1/participant_link', async c => {
+    const value: unknown = await c.req.json().catch(() => null);
+    if (!isObject(value) || !exactKeys(value, ['groupId', 'personId']) || !isUuid(value.groupId) || !isUuid(value.personId)) {
+      return c.json({ code: 'invalid_request', message: 'Informe o grupo e a pessoa do link.' }, 400);
+    }
+    const { token, tokenHash } = await createParticipantToken();
+    const { data, error } = await c.get('supabase').rpc('participant_link_create', { p_group_id: value.groupId, p_person_id: value.personId, p_token_hash: tokenHash });
+    if (error) { const failure = rpcError(error.code); return c.json({ code: failure.code, message: failure.message }, failure.status); }
+    if (!isObject(data) || !isUuid(data.id) || data.personId !== value.personId || typeof data.createdAt !== 'string') return c.json({ code: 'invalid_backend_response', message: 'O link não pôde ser confirmado; crie outro.' }, 503);
+    return c.json({ id: data.id, personId: data.personId, createdAt: data.createdAt, token }, 201);
+  });
+  app.post('/v1/participant_link_revoke', async c => {
+    const value: unknown = await c.req.json().catch(() => null);
+    if (!isObject(value) || !exactKeys(value, ['groupId', 'id']) || !isUuid(value.groupId) || !isUuid(value.id)) {
+      return c.json({ code: 'invalid_request', message: 'Informe o grupo e o link a cancelar.' }, 400);
+    }
+    const { data, error } = await c.get('supabase').rpc('participant_link_revoke', { p_group_id: value.groupId, p_id: value.id });
+    if (error) { const failure = rpcError(error.code); return c.json({ code: failure.code, message: failure.message }, failure.status); }
+    if (!isObject(data) || data.id !== value.id || typeof data.revokedAt !== 'string') return c.json({ code: 'invalid_backend_response', message: 'O cancelamento não pôde ser confirmado; repita.' }, 503);
+    return c.json({ id: data.id, revokedAt: data.revokedAt });
+  });
+  app.post('/v1/participant_links_pull', async c => {
+    const value: unknown = await c.req.json().catch(() => null);
+    if (!isObject(value) || !exactKeys(value, ['groupId']) || !isUuid(value.groupId)) return c.json({ code: 'invalid_request', message: 'Informe um grupo válido.' }, 400);
+    const { data, error } = await c.get('supabase').rpc('participant_links_pull', { p_group_id: value.groupId });
+    if (error) { const failure = rpcError(error.code); return c.json({ code: failure.code, message: failure.message }, failure.status); }
+    if (!isObject(data) || !Array.isArray(data.links) || !data.links.every(isParticipantLink)) return c.json({ code: 'invalid_backend_response', message: 'Os links não puderam ser verificados.' }, 503);
+    return c.json({ links: data.links });
+  });
+  // The token travels in the body, never in the URL, so gateway logs never see it.
+  app.post('/v1/participant_card', async c => {
+    if (!server) return c.json({ code: 'participant_card_unconfigured', message: 'O cartão do participante ainda não está configurado no servidor.' }, 503);
+    const value: unknown = await c.req.json().catch(() => null);
+    const tokenHash = isObject(value) && exactKeys(value, ['token']) ? await participantTokenHash(value.token) : null;
+    if (!tokenHash) return c.json({ code: 'link_unknown', message: 'Este link não existe. Peça um novo ao organizador.' }, 404);
+    const { data, error } = await server.rpc('participant_card', { p_token_hash: tokenHash });
+    if (error) return c.json({ code: 'backend_unavailable', message: 'Não foi possível abrir o cartão agora; tente de novo.' }, 503);
+    if (isObject(data) && data.error === 'link_unknown') return c.json({ code: 'link_unknown', message: 'Este link não existe. Peça um novo ao organizador.' }, 404);
+    if (isObject(data) && data.error === 'link_revoked') return c.json({ code: 'link_revoked', message: 'Este link foi cancelado pelo organizador.' }, 410);
+    if (!isParticipantCard(data)) return c.json({ code: 'invalid_backend_response', message: 'O cartão não pôde ser verificado; tente de novo.' }, 503);
+    return c.json(data);
   });
   app.notFound(c => c.json({ code: 'not_found', message: 'Operação não disponível nesta versão.' }, 404));
   app.onError((error, c) => {
