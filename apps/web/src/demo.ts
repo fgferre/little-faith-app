@@ -1,7 +1,11 @@
 import {
+  brasiliaDateTimeToUTC,
   generateBets,
   GENERATION_ALGORITHM_VERSION,
   LOTTERIES,
+  manualResultRaw,
+  sha256Hex,
+  validateResultSnapshot,
 } from "@bolao/core";
 import type {
   BetData,
@@ -46,10 +50,59 @@ function record<K extends EntityKind>(
   };
 }
 
+const ZONE = "America/Sao_Paulo";
+const MEGA_CONTEST = 3000;
+const civilDay = (at: Date) =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(at);
+const addDays = (day: string, days: number) =>
+  new Date(Date.parse(`${day}T00:00:00Z`) + days * 86_400_000).toISOString()
+    .slice(0, 10);
+
+/** A próxima ocorrência futura do dia da semana (0 = domingo) às hh:mm de Brasília. */
+function nextAt(
+  now: Date,
+  weekday: number,
+  time: string,
+  accept: (day: string) => boolean = () => true,
+) {
+  for (let ahead = 0; ahead < 15; ahead++) {
+    const day = addDays(civilDay(now), ahead);
+    if (new Date(`${day}T00:00:00Z`).getUTCDay() !== weekday) continue;
+    const instant = brasiliaDateTimeToUTC(`${day}T${time}`);
+    if (Date.parse(instant) > now.getTime() && accept(day)) {
+      return { day, instant };
+    }
+  }
+  throw new Error("Não achei a próxima data da demonstração.");
+}
+
 export async function seedDemo(db: BolaoDatabase) {
   // No fixtures enter authenticated stores, the server, or production backups.
-  await db.transaction("rw", db.records, db.confirmedPayments, async () => {
+  const tables = [
+    db.records,
+    db.confirmedPayments,
+    db.contestCalendars,
+    db.resultSnapshots,
+  ];
+  await db.transaction("rw", tables, async () => {
     if (await db.records.get(DEMO_GROUP_ID)) return;
+    // Datas relativas a agora: sorteio no próximo sábado às 20h, prazo interno dois dias antes.
+    const now = new Date();
+    const at15 = (day: string) => brasiliaDateTimeToUTC(`${day}T15:00`);
+    const draw = nextAt(
+      now,
+      6,
+      "20:00",
+      (day) => Date.parse(at15(addDays(day, -2))) > now.getTime(),
+    );
+    const megaDeadline = at15(addDays(draw.day, -2));
+    const fridayDeadline = nextAt(now, 5, "15:00").instant;
+    const wednesdayDeadline = nextAt(now, 3, "15:00").instant;
     const group = record("group", 1, {
       name: "Turma da sorte",
       statute:
@@ -66,8 +119,8 @@ export async function seedDemo(db: BolaoDatabase) {
       record("pool", 10, {
         title: "Mega entre amigos",
         lotteryId: "mega-sena",
-        contestNumber: null,
-        deadlineAt: "2026-10-10T20:00:00.000Z",
+        contestNumber: MEGA_CONTEST,
+        deadlineAt: megaDeadline,
         quotaPriceCents: "6000",
         participationMode: "undecided",
         status: "draft",
@@ -76,7 +129,7 @@ export async function seedDemo(db: BolaoDatabase) {
         title: "Uma sexta de sorte",
         lotteryId: "lotofacil",
         contestNumber: null,
-        deadlineAt: "2026-10-09T20:00:00.000Z",
+        deadlineAt: fridayDeadline,
         quotaPriceCents: "3500",
         participationMode: "undecided",
         status: "draft",
@@ -85,7 +138,7 @@ export async function seedDemo(db: BolaoDatabase) {
         title: "Quina da turma",
         lotteryId: "quina",
         contestNumber: null,
-        deadlineAt: null,
+        deadlineAt: wednesdayDeadline,
         quotaPriceCents: "3000",
         participationMode: "undecided",
         status: "draft",
@@ -155,5 +208,50 @@ export async function seedDemo(db: BolaoDatabase) {
         receiptId: `demo-only-${index}`,
       })),
     );
+    // O calendário do concurso diz à tela inicial quando é o sorteio.
+    const action = {
+      type: "calendar_confirm",
+      poolId: id(10),
+      poolVersion: 1,
+      lotteryId: "mega-sena",
+      contestNumber: MEGA_CONTEST,
+      drawDate: draw.day,
+      expectedDrawAt: draw.instant,
+      registrationClosesAt: null,
+      sourceReference: "Exemplo da demonstração",
+      reason: "Dado de exemplo, sem validade.",
+    } as const;
+    const rawText = manualResultRaw(action);
+    const snapshot = validateResultSnapshot({
+      groupId: DEMO_GROUP_ID,
+      groupRevision: 1,
+      results: [],
+      selections: [],
+      calendarVersions: [{
+        id: id(500),
+        groupId: DEMO_GROUP_ID,
+        poolId: id(10),
+        version: 1,
+        lotteryId: action.lotteryId,
+        contestNumber: action.contestNumber,
+        source: "manual",
+        sourceUrl: null,
+        sourceReference: action.sourceReference,
+        rawText,
+        sha256: sha256Hex(rawText),
+        collectedAt: now.toISOString(),
+        timeZone: ZONE,
+        drawDate: action.drawDate,
+        expectedDrawAt: action.expectedDrawAt,
+        registrationClosesAt: null,
+        receiptId: id(501),
+      }],
+    });
+    await db.contestCalendars.bulkPut(snapshot.calendarVersions);
+    await db.resultSnapshots.put({
+      groupId: DEMO_GROUP_ID,
+      groupRevision: snapshot.groupRevision,
+      updatedAt: now.toISOString(),
+    });
   });
 }

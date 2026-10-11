@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ChevronDown, ChevronRight, MessageCircle, Plus } from "lucide-react";
+import { ChevronRight, MessageCircle, Plus } from "lucide-react";
 import { createResultView, formatBRL, LOTTERIES, sumCents } from "@bolao/core";
 import type { FinancialView, LocalRecord } from "@bolao/core";
 import { getResultSnapshot } from "@bolao/local";
@@ -17,6 +17,7 @@ import {
   Countdown,
   Eyebrow,
   formatWhen,
+  Money,
 } from "../ui";
 
 type StepKey =
@@ -45,12 +46,6 @@ interface PoolView {
   owing: { id: string; name: string }[];
 }
 
-function groupInitials(name: string) {
-  const words = name.trim().split(/\s+/);
-  return ((words[0]?.[0] ?? "") + (words.length > 1 ? words.at(-1)![0] : ""))
-    .toUpperCase() || "?";
-}
-
 function joinNames(names: string[]) {
   if (names.length <= 1) return names[0] ?? "";
   if (names.length > 3) {
@@ -67,11 +62,11 @@ export function InicioScreen(
     financialView,
     route,
     isDemo,
+    reviewCount,
     timeZone,
     openForm,
     setForm,
     setTab,
-    setGroupId,
   }: {
     db: BolaoDatabase;
     snapshot: Snapshot;
@@ -79,11 +74,11 @@ export function InicioScreen(
     financialView: FinancialView | null;
     route: Route;
     isDemo: boolean;
+    reviewCount: number;
     timeZone: string;
     openForm: (kind: FormKind) => void;
     setForm: (kind: FormKind) => void;
     setTab: (tab: Tab) => void;
-    setGroupId: (id: string) => void;
   },
 ) {
   const groupId = group?.id ?? null;
@@ -189,33 +184,6 @@ export function InicioScreen(
 
   return (
     <div className="home">
-      <div className="home-top">
-        {group && (
-          <label className="home-group">
-            <span className="home-group-av" aria-hidden="true">
-              {groupInitials(group.data.name)}
-            </span>
-            <span className="home-group-name">{group.data.name}</span>
-            <ChevronDown aria-hidden="true" />
-            <select
-              aria-label="Trocar de grupo"
-              value={group.id}
-              onChange={(e) => {
-                setGroupId(e.target.value);
-                route.navigate("inicio");
-              }}
-            >
-              {snapshot.groups.map((g) => (
-                <option value={g.id} key={g.id}>{g.data.name}</option>
-              ))}
-            </select>
-          </label>
-        )}
-        <span className="home-mark" role="img" aria-label="Little Faith">
-          <span className="ui-ball" />
-          <span className="ui-ball gold" />
-        </span>
-      </div>
       <h1 className="home-tagline">
         Faça sua fezinha, organize suas apostas e boa sorte!
       </h1>
@@ -302,6 +270,22 @@ export function InicioScreen(
                   </Button>
                 </Card>
               )}
+            {reviewCount > 0 && (
+              <Card
+                className="home-attention"
+                onClick={() => route.navigate("revisao")}
+              >
+                <span className="home-attention-main">
+                  <Eyebrow>Pede atenção</Eyebrow>
+                  <Money>{reviewCount}</Money>
+                  <span className="ui-sec">
+                    {reviewCount === 1 ? "pendência" : "pendências"}{" "}
+                    para revisar · Conferir antes de confirmar
+                  </span>
+                </span>
+                <ChevronRight aria-hidden="true" />
+              </Card>
+            )}
             <section className="home-pools" aria-label="Seus bolões">
               <div className="home-pools-head">
                 <Eyebrow>Seus bolões</Eyebrow>

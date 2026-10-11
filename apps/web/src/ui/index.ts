@@ -1,5 +1,6 @@
 export { Ball, Balls } from "./Ball";
 export type { BallFinish, BallSize } from "./Ball";
+export { BrandMark } from "./BrandMark";
 export { StepStrip } from "./StepStrip";
 export type { StepItem } from "./StepStrip";
 export {

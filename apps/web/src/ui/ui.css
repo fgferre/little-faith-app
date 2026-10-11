@@ -265,6 +265,29 @@
 .ui-balls { display: flex; flex: none; gap: 5px; }
 .ui-balls.grid { display: grid; grid-template-columns: repeat(var(--cols), auto); }
 .ui-balls.sm { gap: 4px; }
+/* marca: duas bolas, prata atrás e ouro na frente; 1em = a bola de prata */
+.ui-brandmark {
+  position: relative;
+  display: block;
+  flex: none;
+  width: 1.9em;
+  height: 1.8em;
+  font-size: 20px;
+}
+.ui-brandmark .ui-ball {
+  position: absolute;
+  top: .05em;
+  left: 0;
+  width: 1em;
+  height: 1em;
+}
+.ui-brandmark .ui-ball.gold {
+  top: .5em;
+  left: .65em;
+  width: 1.25em;
+  height: 1.25em;
+  box-shadow: 0 0 0 1.5px rgba(10, 8, 32, .6), 0 2px 4px rgba(0, 0, 0, .4);
+}
 
 /* pessoas */
 .ui-avatars { display: flex; align-items: center; }

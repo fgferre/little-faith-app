@@ -43,6 +43,7 @@ import {
 import type { EntityDataMap, EntityKind } from "@bolao/core";
 import { createLocalStore, listRecords, saveDraft, sync } from "@bolao/local";
 import { Avatar, Clover } from "./components";
+import { BrandMark } from "./ui";
 import { createAccountTransport, supabase } from "./auth";
 import { seedDemo } from "./demo";
 import { saveLocalDraft } from "./repository";
@@ -493,7 +494,7 @@ export function App() {
             aria-label="Little Faith — início"
           >
             <span className="brand-icon">
-              <Clover />
+              <BrandMark />
             </span>
             <span>
               little faith<span className="brand-sub">
@@ -602,7 +603,7 @@ export function App() {
           <header className="topbar">
             <div className="breadcrumb">
               <span className="mobile-brand">
-                <Clover />little faith
+                <BrandMark />little faith
               </span>
               <span className="desktop-crumb">
                 Seu espaço <ChevronRight size={14} />
@@ -701,11 +702,11 @@ export function App() {
                       financialView={financialView}
                       route={route}
                       isDemo={isDemo}
+                      reviewCount={reviewCount}
                       timeZone={timeZone}
                       openForm={openForm}
                       setForm={setForm}
                       setTab={setTab}
-                      setGroupId={setGroupId}
                     />
                   )}
 
