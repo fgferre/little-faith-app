@@ -1,355 +1,365 @@
-import { motion } from "motion/react";
-import type { ReactNode } from "react";
-import {
-  ArrowRight,
-  CheckCheck,
-  ChevronRight,
-  ClipboardList,
-  Clock3,
-  FolderHeart,
-  Plus,
-  ShieldCheck,
-  Ticket,
-  Users,
-  Wallet,
-} from "lucide-react";
-import { formatBRL, LOTTERIES } from "@bolao/core";
-import type { LocalRecord } from "@bolao/core";
-import {
-  Avatar,
-  Clover,
-  EmptyState,
-  LotteryBadge,
-  SectionTitle,
-  Stat,
-  TextLink,
-} from "../components";
-import { formatDate } from "../app-shared";
+import { useMemo } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
+import { ChevronDown, ChevronRight, MessageCircle, Plus } from "lucide-react";
+import { createResultView, formatBRL, LOTTERIES, sumCents } from "@bolao/core";
+import type { FinancialView, LocalRecord } from "@bolao/core";
+import { getResultSnapshot } from "@bolao/local";
+import type { BolaoDatabase } from "@bolao/local";
+import { draftQuotaCost } from "../quota-display";
+import { latestManifest } from "../planning";
 import type { FormKind, Route, Snapshot, Tab } from "../app-shared";
+import {
+  Avatars,
+  Button,
+  calendarDaysUntil,
+  Card,
+  Chip,
+  Countdown,
+  Eyebrow,
+  formatWhen,
+} from "../ui";
+
+type StepKey =
+  | "montar"
+  | "arrecadar"
+  | "jogar"
+  | "registrar"
+  | "sorteio"
+  | "dividir";
+const STEP_LABEL: Record<StepKey, string> = {
+  montar: "Montar",
+  arrecadar: "Arrecadar",
+  jogar: "Jogar",
+  registrar: "Registrar",
+  sorteio: "Sorteio",
+  dividir: "Dividir",
+};
+
+interface PoolView {
+  pool: LocalRecord<"pool">;
+  step: StepKey;
+  drawAt: string | null;
+  collectedCents: string;
+  expectedCents: string | null;
+  hasQuotas: boolean;
+  owing: { id: string; name: string }[];
+}
+
+function groupInitials(name: string) {
+  const words = name.trim().split(/\s+/);
+  return ((words[0]?.[0] ?? "") + (words.length > 1 ? words.at(-1)![0] : ""))
+    .toUpperCase() || "?";
+}
+
+function joinNames(names: string[]) {
+  if (names.length <= 1) return names[0] ?? "";
+  if (names.length > 3) {
+    return `${names.slice(0, 3).join(", ")} e mais ${names.length - 3}`;
+  }
+  return `${names.slice(0, -1).join(", ")} e ${names.at(-1)}`;
+}
 
 export function InicioScreen(
   {
+    db,
     snapshot,
     group,
-    pool,
-    poolBets,
-    poolQuotas,
+    financialView,
     route,
     isDemo,
-    reviewCount,
-    confirmedCents,
-    proposedCents,
-    gamesCost,
-    primaryAction,
+    timeZone,
     openForm,
     setForm,
     setTab,
+    setGroupId,
   }: {
+    db: BolaoDatabase;
     snapshot: Snapshot;
     group: LocalRecord<"group"> | undefined;
-    pool: LocalRecord<"pool"> | undefined;
-    poolBets: LocalRecord<"bet">[];
-    poolQuotas: LocalRecord<"quota">[];
+    financialView: FinancialView | null;
     route: Route;
     isDemo: boolean;
-    reviewCount: number;
-    confirmedCents: string;
-    proposedCents: string;
-    gamesCost: string;
-    primaryAction: ReactNode;
+    timeZone: string;
     openForm: (kind: FormKind) => void;
     setForm: (kind: FormKind) => void;
     setTab: (tab: Tab) => void;
+    setGroupId: (id: string) => void;
   },
 ) {
+  const groupId = group?.id ?? null;
+  const results = useLiveQuery(
+    async () => groupId ? await getResultSnapshot(db, groupId) : null,
+    [db, groupId],
+  );
+  const resultView = useMemo(
+    () => results ? createResultView(results) : null,
+    [results],
+  );
+
+  const views: PoolView[] = snapshot.pools.map((pool) => {
+    const quotas = snapshot.quotas.filter((q) => q.data.poolId === pool.id);
+    const personIds = [...new Set(quotas.map((q) => q.data.personId))];
+    const confirmed = snapshot.confirmed.filter((p) => p.poolId === pool.id);
+    const people = personIds.map((personId) => {
+      const units = quotas.filter((q) => q.data.personId === personId)
+        .reduce((n, q) => n + q.data.units, 0);
+      const due = draftQuotaCost(pool.data.quotaPriceCents, units);
+      const paid = isDemo
+        ? sumCents(
+          confirmed.filter((p) => p.personId === personId).map((p) =>
+            p.amountCents
+          ),
+        )
+        : financialView?.personPoolFunding(pool.id, personId) ?? "0";
+      const person = snapshot.persons.find((p) => p.id === personId);
+      return {
+        id: personId,
+        name: person?.data.nickname || person?.data.name || "Sem nome",
+        due,
+        owes: due === null || BigInt(paid) < BigInt(due),
+      };
+    });
+    const dues = people.map((p) => p.due);
+    const funded = people.length > 0 && people.every((p) => !p.owes);
+    const result = resultView?.currentResult(pool.id).result;
+    const registered = ["registered", "settled"].includes(pool.data.status) ||
+      snapshot.registrations.some((r) => r.poolId === pool.id);
+    const locked = pool.data.status === "locked" ||
+      !!latestManifest(snapshot.planning, pool.id);
+    const calendar = resultView?.currentCalendar(pool.id);
+    return {
+      pool,
+      step: result?.drawnNumbers
+        ? "dividir"
+        : registered
+        ? "sorteio"
+        : locked
+        ? "registrar"
+        : !quotas.length
+        ? "montar"
+        : funded
+        ? "jogar"
+        : "arrecadar",
+      drawAt: pool.data.contestNumber !== null &&
+          calendar?.contestNumber === pool.data.contestNumber
+        ? calendar.expectedDrawAt
+        : null,
+      collectedCents: isDemo
+        ? sumCents(confirmed.map((p) => p.amountCents))
+        : financialView?.finance.pools[pool.id]?.allocatedCents ?? "0",
+      expectedCents: dues.some((due) => due === null)
+        ? null
+        : sumCents(dues as string[]),
+      hasQuotas: quotas.length > 0,
+      owing: people.filter((p) => p.owes),
+    };
+  });
+
+  // Alvo da contagem: o próximo sorteio conhecido; senão o prazo de pagamento mais próximo.
+  const now = Date.now();
+  const upcoming = (iso: string | null): iso is string =>
+    iso !== null &&
+    (Date.parse(iso) >= now ||
+      calendarDaysUntil(Date.parse(iso), now, timeZone) === 0);
+  const earliest = (list: PoolView[], at: (v: PoolView) => string | null) =>
+    list.filter((v) => upcoming(at(v))).sort((a, b) =>
+      Date.parse(at(a)!) - Date.parse(at(b)!)
+    )[0];
+  const draw = earliest(
+    views.filter((v) => v.step !== "dividir"),
+    (v) => v.drawAt,
+  );
+  const deadline = draw ? undefined : earliest(
+    views.filter((v) => v.step === "montar" || v.step === "arrecadar"),
+    (v) => v.pool.data.deadlineAt,
+  );
+  const hero = draw ?? deadline ?? views.find((v) => v.step !== "dividir") ??
+    views[0];
+  const target = draw?.drawAt ?? deadline?.pool.data.deadlineAt ?? null;
+
+  const when = (v: PoolView) => {
+    if (v.drawAt) return formatWhen(Date.parse(v.drawAt), now, timeZone);
+    if (v.pool.data.deadlineAt && (v.step === "montar" || v.step === "arrecadar")) {
+      return `pagar até ${
+        formatWhen(Date.parse(v.pool.data.deadlineAt), now, timeZone)
+      }`;
+    }
+    return null;
+  };
+
   return (
-    <>
-      <div className="page-heading">
-        <div>
-          <span className="eyebrow">SEU CANTINHO DA SORTE</span>
-          <h1>
-            Faça sua fezinha,<br />
-            <span>
-              organize suas apostas<br />e boa sorte!
+    <div className="home">
+      <div className="home-top">
+        {group && (
+          <label className="home-group">
+            <span className="home-group-av" aria-hidden="true">
+              {groupInitials(group.data.name)}
             </span>
-          </h1>
-          <p>Seus bolões, sua turma e cada detalhe no lugar.</p>
-        </div>
-        {primaryAction}
+            <span className="home-group-name">{group.data.name}</span>
+            <ChevronDown aria-hidden="true" />
+            <select
+              aria-label="Trocar de grupo"
+              value={group.id}
+              onChange={(e) => {
+                setGroupId(e.target.value);
+                route.navigate("inicio");
+              }}
+            >
+              {snapshot.groups.map((g) => (
+                <option value={g.id} key={g.id}>{g.data.name}</option>
+              ))}
+            </select>
+          </label>
+        )}
+        <span className="home-mark" role="img" aria-label="Little Faith">
+          <span className="ui-ball" />
+          <span className="ui-ball gold" />
+        </span>
       </div>
+      <h1 className="home-tagline">
+        Faça sua fezinha, organize suas apostas e boa sorte!
+      </h1>
+
       {!group
         ? (
-          <EmptyState
-            icon={<FolderHeart size={30} />}
-            title="Sua próxima boa história começa aqui"
-            description="Crie um grupo e prepare seu primeiro bolão. Participantes não precisam criar conta."
-            action={
-              <button
-                className="button primary"
-                onClick={() => setForm("group")}
-              >
-                <Plus size={18} />Criar meu primeiro grupo
-              </button>
-            }
-          />
+          <Card className="home-hero">
+            <Eyebrow>Primeiro passo</Eyebrow>
+            <h2 className="ui-title">Sua próxima boa história começa aqui</h2>
+            <p className="ui-sec">
+              Crie um grupo e prepare seu primeiro bolão. Participantes não
+              precisam criar conta.
+            </p>
+            <Button
+              icon={<Plus aria-hidden="true" />}
+              onClick={() => setForm("group")}
+            >
+              Criar meu primeiro grupo
+            </Button>
+          </Card>
         )
         : (
           <>
-            <div className="dashboard-grid">
-              <motion.section
-                className="hero-card"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                <div className="hero-copy">
-                  <span className="hero-eyebrow">
-                    <span />JUNTOS NO PRÓXIMO SORTEIO
-                  </span>
-                  <h2>
-                    {pool?.data.title ??
-                      "Vamos fazer um bolão?"}
-                  </h2>
-                  <p>
-                    {pool
-                      ? "A sorte é uma surpresa. A organização não precisa ser."
-                      : "Reúna a turma e comece pelos detalhes."}
-                  </p>
-                  {pool && (
-                    <div className="hero-meta">
-                      <LotteryBadge
-                        lotteryId={pool.data.lotteryId}
-                      />
-                      <span>
-                        <Clock3 size={14} />
-                        {formatDate(
-                          pool.data.deadlineAt,
-                          "America/Sao_Paulo",
-                        )} · Brasília
-                      </span>
-                    </div>
-                  )}
-                  <button
-                    className="hero-button"
-                    onClick={() =>
-                      pool
-                        ? route.navigate("boloes", pool.id)
-                        : openForm("pool")}
-                  >
-                    {pool ? "Cuidar deste bolão" : "Preparar primeiro bolão"}
-                    <ArrowRight size={18} />
-                  </button>
-                </div>
-                <div className="hero-art" aria-hidden="true">
-                  <div className="orbit orbit-one" />
-                  <div className="orbit orbit-two" />
-                  <Clover className="hero-clover" />
-                  <span className="floating-ball ball-one">
-                    07
-                  </span>
-                  <span className="floating-ball ball-two">
-                    24
-                  </span>
-                  <span className="floating-ball ball-three">
-                    38
-                  </span>
-                  <span className="star star-one">✦</span>
-                  <span className="star star-two">✧</span>
-                  <span className="art-caption">
-                    VAI QUE É A NOSSA VEZ :)
-                  </span>
-                </div>
-              </motion.section>
-              <section className="attention-card">
-                <div className="card-heading">
-                  <span className="icon-tile amber">
-                    <ClipboardList size={20} />
-                  </span>
-                  <span className="eyebrow">
-                    UM OLHAR COM CARINHO
-                  </span>
-                </div>
-                <h2>O que pede atenção</h2>
-                {reviewCount
-                  ? (
-                    <button
-                      className="attention-line"
-                      onClick={() => route.navigate("revisao")}
-                    >
-                      <span className="attention-count">
-                        {reviewCount}
-                      </span>
-                      <span>
-                        <strong>pendências para revisar</strong>
-                        <small>
-                          Confira antes de confirmar
-                        </small>
-                      </span>
-                      <ChevronRight size={17} />
-                    </button>
-                  )
-                  : (
-                    <div className="all-good">
-                      <CheckCheck size={24} />
-                      <strong>Nenhuma proposta pendente</strong>
-                      <span>
-                        Um bom momento para preparar os jogos.
-                      </span>
-                    </div>
-                  )}
-                <div className="attention-footer">
-                  <ShieldCheck size={16} />
-                  <span>
-                    Confirmar é conferir o recebimento.
-                  </span>
-                </div>
-              </section>
-            </div>
-            {pool && (
-              <>
-                <div className="context-line">
-                  <span>
-                    UM RETRATO DE <strong>{pool.data.title}</strong>
-                  </span>
-                  <span>
-                    <span className="tiny-dot" />
-                    {isDemo ? "Valores demonstrativos" : "Somente este bolão"}
-                  </span>
-                </div>
-                <div className="stats-grid">
-                  <Stat
-                    icon={<Wallet size={19} />}
-                    color="green"
-                    label="Caixa confirmado"
-                    value={formatBRL(confirmedCents)}
-                    note={isDemo
-                      ? "Recebimentos de exemplo"
-                      : "Apenas recebimentos confirmados"}
-                  />
-                  <Stat
-                    icon={<Clock3 size={19} />}
-                    color="amber"
-                    label="Em revisão"
-                    value={formatBRL(proposedCents)}
-                    note="Separado do dinheiro disponível"
-                  />
-                  <Stat
-                    icon={<Ticket size={19} />}
-                    color="purple"
-                    label="Jogos preparados"
-                    value={String(poolBets.length).padStart(
-                      2,
-                      "0",
-                    )}
-                    note={`${formatBRL(gamesCost)} em apostas planejadas`}
-                  />
-                  <Stat
-                    icon={<Users size={19} />}
-                    color="blue"
-                    label="Pessoas com cotas"
-                    value={String(
-                      new Set(
-                        poolQuotas.map((q) => q.data.personId),
-                      ).size,
-                    ).padStart(2, "0")}
-                    note="Direitos ainda em preparação"
-                  />
-                </div>
-              </>
-            )}
-            <div className="lower-grid">
-              <section className="panel pools-panel">
-                <SectionTitle
-                  title="Nossos bolões"
-                  subtitle="Cada concurso, uma nova história."
-                  action={
-                    <TextLink
-                      onClick={() => route.navigate("boloes")}
-                    >
-                      Ver todos
-                    </TextLink>
-                  }
-                />
-                <div className="compact-pools">
-                  {snapshot.pools.slice(0, 3).map((p) => (
-                    <button
-                      className="compact-pool"
-                      key={p.id}
-                      onClick={() => route.navigate("boloes", p.id)}
-                    >
-                      <span
-                        className={`pool-icon ${p.data.lotteryId}`}
-                      >
-                        <Clover />
-                      </span>
-                      <span>
-                        <strong>{p.data.title}</strong>
-                        <small>
-                          {LOTTERIES[p.data.lotteryId].label} ·{" "}
-                          {p.data.contestNumber
-                            ? `Concurso ${p.data.contestNumber}`
-                            : "Concurso a definir"}
-                        </small>
-                      </span>
-                      <span className="draft-pill">
-                        Em preparação
-                      </span>
-                      <ChevronRight size={17} />
-                    </button>
-                  ))}
-                  {!snapshot.pools.length && (
-                    <p className="muted">
-                      Seu grupo está pronto. Agora é só criar um bolão.
-                    </p>
-                  )}
-                </div>
-              </section>
-              <section className="panel people-panel">
-                <SectionTitle
-                  title="A sorte tem companhia"
-                  subtitle={group.data.name}
-                />
-                <div className="avatar-stack">
-                  {snapshot.persons.slice(0, 6).map((p, i) => (
-                    <Avatar
-                      name={p.data.name}
-                      index={i}
-                      key={p.id}
-                    />
-                  ))}
-                  {snapshot.persons.length > 6 && (
-                    <span className="avatar avatar-extra">
-                      +{snapshot.persons.length - 6}
-                    </span>
-                  )}
-                </div>
-                <p>
-                  {snapshot.persons.length
+            {hero
+              ? (
+                <Card className="home-hero">
+                  {target
                     ? (
                       <>
-                        <strong>
-                          {snapshot.persons.length} pessoas
-                        </strong>{" "}
-                        já fazem parte da turma.<br />Cada uma com seu lugar,
-                        tudo bem cuidado.
+                        <Eyebrow>{draw ? "Sorteio em" : "Pagar até"}</Eyebrow>
+                        <Countdown target={target} timeZone={timeZone} />
+                        <p className="ui-sec">
+                          {hero.pool.data.title} ·{" "}
+                          {formatWhen(Date.parse(target), now, timeZone)}
+                        </p>
                       </>
                     )
-                    : "Adicione as pessoas do grupo. Uma conta no app é opcional."}
-                </p>
-                <TextLink
-                  onClick={() => {
-                    if (pool) {
-                      setTab("pessoas");
-                      route.navigate("boloes", pool.id);
-                    } else openForm("person");
-                  }}
+                    : (
+                      <>
+                        <h2 className="ui-title">Sorteio a definir</h2>
+                        <p className="ui-sec">{hero.pool.data.title}</p>
+                      </>
+                    )}
+                  {hero.owing.length > 0 && (
+                    <>
+                      <div className="home-due">
+                        <Avatars
+                          people={hero.owing.map((p) => ({
+                            ...p,
+                            status: "owe",
+                          }))}
+                          max={4}
+                        />
+                        <p>
+                          <span className="home-amber">Falta pagar:</span>{" "}
+                          {joinNames(hero.owing.map((p) => p.name))}
+                        </p>
+                      </div>
+                      <Button
+                        icon={<MessageCircle aria-hidden="true" />}
+                        onClick={() => {
+                          setTab("pessoas");
+                          route.navigate("boloes", hero.pool.id);
+                        }}
+                      >
+                        Cobrar no WhatsApp
+                      </Button>
+                    </>
+                  )}
+                </Card>
+              )
+              : (
+                <Card className="home-hero">
+                  <Eyebrow>Primeiro bolão</Eyebrow>
+                  <h2 className="ui-title">Seu grupo está pronto</h2>
+                  <p className="ui-sec">
+                    Agora é só preparar o primeiro bolão.
+                  </p>
+                  <Button
+                    icon={<Plus aria-hidden="true" />}
+                    onClick={() => openForm("pool")}
+                  >
+                    Preparar primeiro bolão
+                  </Button>
+                </Card>
+              )}
+            <section className="home-pools" aria-label="Seus bolões">
+              <div className="home-pools-head">
+                <Eyebrow>Seus bolões</Eyebrow>
+                <Button
+                  variant="ghost"
+                  small
+                  icon={<Plus aria-hidden="true" />}
+                  onClick={() => openForm("pool")}
                 >
-                  {snapshot.persons.length ? "Ver a turma" : "Adicionar pessoa"}
-                </TextLink>
-              </section>
-            </div>
+                  Novo bolão
+                </Button>
+              </div>
+              {views.map((v) => {
+                const line = when(v);
+                return (
+                  <Card
+                    key={v.pool.id}
+                    className="home-pool"
+                    onClick={() => route.navigate("boloes", v.pool.id)}
+                  >
+                    <span className="home-pool-main">
+                      <b>{v.pool.data.title}</b>
+                      <span className="ui-sec">
+                        {v.hasQuotas
+                          ? (
+                            <>
+                              <span className="ui-nb">
+                                {formatBRL(v.collectedCents)}
+                              </span>
+                              {v.expectedCents !== null && (
+                                <>
+                                  {" de "}
+                                  <span className="ui-nb">
+                                    {formatBRL(v.expectedCents)}
+                                  </span>
+                                </>
+                              )}
+                            </>
+                          )
+                          : "Nenhuma cota ainda"}
+                        {line && <>{" · "}{line}</>}
+                      </span>
+                      <span className="home-pool-chips">
+                        <Chip modality={v.pool.data.lotteryId}>
+                          {LOTTERIES[v.pool.data.lotteryId].label}
+                        </Chip>
+                        <Chip modality={v.pool.data.lotteryId} step>
+                          {STEP_LABEL[v.step]}
+                        </Chip>
+                      </span>
+                    </span>
+                    <ChevronRight aria-hidden="true" />
+                  </Card>
+                );
+              })}
+            </section>
           </>
         )}
-    </>
+    </div>
   );
 }

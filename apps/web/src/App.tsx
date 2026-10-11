@@ -147,9 +147,6 @@ export function App() {
   const [syncError, setSyncError] = useState<string | null>(null);
   const [storageUsage, setStorageUsage] = useState<string | null>(null);
   const [persistent, setPersistent] = useState(false);
-  const [dark, setDark] = useState(() =>
-    localStorage.getItem("little-faith:theme") === "dark"
-  );
   const accountId = mode === "account" && session
     ? session.user.id
     : mode === "demo"
@@ -198,10 +195,6 @@ export function App() {
     };
   }, []);
 
-  useEffect(() => {
-    document.documentElement.dataset.theme = dark ? "dark" : "light";
-    localStorage.setItem("little-faith:theme", dark ? "dark" : "light");
-  }, [dark]);
   useEffect(() => {
     localStorage.setItem("little-faith:timeZone", timeZone);
   }, [timeZone]);
@@ -702,21 +695,17 @@ export function App() {
                 <>
                   {route.screen === "inicio" && (
                     <InicioScreen
+                      db={db}
                       snapshot={snapshot}
                       group={group}
-                      pool={pool}
-                      poolBets={poolBets}
-                      poolQuotas={poolQuotas}
+                      financialView={financialView}
                       route={route}
                       isDemo={isDemo}
-                      reviewCount={reviewCount}
-                      confirmedCents={confirmedCents}
-                      proposedCents={proposedCents}
-                      gamesCost={gamesCost}
-                      primaryAction={primaryAction}
+                      timeZone={timeZone}
                       openForm={openForm}
                       setForm={setForm}
                       setTab={setTab}
+                      setGroupId={setGroupId}
                     />
                   )}
 
@@ -793,7 +782,6 @@ export function App() {
                       syncError={syncError}
                       storageUsage={storageUsage}
                       persistent={persistent}
-                      dark={dark}
                       timeZone={timeZone}
                       synchronize={synchronize}
                       switchMode={switchMode}
@@ -803,7 +791,6 @@ export function App() {
                       setStorageUsage={setStorageUsage}
                       setPersistent={setPersistent}
                       setSession={setSession}
-                      setDark={setDark}
                       setTimeZone={setTimeZone}
                     />
                   )}

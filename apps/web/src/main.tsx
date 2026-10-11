@@ -1,6 +1,11 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { App } from "./App";
+import "@fontsource/sora/latin-500.css";
+import "@fontsource/sora/latin-600.css";
+import "@fontsource/sora/latin-700.css";
+import "@fontsource/sora/latin-800.css";
+import "./ui/ui.css";
 import "./styles.css";
 import "./planning.css";
 import "./registration.css";

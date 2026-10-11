@@ -1,0 +1,304 @@
+/* Kit da direção "Noite do sorteio" (docs/estilo/direcao-visual.html). Nada abaixo de 12 px;
+   o brilho fica só no ouro. */
+:root {
+  --mint: #3ee6a0;
+  --amber: #ff9f4a;
+  --red: #ff8a97;
+  --red-soft: rgba(255, 93, 115, .16);
+  --gold: #ffcf4a;
+  --gold-ink: #2a1d00;
+  --ghost-line: #7a74a8;
+  --focus: #c4b8ff;
+  --line-tap: rgba(255, 255, 255, .14);
+  --mod: var(--mint);
+  /* bolas de metal polido: prata = números dos jogos; ouro = sorteados e acertos premiados */
+  --ag:
+    radial-gradient(8% 8% at 30% 22%, #fff 45%, rgba(255, 255, 255, 0) 100%),
+    linear-gradient(128deg, rgba(255, 255, 255, 0) 19%, rgba(255, 255, 255, .9) 30%, rgba(255, 255, 255, .25) 37%, rgba(255, 255, 255, 0) 45%),
+    radial-gradient(70% 42% at 50% 104%, rgba(168, 146, 255, .42), rgba(168, 146, 255, 0) 100%),
+    radial-gradient(circle closest-side, rgba(27, 20, 70, 0) 70%, rgba(27, 20, 70, .38) 100%),
+    linear-gradient(172deg, #f6f6fb 0%, #e8e8f0 34%, #b4b4c7 58%, #8e8ea3 84%, #9f9bbd 100%);
+  --au:
+    radial-gradient(8% 8% at 30% 22%, #fff 45%, rgba(255, 255, 255, 0) 100%),
+    linear-gradient(128deg, rgba(255, 248, 222, 0) 19%, rgba(255, 248, 222, .9) 30%, rgba(255, 248, 222, .25) 37%, rgba(255, 248, 222, 0) 45%),
+    radial-gradient(70% 42% at 50% 104%, rgba(255, 214, 120, .55), rgba(255, 214, 120, 0) 100%),
+    radial-gradient(circle closest-side, rgba(96, 54, 0, 0) 70%, rgba(96, 54, 0, .42) 100%),
+    linear-gradient(172deg, #fff3c6 0%, #ffe08a 34%, #e6b03a 58%, #b8860b 84%, #c99a2a 100%);
+  --au-ring: conic-gradient(from 200deg, #fff2bd, #d9a12a 18%, #ffe08a 38%, #9a6a05 60%, #ffd66e 80%, #fff2bd);
+}
+.mod-mega-sena { --mod: #3ee6a0; }
+.mod-lotofacil { --mod: #f07cf5; }
+.mod-quina { --mod: #5cc8ff; }
+
+/* tipografia */
+.ui-eyebrow {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  line-height: 1.3;
+  color: var(--muted);
+}
+.ui-sec {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--muted);
+}
+.ui-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -.01em;
+}
+.ui-money {
+  display: block;
+  font-size: 44px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+}
+.ui-money small {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--muted);
+}
+.ui-money.prize {
+  font-size: 48px;
+  font-weight: 800;
+  color: var(--gold);
+  text-shadow: 0 0 24px rgba(255, 207, 74, .4);
+}
+.ui-nb { white-space: nowrap; }
+
+/* cartões */
+.ui-card {
+  position: relative;
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, .10);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, .06);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+}
+.ui-card.interactive {
+  border-color: var(--line-tap);
+  cursor: pointer;
+}
+.ui-card.interactive:hover { background: rgba(255, 255, 255, .08); }
+
+/* botões */
+.ui-btn {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 14px;
+  background: #5b43d6;
+  color: #fff;
+  font: 700 15px/1.2 Sora, system-ui, sans-serif;
+  text-decoration: none;
+}
+.ui-btn:hover { background: #6650dc; }
+.ui-btn.ghost {
+  background: transparent;
+  color: var(--text);
+  border: 1.5px solid var(--ghost-line);
+}
+.ui-btn.ghost:hover { background: rgba(255, 255, 255, .05); }
+.ui-btn.sm {
+  width: auto;
+  min-height: 44px;
+  padding: 8px 14px;
+}
+.ui-btn svg { width: 20px; height: 20px; flex: none; }
+.ui-btn:focus-visible,
+.ui-card.interactive:focus-visible,
+.ui-step:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* selos: modalidade (com ponto), etapa atual (sem ponto) e estados */
+.ui-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--mod) 20%, transparent);
+  color: var(--mod);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.ui-chip.dot::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--mod);
+}
+.ui-chip svg { width: 15px; height: 15px; flex: none; }
+.ui-chip.confirmed { padding: 0; background: none; color: var(--mint); }
+.ui-chip.pending {
+  padding: 4px 10px;
+  border: 1.5px dashed var(--amber);
+  background: none;
+  color: var(--amber);
+}
+.ui-chip.problem { padding: 0; background: none; color: var(--red); }
+
+.ui-problem {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px;
+  border: 1px solid rgba(255, 138, 151, .4);
+  border-radius: 12px;
+  background: var(--red-soft);
+}
+.ui-problem > svg { width: 20px; height: 20px; flex: none; margin-top: 1px; color: var(--red); }
+.ui-problem strong { display: block; font-size: 15px; font-weight: 700; line-height: 1.3; color: var(--red); }
+.ui-problem p { margin: 4px 0 0; font-size: 13px; font-weight: 600; color: var(--text); }
+
+/* faixa de etapas: rola com esmaecido só do lado em que ainda há etapas escondidas */
+.ui-steps ol {
+  --fl: 0px;
+  --fr: 0px;
+  position: relative;
+  display: flex;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, rgba(0, 0, 0, .35) calc(var(--fl) * .45), #000 var(--fl), #000 calc(100% - var(--fr)), rgba(0, 0, 0, .35) calc(100% - var(--fr) * .45), transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, rgba(0, 0, 0, .35) calc(var(--fl) * .45), #000 var(--fl), #000 calc(100% - var(--fr)), rgba(0, 0, 0, .35) calc(100% - var(--fr) * .45), transparent 100%);
+}
+.ui-steps ol::-webkit-scrollbar { display: none; }
+.ui-steps li { flex: none; }
+.ui-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: 600 13px/1 Sora, system-ui, sans-serif;
+  white-space: nowrap;
+}
+.ui-step svg { width: 14px; height: 14px; flex: none; }
+.ui-step.now {
+  background: color-mix(in srgb, var(--mod) 20%, transparent);
+  color: var(--mod);
+  font-weight: 700;
+}
+
+/* bolas */
+.ui-ball {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--ag);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .35);
+  color: #1b1446;
+  font: 700 13px/1 Sora, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, .4);
+}
+.ui-ball.sm { width: 28px; height: 28px; font-size: 12px; }
+.ui-ball.gold {
+  background: var(--au);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 0 12px rgba(255, 207, 74, .45);
+  color: var(--gold-ink);
+  text-shadow: 0 1px 0 rgba(255, 246, 214, .45);
+}
+/* acerto em jogo não premiado: prata com anel fino de ouro */
+.ui-ball.ring::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  padding: 1.5px;
+  border-radius: 50%;
+  background: var(--au-ring);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+.ui-game {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+.ui-game > .ui-game-name {
+  flex: 1 1 0;
+  min-width: max-content;
+  font-size: 15px;
+  font-weight: 600;
+}
+.ui-balls { display: flex; flex: none; gap: 5px; }
+.ui-balls.grid { display: grid; grid-template-columns: repeat(var(--cols), auto); }
+.ui-balls.sm { gap: 4px; }
+
+/* pessoas */
+.ui-avatars { display: flex; align-items: center; }
+.ui-av {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  margin-left: -6px;
+  border: 2px solid #191341;
+  border-radius: 50%;
+  background: #3b3274;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+}
+.ui-av:first-child { margin-left: 0; }
+.ui-av.more { background: #2a2360; }
+.ui-av.paid { background: color-mix(in srgb, var(--mint) 22%, #191341); }
+.ui-av.owe {
+  margin-left: 4px;
+  border: 2px dashed var(--amber);
+  background: transparent;
+  color: var(--amber);
+}
+.ui-av.problem {
+  margin-left: 4px;
+  border-color: var(--red);
+  background: var(--red-soft);
+  color: var(--red);
+}
+.ui-av.owe:first-child,
+.ui-av.problem:first-child { margin-left: 0; }
+
+/* contagem */
+.ui-countdown { display: inline-block; }

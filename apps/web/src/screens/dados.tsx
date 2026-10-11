@@ -26,7 +26,6 @@ export function DadosScreen(
     syncError,
     storageUsage,
     persistent,
-    dark,
     timeZone,
     synchronize,
     switchMode,
@@ -36,7 +35,6 @@ export function DadosScreen(
     setStorageUsage,
     setPersistent,
     setSession,
-    setDark,
     setTimeZone,
   }: {
     snapshot: Snapshot;
@@ -49,7 +47,6 @@ export function DadosScreen(
     syncError: string | null;
     storageUsage: string | null;
     persistent: boolean;
-    dark: boolean;
     timeZone: string;
     synchronize: (manual?: boolean) => Promise<void>;
     switchMode: (next: "demo" | "local" | "account") => void;
@@ -59,7 +56,6 @@ export function DadosScreen(
     setStorageUsage: (usage: string | null) => void;
     setPersistent: (persistent: boolean) => void;
     setSession: (session: Session | null) => void;
-    setDark: (dark: boolean) => void;
     setTimeZone: (timeZone: string) => void;
   },
 ) {
@@ -256,19 +252,6 @@ export function DadosScreen(
         </section>
         <section className="panel">
           <SectionTitle title="Do seu jeito" />
-          <label className="theme-toggle">
-            <span>
-              <strong>Aparência escura</strong>
-              <small>Uma opção mais suave à noite.</small>
-            </span>
-            <input
-              type="checkbox"
-              checked={dark}
-              onChange={(e) => setDark(e.target.checked)}
-              role="switch"
-            />
-            <span className="switch-track" />
-          </label>
           <label className="timezone-setting">
             Fuso para conferir concursos<select
               value={timeZone}

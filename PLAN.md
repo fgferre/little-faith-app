@@ -16,8 +16,16 @@ Especificação: `docs/ESPECIFICACAO.md` › "Apuração e rateio" e "Ordem de i
   resultados já passou sozinho em 10/10).
 - [x] E4. Backend (10/10: seis ações; encerrar/reabrir ficam rejeitados com aviso): migration, RPCs e família HTTP de settlement, com validação SQL↔core, autorização humana, locks,
   revisão e idempotência.
-- [ ] E5. Frontend, já na direção escolhida: tela, transporte, pendências e histórico; a fila de settlement entra na
-  proteção de revisão de **todas** as famílias de comandos; o caixa exibido passa a ser a projeção conciliada.
+- [ ] E5. Frontend, já na direção escolhida, em três rodadas com arquivos separados:
+  - [ ] E5a. Kit do estilo em `apps/web/src/ui/` (bolas, faixa de etapas, botões, cartões, selos, estados, contagem),
+    Sora embutida, tema noite aplicado ao app inteiro (as telas antigas ficam coerentes, não refeitas), Início refeito
+    com a contagem para o sorteio e quem falta pagar; `scripts/visual/medir.mjs` e `foto.mjs` para conferir as telas.
+  - [ ] E5b. Tela do bolão sobre o kit: a faixa de etapas substitui as abas; antes/depois do sorteio, vitória e "não foi
+    dessa vez", Lotofácil em 5×3; o planejador em linguagem simples ("1 em 834 mil"), o que também resolve o item 13;
+    os fluxos de navegador seguem a tela nova.
+  - [ ] E5c. Etapa "Dividir": prêmio confirmado, resgate, a parte de cada pessoa e "já paguei", ligados ao transporte e
+    à sincronização; a fila de settlement entra na proteção de revisão de **todas** as famílias de comandos; o caixa
+    exibido passa a ser a projeção conciliada; cartão do WhatsApp (item 7, parte da imagem).
 - [ ] E6. E2E completo da etapa 6 e `npm run done`; documentação com os números que passarem de verdade (item 3).
 - [ ] E7. Piloto: Supabase real, Google, publicação e um bolão real do começo ao fim (cada passo pede a palavra dele).
 

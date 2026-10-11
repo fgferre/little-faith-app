@@ -182,7 +182,7 @@ for (const width of [320, 390, 768, 1440]) {
     ).toBe(true);
     if (width === 1440 || width === 390) {
       await page.goto("/#/inicio");
-      await expect(page.locator(".hero-card")).toHaveCSS("opacity", "1");
+      await expect(page.locator(".home-hero")).toHaveCSS("opacity", "1");
       await page.screenshot({
         path: `test-results/dashboard-${
           width === 1440 ? "desktop" : "mobile"
