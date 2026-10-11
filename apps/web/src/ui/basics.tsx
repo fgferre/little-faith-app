@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type {
+  ButtonHTMLAttributes,
+  InputHTMLAttributes,
+  ReactNode,
+} from "react";
 import { useReducedMotion } from "motion/react";
 import { Check, ChevronDown, CircleAlert, Clock3 } from "lucide-react";
 import { formatBRL } from "@bolao/core";
@@ -58,20 +62,84 @@ export function Eyebrow({ children }: { children: ReactNode }) {
   return <span className="ui-eyebrow">{children}</span>;
 }
 
+/** Topo de uma tela: rótulo pequeno, título de 28, uma linha opcional e a ação principal ao lado. */
+export function PageHead(
+  { eyebrow, title, line, action }: {
+    eyebrow: string;
+    title: string;
+    line?: ReactNode;
+    action?: ReactNode;
+  },
+) {
+  return (
+    <div className="ui-page-head">
+      <div>
+        <Eyebrow>{eyebrow}</Eyebrow>
+        <h1 className="ui-title">{title}</h1>
+        {line && <p className="ui-sec">{line}</p>}
+      </div>
+      {action}
+    </div>
+  );
+}
+
+/** Campo de dinheiro com "R$" na frente; o rótulo continua sendo o <label> em volta. */
+export function MoneyInput(props: InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <span className="ui-input">
+      <span className="ui-input-pre" aria-hidden="true">R$</span>
+      <input inputMode="decimal" {...props} />
+    </span>
+  );
+}
+
+/**
+ * Uma pendência da Revisão: a família (Pagamento, Plano…), de quem ou de qual bolão, o valor,
+ * o estado (âmbar "A conferir" ou vermelho) e as ações, com "Conferir" como a principal.
+ */
+export function ReviewItem(
+  { family, title, line, cents, status = "pending", state, children }: {
+    family: string;
+    title: string;
+    line?: ReactNode;
+    cents?: string | undefined;
+    status?: "pending" | "problem";
+    state: string;
+    children?: ReactNode;
+  },
+) {
+  return (
+    <Card className="ui-review" label={`${family}: ${title}`}>
+      <div className="ui-review-head">
+        <Chip family>{family}</Chip>
+        <Chip status={status}>{state}</Chip>
+      </div>
+      <div className="ui-review-main">
+        <b>{title}</b>
+        {cents !== undefined && <Money small cents={cents} />}
+      </div>
+      {line && <p className="ui-sec">{line}</p>}
+      {children && <div className="ui-review-actions">{children}</div>}
+    </Card>
+  );
+}
+
 export type ChipStatus = "confirmed" | "pending" | "problem";
 
 /**
- * Selo de modalidade (com ponto), da etapa atual (`step`, sem ponto) ou de estado:
- * confirmado = ✓ menta só texto; pendência = âmbar tracejado com relógio; problema = vermelho.
+ * Selo de modalidade (com ponto), da etapa atual (`step`, sem ponto), de família (`family`, neutro) ou de
+ * estado: confirmado = ✓ menta só texto; pendência = âmbar tracejado com relógio; problema = vermelho.
  */
 export function Chip(
-  { modality, step = false, status, children }: {
+  { modality, step = false, family = false, status, children }: {
     modality?: LotteryId;
     step?: boolean;
+    family?: boolean;
     status?: ChipStatus;
     children: ReactNode;
   },
 ) {
+  if (family) return <span className="ui-chip family">{children}</span>;
   if (status) {
     const Icon = status === "confirmed"
       ? Check
@@ -138,9 +206,19 @@ function useCountUp(cents: string | undefined, enabled: boolean, delay: number) 
  * `countUp` faz o valor contar até o total quando aparece (desligado com movimento reduzido).
  */
 export function Money(
-  { cents, prize = false, countUp = false, delay = 0, suffix, children }: {
+  {
+    cents,
+    prize = false,
+    small = false,
+    countUp = false,
+    delay = 0,
+    suffix,
+    children,
+  }: {
     cents?: string;
     prize?: boolean;
+    /** Valor de uma linha (20 px), como o de cada pendência. */
+    small?: boolean;
     countUp?: boolean;
     /** Espera antes de contar, em ms (as bolas sorteadas caem primeiro). */
     delay?: number;
@@ -150,7 +228,10 @@ export function Money(
 ) {
   const shown = useCountUp(cents, countUp, delay);
   return (
-    <span className={`ui-money ${prize ? "prize" : ""}`}>
+    <span
+      className={["ui-money", prize && "prize", small && "sm"].filter(Boolean)
+        .join(" ")}
+    >
       {shown !== undefined ? formatBRL(shown) : children}
       {suffix && <small>{suffix}</small>}
     </span>

@@ -20,7 +20,8 @@ import {
 } from "@bolao/local";
 import type { BolaoDatabase, PersistentPlanningCommand } from "@bolao/local";
 import { createAccountTransport } from "./auth";
-import { Modal, SectionTitle } from "./components";
+import { Modal } from "./components";
+import { Button, ReviewItem } from "./ui";
 import { assertCurrentPlan } from "./planning-preview";
 import { readReviewSnapshot } from "./review-snapshot";
 import {
@@ -55,10 +56,12 @@ interface Preview {
   manifest: PoolManifest | null;
 }
 
+/** Decisões de plano sem resposta ("open") ou que não deram certo ("failed"), em cartões da Revisão. */
 export function PlanningPending(
-  { db, groupId, open }: {
+  { db, groupId, show, open }: {
     db: BolaoDatabase;
     groupId: string;
+    show: "open" | "failed";
     open: (request: PlanningRequest) => void;
   },
 ) {
@@ -71,46 +74,48 @@ export function PlanningPending(
     [db, groupId],
   );
   const commands = raw?.scope === `${db.name}:${groupId}` ? raw.commands : [];
-  const failed = commands.filter((command) =>
+  const title = (command: (typeof commands)[number]) =>
+    command.command.action.type === "plan_apply"
+      ? "Aplicar o plano"
+      : "Travar o bolão";
+  if (show === "open") {
+    return commands.filter(unresolved).map((command) => (
+      <ReviewItem
+        key={command.idempotencyKey}
+        family="Plano"
+        title={title(command)}
+        state="A conferir"
+        line="A decisão ficou guardada neste aparelho, mas a resposta não chegou. Confira antes de repetir."
+      >
+        <Button
+          aria-label="Conferir decisão do plano"
+          onClick={() =>
+            open({ type: "recover", idempotencyKey: command.idempotencyKey })}
+        >
+          Conferir
+        </Button>
+      </ReviewItem>
+    ));
+  }
+  return commands.filter((command) =>
     command.status === "conflict" || command.status === "rejected"
-  ).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 10);
-  return (
-    <>
-      {commands.filter(unresolved).map((command) => (
-        <section className="panel finance-pending" key={command.idempotencyKey}>
-          <SectionTitle
-            title="Uma decisão de plano precisa de verificação"
-            subtitle="A aplicação ou trava foi preparada neste aparelho. Consulte o recibo antes de repetir a decisão."
-          />
-          <button
-            className="button secondary"
-            onClick={() =>
-              open({ type: "recover", idempotencyKey: command.idempotencyKey })}
-          >
-            <RefreshCw size={17} />Verificar decisão do plano
-          </button>
-        </section>
-      ))}
-      {!!failed.length && (
-        <section className="panel">
-          <SectionTitle title="Decisões de plano que precisam de revisão" />
-          {failed.map((command) => (
-            <p className="inline-note" key={command.idempotencyKey}>
-              <span>
-                <strong>
-                  {command.command.action.type === "plan_apply"
-                    ? "Aplicação do plano"
-                    : "Trava do bolão"}:
-                </strong>{" "}
-                {command.receipt?.message ??
-                  "Revise os dados e prepare uma nova decisão."}
-              </span>
-            </p>
-          ))}
-        </section>
-      )}
-    </>
-  );
+  ).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 10).map((
+    command,
+  ) => (
+    <ReviewItem
+      key={command.idempotencyKey}
+      family="Plano"
+      title={title(command)}
+      status="problem"
+      state="Não confirmada"
+      line={
+        <span className="ui-review-note">
+          {command.receipt?.message ??
+            "Revise os dados e prepare uma nova decisão."}
+        </span>
+      }
+    />
+  ));
 }
 
 export function PlanningDialog(
@@ -493,14 +498,14 @@ export function PlanningDialog(
   return (
     <Modal
       title={shown?.title ?? "Revisar decisão do plano"}
-      description="Confirme online sobre os dados do servidor. Aplicação e trava nunca são enviadas automaticamente."
+      description="Confira com a internet ligada. Aplicar o plano e travar o bolão só acontecem quando você confirma."
       onClose={() => {
         if (canClose) onClose();
       }}
     >
       {busy && (
         <p className="inline-note">
-          <LoaderCircle className="spin" size={17} />Consultando o servidor…
+          <LoaderCircle className="spin" size={17} />Buscando os dados atuais…
         </p>
       )}
       {!enabled && <p className="inline-note">{availability}</p>}
@@ -557,8 +562,8 @@ export function PlanningDialog(
       )}
       {key && (
         <p className="inline-note">
-          A decisão original está preservada. A consulta recupera seu recibo; o
-          reenvio usa os mesmos jogos, valores, responsáveis e chave.
+          A decisão original está guardada. Consultar o recibo mostra se ela
+          valeu; reenviar usa os mesmos jogos, valores e responsáveis.
         </p>
       )}
       {error && <p className="form-error" role="alert">{error}</p>}

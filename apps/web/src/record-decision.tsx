@@ -29,7 +29,8 @@ import {
 } from "@bolao/local";
 import type { BolaoDatabase } from "@bolao/local";
 import { createAccountTransport } from "./auth";
-import { Modal, SectionTitle } from "./components";
+import { Modal } from "./components";
+import { Button, ReviewItem } from "./ui";
 import { readReviewSnapshot } from "./review-snapshot";
 
 export type RecordRequest =
@@ -49,10 +50,12 @@ const message = (value: unknown) =>
     ? value.message
     : "Não foi possível concluir a conferência.";
 
+/** Conferências de registro e resultado sem resposta ("open") ou que não deram certo ("failed"). */
 export function RecordPending(
-  { db, groupId, open }: {
+  { db, groupId, show, open }: {
     db: BolaoDatabase;
     groupId: string;
+    show: "open" | "failed";
     open: (request: RecordRequest) => void;
   },
 ) {
@@ -64,50 +67,52 @@ export function RecordPending(
     result: await db.resultCommands.where("groupId").equals(groupId).toArray(),
   }), [db, groupId]);
   if (raw?.scope !== scope) return null;
-  return (
-    <>
-      {(["registration", "result"] as const).flatMap((family) =>
-        raw[family].map((saved) =>
-          unresolved(saved)
-            ? (
-              <section
-                className="panel finance-pending"
-                key={`${family}:${saved.idempotencyKey}`}
-              >
-                <SectionTitle
-                  title={family === "registration"
-                    ? "Conferência de registro aguardando verificação"
-                    : "Conferência de resultado aguardando verificação"}
-                  subtitle="A decisão original ficou salva. Consulte o recibo antes de repetir."
-                />
-                <button
-                  className="button secondary"
-                  onClick={() =>
-                    open({ family, idempotencyKey: saved.idempotencyKey })}
-                >
-                  <RefreshCw size={17} />Verificar conferência{" "}
-                  {family === "registration" ? "do registro" : "do resultado"}
-                </button>
-              </section>
-            )
-            : ["rejected", "conflict"].includes(saved.status)
-            ? (
-              <p
-                className="inline-note"
-                key={`${family}:${saved.idempotencyKey}`}
-              >
-                <span>
-                  <strong>Conferência não confirmada:</strong>{" "}
-                  {saved.receipt?.message ??
-                    "Revise os dados e prepare uma nova decisão."}
-                </span>
-              </p>
-            )
-            : null
+  return (["registration", "result"] as const).flatMap((family) => {
+    const name = family === "registration" ? "Registro" : "Resultado";
+    return raw[family].map((saved) =>
+      show === "open" && unresolved(saved)
+        ? (
+          <ReviewItem
+            key={`${family}:${saved.idempotencyKey}`}
+            family={name}
+            title={family === "registration"
+              ? "Conferência do registro"
+              : "Conferência do resultado"}
+            state="A conferir"
+            line="A decisão ficou guardada neste aparelho, mas a resposta não chegou. Confira antes de repetir."
+          >
+            <Button
+              aria-label={`Conferir ${
+                family === "registration" ? "o registro" : "o resultado"
+              }`}
+              onClick={() =>
+                open({ family, idempotencyKey: saved.idempotencyKey })}
+            >
+              Conferir
+            </Button>
+          </ReviewItem>
         )
-      )}
-    </>
-  );
+        : show === "failed" && ["rejected", "conflict"].includes(saved.status)
+        ? (
+          <ReviewItem
+            key={`${family}:${saved.idempotencyKey}`}
+            family={name}
+            title={family === "registration"
+              ? "Conferência do registro"
+              : "Conferência do resultado"}
+            status="problem"
+            state="Não confirmada"
+            line={
+              <span className="ui-review-note">
+                {saved.receipt?.message ??
+                  "Revise os dados e prepare uma nova decisão."}
+              </span>
+            }
+          />
+        )
+        : null
+    );
+  });
 }
 
 export function RecordDialog(

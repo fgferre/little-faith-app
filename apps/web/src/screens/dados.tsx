@@ -1,21 +1,18 @@
 import type { Session } from "@supabase/supabase-js";
-import {
-  Cloud,
-  CloudOff,
-  Download,
-  LogIn,
-  Plus,
-  RefreshCw,
-  ShieldCheck,
-} from "lucide-react";
+import { useState } from "react";
+import { Download, LogIn, Plus, RefreshCw } from "lucide-react";
 import type { LocalRecord } from "@bolao/core";
-import { SectionTitle } from "../components";
+import { exportEmergencySnapshot } from "@bolao/local";
+import type { BolaoDatabase } from "@bolao/local";
 import { loginWithGoogle, supabase } from "../auth";
+import { downloadText } from "../registration-handoff";
+import { Button, Card, Chip, Eyebrow, PageHead, ProblemBox } from "../ui";
 import { errorMessage, formatDate, supportedTimeZones } from "../app-shared";
 import type { FormKind, Notice, Snapshot } from "../app-shared";
 
 export function DadosScreen(
   {
+    db,
     snapshot,
     group,
     session,
@@ -37,6 +34,7 @@ export function DadosScreen(
     setSession,
     setTimeZone,
   }: {
+    db: BolaoDatabase;
     snapshot: Snapshot;
     group: LocalRecord<"group"> | undefined;
     session: Session | null;
@@ -59,201 +57,175 @@ export function DadosScreen(
     setTimeZone: (timeZone: string) => void;
   },
 ) {
+  const [exporting, setExporting] = useState(false);
+  const connection = !online
+    ? <Chip status="pending">Sem internet</Chip>
+    : isDemo
+    ? <Chip family>Demonstração</Chip>
+    : session && mode === "account"
+    ? <Chip status="confirmed">Conectado à sua conta</Chip>
+    : <Chip family>Só neste aparelho</Chip>;
+  const facts: [string, string | number][] = [
+    ["Esperando para enviar", snapshot.summary.pending],
+    ["Duas versões para escolher", snapshot.summary.conflicts],
+    [
+      "Última sincronização",
+      snapshot.summary.lastSyncAt
+        ? formatDate(snapshot.summary.lastSyncAt, timeZone)
+        : "Ainda não aconteceu",
+    ],
+    ["Espaço usado", storageUsage ?? "Toque em Consultar e proteger"],
+  ];
+
+  async function protect() {
+    try {
+      const estimate = await navigator.storage?.estimate();
+      setStorageUsage(
+        estimate?.usage !== undefined
+          ? `${(estimate.usage / 1_048_576).toFixed(1)} MB`
+          : "Consulta indisponível",
+      );
+      const granted = await navigator.storage?.persist?.();
+      setPersistent(granted ?? false);
+      setNotice({
+        text: granted
+          ? "Este navegador vai guardar seus dados de forma permanente."
+          : "Espaço consultado. O navegador ainda pode apagar dados se faltar espaço; baixe uma cópia de emergência de vez em quando.",
+      });
+    } catch (e) {
+      setNotice({ text: errorMessage(e), error: true });
+    }
+  }
+
+  async function exportCopy() {
+    setExporting(true);
+    try {
+      const text = await exportEmergencySnapshot(db);
+      downloadText(
+        text,
+        `little-faith-copia-de-emergencia-${
+          new Date().toISOString().slice(0, 10)
+        }.json`,
+        "application/json",
+      );
+      setNotice({
+        text: "Cópia baixada. Guarde o arquivo em lugar seguro: ele não tem senha.",
+      });
+    } catch (e) {
+      setNotice({ text: errorMessage(e), error: true });
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function signOut() {
+    try {
+      const { error } = await supabase!.auth.signOut();
+      if (error) throw error;
+      setSession(null);
+      switchMode("local");
+      setNotice({
+        text:
+          "Você saiu da conta. O que estava neste aparelho continua guardado.",
+      });
+    } catch (e) {
+      setNotice({ text: errorMessage(e), error: true });
+    }
+  }
+
   return (
     <>
-      <div className="page-heading compact">
-        <div>
-          <span className="eyebrow">
-            SEU TRABALHO BEM CUIDADO
-          </span>
-          <h1>Dados e integrações</h1>
-          <p>
-            Saiba o que está salvo e o que ainda precisa de conexão.
-          </p>
-        </div>
-      </div>
+      <PageHead
+        eyebrow="Onde tudo fica guardado"
+        title="Dados e integrações"
+        line="O que está salvo neste aparelho e o que precisa de internet."
+      />
       <div className="settings-grid">
-        <section className="panel">
-          <SectionTitle
-            title="Este aparelho"
-            subtitle={isDemo
-              ? "Espaço exclusivo da demonstração"
-              : session && mode === "account"
-              ? "Espaço privado da sua conta"
-              : "Seus rascunhos locais"}
-          />
-          <div className="settings-row">
-            <span>Conexão</span>
-            <strong>{online ? "Online" : "Offline"}</strong>
+        <Card className="finance-card" label="Este aparelho">
+          <div className="finance-head">
+            <Eyebrow>Este aparelho</Eyebrow>
+            {connection}
           </div>
-          <div className="settings-row">
-            <span>Alterações na fila</span>
-            <strong>{snapshot.summary.pending}</strong>
-          </div>
-          <div className="settings-row">
-            <span>Conflitos</span>
-            <strong>{snapshot.summary.conflicts}</strong>
-          </div>
-          <div className="settings-row">
-            <span>Última sincronização</span>
-            <strong>
-              {snapshot.summary.lastSyncAt
-                ? formatDate(snapshot.summary.lastSyncAt)
-                : "Ainda não realizada"}
-            </strong>
-          </div>
-          <div className="settings-row">
-            <span>Armazenamento</span>
-            <strong>
-              {storageUsage ?? "Consultar uso abaixo"}
-            </strong>
-          </div>
-          <div className="panel-actions">
-            {group && (
-              <button
-                className="button secondary"
-                onClick={() => openForm("edit-group")}
-              >
-                Editar grupo e combinados
-              </button>
-            )}
-            <button
-              className="button primary"
-              disabled={syncing}
-              onClick={() => {
-                void synchronize(true);
-              }}
-            >
-              <RefreshCw
-                size={16}
-                className={syncing ? "spin" : ""}
-              />Sincronizar agora
-            </button>
-            <button
-              className="button secondary"
-              onClick={() => {
-                void (async () => {
-                  try {
-                    const estimate = await navigator.storage
-                      ?.estimate();
-                    setStorageUsage(
-                      estimate?.usage !== undefined
-                        ? `${
-                          (estimate.usage / 1_048_576).toFixed(
-                            1,
-                          )
-                        } MB usados`
-                        : "Consulta indisponível",
-                    );
-                    const granted = await navigator.storage
-                      ?.persist?.();
-                    setPersistent(granted ?? false);
-                    setNotice({
-                      text: granted
-                        ? "Armazenamento persistente autorizado neste navegador."
-                        : "Uso consultado. O navegador ainda pode liberar espaço; mantenha cópias de segurança.",
-                    });
-                  } catch (e) {
-                    setNotice({
-                      text: errorMessage(e),
-                      error: true,
-                    });
-                  }
-                })();
-              }}
-            >
-              Consultar e proteger
-            </button>
-          </div>
+          <dl className="history-lines">
+            {facts.map(([label, value]) => (
+              <div key={label}>
+                <dt>{label}</dt>
+                <dd>{value}</dd>
+              </div>
+            ))}
+          </dl>
           {persistent && (
-            <p className="positive">
-              <ShieldCheck size={15} />Armazenamento persistente autorizado
-            </p>
+            <Chip status="confirmed">Guardado de forma permanente</Chip>
           )}
           {syncError && (
-            <p role="alert" className="form-error">
-              {syncError}
-            </p>
+            <div role="alert">
+              <ProblemBox title="A sincronização não terminou">
+                {syncError}
+              </ProblemBox>
+            </div>
           )}
-        </section>
-        <section className="panel">
-          <SectionTitle
-            title="Sua conta, seus aparelhos"
-            subtitle="Participantes podem continuar pelo WhatsApp."
-          />
-          <div className="account-illustration">
-            <Cloud size={35} />
-            <span>+</span>
-            <ShieldCheck size={35} />
+          <div className="settings-actions">
+            <Button
+              disabled={syncing}
+              icon={
+                <RefreshCw
+                  aria-hidden="true"
+                  className={syncing ? "spin" : ""}
+                />
+              }
+              onClick={() => void synchronize(true)}
+            >
+              Sincronizar agora
+            </Button>
+            <Button variant="ghost" onClick={() => void protect()}>
+              Consultar e proteger
+            </Button>
           </div>
+        </Card>
+        <Card className="finance-card" label="Sua conta">
+          <Eyebrow>Sua conta</Eyebrow>
           <p className="settings-copy">
             {session
               ? `Conta conectada: ${session.user.email ?? "organizador"}.`
               : supabase
-              ? "Entre com Google para sincronizar rascunhos entre aparelhos."
-              : "A conexão compartilhada ainda não foi configurada. Você já pode preparar tudo neste aparelho."}
+              ? "Entre com Google para ter os mesmos bolões em todos os seus aparelhos. Quem participa continua pelo WhatsApp, sem conta."
+              : "A conta compartilhada ainda não foi ligada neste app. Você já pode preparar tudo neste aparelho."}
           </p>
-          {!session && (
-            <button
-              className="button primary"
-              disabled={!supabase || !online}
-              onClick={() => {
-                void loginWithGoogle().catch((e) =>
-                  setNotice({
-                    text: errorMessage(e),
-                    error: true,
-                  })
-                );
-              }}
-            >
-              <LogIn size={17} />Entrar com Google
-            </button>
-          )}
-          {session && (
-            <div className="panel-actions">
-              <button
-                className="button primary"
-                onClick={() => switchMode("account")}
-              >
-                Usar minha conta
-              </button>
-              <button
-                className="button secondary"
-                onClick={() => {
-                  void (async () => {
-                    const { error } = await supabase!.auth
-                      .signOut();
-                    if (error) throw error;
-                    setSession(null);
-                    switchMode("local");
-                    setNotice({
-                      text:
-                        "Você saiu da conta. Os rascunhos dessa conta foram preservados neste aparelho.",
-                    });
-                  })().catch((e) =>
-                    setNotice({
-                      text: errorMessage(e),
-                      error: true,
-                    })
-                  );
-                }}
-              >
-                Sair e preservar dados
-              </button>
-            </div>
-          )}
-          <div className="inline-note">
-            <CloudOff size={17} />
-            <span>
-              Rascunhos locais e demonstração são espaços separados da sua
-              conta. Trocar de espaço preserva o trabalho.
-            </span>
+          <div className="settings-actions">
+            {session
+              ? (
+                <>
+                  <Button onClick={() => switchMode("account")}>
+                    Usar minha conta
+                  </Button>
+                  <Button variant="ghost" onClick={() => void signOut()}>
+                    Sair e guardar os dados
+                  </Button>
+                </>
+              )
+              : (
+                <Button
+                  icon={<LogIn aria-hidden="true" />}
+                  disabled={!supabase || !online}
+                  onClick={() => {
+                    void loginWithGoogle().catch((e) =>
+                      setNotice({ text: errorMessage(e), error: true })
+                    );
+                  }}
+                >
+                  Entrar com Google
+                </Button>
+              )}
           </div>
-        </section>
-        <section className="panel">
-          <SectionTitle title="Do seu jeito" />
+          <p className="ui-sec">
+            O que fica só neste aparelho e a demonstração são espaços separados
+            da sua conta. Trocar de espaço não apaga nada.
+          </p>
+        </Card>
+        <Card className="finance-card" label="Seu grupo">
+          <Eyebrow>Seu grupo</Eyebrow>
           <label className="timezone-setting">
-            Fuso para conferir concursos<select
+            Fuso para os horários dos sorteios<select
               value={timeZone}
               onChange={(event) => setTimeZone(event.target.value)}
             >
@@ -261,51 +233,72 @@ export function DadosScreen(
                 <option value={zone} key={zone}>{zone}</option>
               ))}
             </select>
-            <small>
-              Os horários dos concursos mostram Brasília e este fuso, com as
-              regras de horário de verão aplicáveis.
+            <small className="ui-sec">
+              Os horários aparecem no de Brasília e neste fuso, com horário de
+              verão quando houver.
             </small>
           </label>
-          <div className="panel-actions">
-            <button
-              className="button secondary"
-              onClick={() => switchMode("local")}
+          <div className="settings-actions">
+            {group && (
+              <Button variant="ghost" onClick={() => openForm("edit-group")}>
+                Editar grupo e combinados
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              icon={<Plus aria-hidden="true" />}
+              onClick={() => setForm("group")}
             >
-              Usar rascunhos locais
-            </button>
-            <button
-              className="button secondary"
-              onClick={() => switchMode("demo")}
-            >
-              Explorar demonstração
-            </button>
+              Adicionar outro grupo
+            </Button>
           </div>
-          <button
-            className="text-link"
-            onClick={() => setForm("group")}
-          >
-            <Plus size={16} />Adicionar outro grupo
-          </button>
-        </section>
-        <section className="panel">
-          <SectionTitle title="Recuperação e próximos passos" />
-          <div className="inline-note">
-            <Download size={19} />
-            <span>
-              Backup protegido e restauração completa serão implementados na
-              etapa de recuperação. O armazenamento do navegador ainda é a única
-              cópia dos rascunhos locais.
-            </span>
-          </div>
-          <p className="muted">
-            Rascunhos, cálculos, pessoas, jogos e conferência financeira online,
-            planejamento, registro e resultados. Resgate, distribuição, acesso
-            por agente e recuperação completa são as próximas etapas.
+        </Card>
+        <Card className="finance-card" label="Cópia de emergência">
+          <Eyebrow>Cópia de emergência</Eyebrow>
+          <p className="settings-copy">
+            Baixa um arquivo com tudo o que está neste aparelho, para guardar
+            se o navegador falhar.
           </p>
-          <div className="build-badge">
-            EM CONSTRUÇÃO · v0.1.0
+          <ProblemBox title="Não é a cópia de segurança completa">
+            Não traz o que está só no servidor e não tem senha: quem tiver o
+            arquivo vê os dados do grupo.
+          </ProblemBox>
+          <div className="settings-actions">
+            <Button
+              variant="ghost"
+              disabled={exporting}
+              icon={<Download aria-hidden="true" />}
+              onClick={() => void exportCopy()}
+            >
+              Baixar cópia de emergência
+            </Button>
           </div>
-        </section>
+        </Card>
+        <Card className="finance-card" label="Demonstração">
+          <Eyebrow>Demonstração</Eyebrow>
+          <p className="settings-copy">
+            {isDemo
+              ? "Você está vendo dados de exemplo. Nada daqui se mistura com o seu grupo."
+              : "Veja um grupo de exemplo a qualquer momento; o seu continua guardado."}
+          </p>
+          <div className="settings-actions">
+            {!isDemo && (
+              <Button variant="ghost" onClick={() => switchMode("demo")}>
+                Ver a demonstração
+              </Button>
+            )}
+            {mode !== "local" && (
+              <Button variant="ghost" onClick={() => switchMode("local")}>
+                Usar só este aparelho
+              </Button>
+            )}
+            {session && mode !== "account" && (
+              <Button variant="ghost" onClick={() => switchMode("account")}>
+                Voltar para minha conta
+              </Button>
+            )}
+          </div>
+        </Card>
       </div>
     </>
   );

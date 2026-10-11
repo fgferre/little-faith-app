@@ -38,6 +38,7 @@ import { downloadText, registrationChecklist } from "../registration-handoff";
 import type { RecordRequest } from "../record-decision";
 import type { Notice } from "../app-shared";
 import {
+  ampliado,
   Balls,
   Button,
   Card,
@@ -45,11 +46,11 @@ import {
   copiar,
   Disclosure,
   Eyebrow,
+  GameGroups,
+  porAutor,
   ProblemBox,
   reais,
 } from "../ui";
-import { GameGroups } from "../ui/Ball";
-import { ampliado, porAutor } from "../ui/texto";
 
 interface TicketDraft {
   present: boolean;

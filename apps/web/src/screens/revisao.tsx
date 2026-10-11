@@ -1,10 +1,8 @@
 import { lazy, Suspense, useState } from "react";
-import { AlertTriangle, CheckCheck, ShieldCheck, Wallet } from "lucide-react";
-import { formatBRL } from "@bolao/core";
-import type { LocalRecord } from "@bolao/core";
+import { useLiveQuery } from "dexie-react-hooks";
+import type { EntityKind, LocalRecord } from "@bolao/core";
 import { resolveConflict } from "@bolao/local";
 import type { BolaoDatabase } from "@bolao/local";
-import { EmptyState, StateBadge } from "../components";
 import { FinancialPending, FinancialReview } from "../finance";
 import type { FinancialRequest } from "../finance";
 import { PlanningPending } from "../planning-decision";
@@ -12,7 +10,15 @@ import type { PlanningRequest } from "../planning-decision";
 import type { RecordRequest } from "../record-decision";
 import { errorMessage, formatDate } from "../app-shared";
 import type { Notice, SaveRecord, Snapshot } from "../app-shared";
-import { DivisaoDecisao, DivisaoPendente } from "./bolao-dividir-decisao";
+import {
+  Button,
+  Card,
+  Chip,
+  Disclosure,
+  PageHead,
+  ReviewItem,
+} from "../ui";
+import { DivisaoDecisao } from "./bolao-dividir-decisao";
 import type { PedidoDivisao } from "./bolao-dividir-decisao";
 
 const RecordPending = lazy(() =>
@@ -20,6 +26,92 @@ const RecordPending = lazy(() =>
     default: module.RecordPending,
   }))
 );
+
+/** Pendências de cada família: as que esperam conferência ou as que não deram certo. */
+export type PendingShow = "open" | "failed";
+
+const KIND_LABEL: Record<EntityKind, string> = {
+  group: "Grupo",
+  person: "Pessoa",
+  pool: "Bolão",
+  quota: "Cota",
+  "payment-proposal": "Pagamento",
+  bet: "Jogo",
+};
+
+const DIVISAO_LABEL: Record<string, string> = {
+  expense_confirm: "Custo das apostas",
+  prize_confirm: "Prêmio",
+  redemption_record: "Resgate do prêmio",
+  redemption_reverse: "Desfazer resgate",
+  distribution_record: "Pagamento do prêmio",
+  distribution_reverse: "Desfazer pagamento",
+  pool_settle: "Encerrar o bolão",
+  pool_reopen: "Reabrir o bolão",
+};
+
+const aberto = (item: { status: string }) =>
+  ["prepared", "sending", "unknown"].includes(item.status);
+
+/** A divisão do prêmio que ficou sem resposta (ou foi recusada), em cartões da Revisão. */
+function DivisaoPendente(
+  { db, groupId, show, poolName, open }: {
+    db: BolaoDatabase;
+    groupId: string;
+    show: PendingShow;
+    poolName: (id: string) => string;
+    open: (request: PedidoDivisao) => void;
+  },
+) {
+  const scope = `${db.name}:${groupId}`;
+  const raw = useLiveQuery(async () => ({
+    scope,
+    commands: await db.settlementCommands.where("groupId").equals(groupId)
+      .toArray(),
+  }), [db, groupId]);
+  if (raw?.scope !== scope) return null;
+  return raw.commands.map((saved) => {
+    const action = saved.command.action;
+    const title = DIVISAO_LABEL[action.type] ?? "Divisão do prêmio";
+    const cents = "amountCents" in action ? action.amountCents : undefined;
+    if (show === "open" && aberto(saved)) {
+      return (
+        <ReviewItem
+          key={saved.idempotencyKey}
+          family="Divisão do prêmio"
+          title={title}
+          cents={cents}
+          state="A conferir"
+          line={`${poolName(action.poolId)} · enviado em ${
+            formatDate(saved.createdAt)
+          }. A resposta não chegou a este aparelho; confira antes de repetir.`}
+        >
+          <Button onClick={() => open({ idempotencyKey: saved.idempotencyKey })}>
+            Conferir
+          </Button>
+        </ReviewItem>
+      );
+    }
+    if (show === "failed" && ["rejected", "conflict"].includes(saved.status)) {
+      return (
+        <ReviewItem
+          key={saved.idempotencyKey}
+          family="Divisão do prêmio"
+          title={title}
+          cents={cents}
+          status="problem"
+          state="Não confirmada"
+          line={`${poolName(action.poolId)} · ${
+            saved.status === "conflict"
+              ? "alguém mudou o grupo antes da confirmação."
+              : saved.receipt?.message ?? "confira os dados e faça de novo."
+          }`}
+        />
+      );
+    }
+    return null;
+  });
+}
 
 export function RevisaoScreen(
   {
@@ -57,53 +149,192 @@ export function RevisaoScreen(
   },
 ) {
   const [divisao, setDivisao] = useState<PedidoDivisao | null>(null);
-  return (
-    <>
-      <div className="page-heading compact">
-        <div>
-          <span className="eyebrow">CONFERIR É CUIDAR</span>
-          <h1>Uma pausa para revisar.</h1>
-          <p>
-            Propostas ficam separadas dos registros confirmados.
-          </p>
-        </div>
-        <span className="count-bubble">
-          {reviewCount} pendentes
-        </span>
-      </div>
-      {groupId && !isDemo && (
+  const [discarding, setDiscarding] = useState<string | null>(null);
+  const poolName = (id: string) =>
+    snapshot.pools.find((p) => p.id === id)?.data.title ?? "Bolão";
+  const conflicts = snapshot.records.filter((r) =>
+    r.groupId === groupId && r.state === "conflict"
+  );
+  const families = (show: PendingShow) =>
+    groupId && !isDemo && (
+      <>
         <FinancialPending
-          key={`${db.name}:${groupId}`}
+          key={`finance:${show}:${db.name}:${groupId}`}
           db={db}
           groupId={groupId}
+          show={show}
           open={setFinancialRequest}
         />
-      )}
-      {groupId && !isDemo && (
         <Suspense fallback={null}>
           <RecordPending
-            key={`records:${db.name}:${groupId}`}
+            key={`records:${show}:${db.name}:${groupId}`}
             db={db}
             groupId={groupId}
+            show={show}
             open={setRecordRequest}
           />
         </Suspense>
-      )}
-      {groupId && !isDemo && (
         <PlanningPending
-          key={`plans:${db.name}:${groupId}`}
+          key={`plans:${show}:${db.name}:${groupId}`}
           db={db}
           groupId={groupId}
+          show={show}
           open={setPlanningRequest}
         />
-      )}
-      {groupId && !isDemo && (
         <DivisaoPendente
-          key={`divisao:${db.name}:${groupId}`}
+          key={`divisao:${show}:${db.name}:${groupId}`}
           db={db}
           groupId={groupId}
+          show={show}
+          poolName={poolName}
           open={setDivisao}
         />
+      </>
+    );
+
+  const resolve = (
+    record: (typeof conflicts)[number],
+    resolution: "keep-local" | "use-server",
+  ) => {
+    void resolveConflict(db, { entityId: record.id, resolution }).then(() =>
+      setNotice({
+        text: resolution === "keep-local"
+          ? "Sua versão ficou valendo e vai ser enviada de novo."
+          : "A versão que chegou ficou valendo. A sua ficou guardada.",
+      })
+    ).catch((e) => setNotice({ text: errorMessage(e), error: true }));
+  };
+
+  return (
+    <>
+      <PageHead
+        eyebrow="Pede atenção"
+        title="Uma pausa para revisar."
+        line={reviewCount
+          ? `${reviewCount} ${
+            reviewCount === 1 ? "pendência" : "pendências"
+          } · nada vale antes de você conferir`
+          : "Tudo o que foi anotado já foi conferido."}
+      />
+      <div className="review-list">
+        {conflicts.map((record) => (
+          <Card
+            className="ui-review"
+            key={record.id}
+            label={`${KIND_LABEL[record.kind]}: duas versões`}
+          >
+            <div className="ui-review-head">
+              <Chip family>{KIND_LABEL[record.kind]}</Chip>
+              <Chip status="problem">Duas versões</Chip>
+            </div>
+            <div className="ui-review-main">
+              <b>Esta informação mudou em outro aparelho</b>
+            </div>
+            <p className="ui-sec">
+              A sua versão ficou guardada junto com a que chegou. Escolha qual
+              vale; a escolhida ainda passa pela conferência.
+            </p>
+            <div className="ui-review-actions">
+              <Button onClick={() => resolve(record, "keep-local")}>
+                Manter a minha
+              </Button>
+              <Button variant="ghost" onClick={() => resolve(record, "use-server")}>
+                Usar a que chegou
+              </Button>
+            </div>
+            <Disclosure summary="Detalhes técnicos">
+              <pre className="review-tech">
+                {JSON.stringify(record.data, null, 2)}
+              </pre>
+            </Disclosure>
+          </Card>
+        ))}
+        {pendingReview.map((proposal) => {
+          const person = snapshot.persons.find((p) =>
+            p.id === proposal.data.personId
+          );
+          return (
+            <ReviewItem
+              key={proposal.id}
+              family="Pagamento"
+              title={person?.data.name ?? "Pessoa do grupo"}
+              cents={proposal.data.amountCents}
+              state="A conferir"
+              line={
+                <>
+                  {poolName(proposal.data.poolId)} ·{" "}
+                  {formatDate(proposal.createdAt, timeZone)}
+                  <span className="ui-review-note">
+                    {proposal.data.note || "Valor anotado à mão."}
+                  </span>
+                </>
+              }
+            >
+              {discarding === proposal.id
+                ? (
+                  <>
+                    <p className="ui-sec" role="alert">
+                      Descartar esta proposta?
+                    </p>
+                    <Button
+                      onClick={() => {
+                        setDiscarding(null);
+                        void save("payment-proposal", {
+                          ...proposal.data,
+                          status: "rejected",
+                        }, proposal.id).catch((e) =>
+                          setNotice({ text: errorMessage(e), error: true })
+                        );
+                      }}
+                    >
+                      Confirmar
+                    </Button>
+                    <Button variant="ghost" onClick={() => setDiscarding(null)}>
+                      Cancelar
+                    </Button>
+                  </>
+                )
+                : (
+                  <>
+                    <Button
+                      disabled={!financeEnabled}
+                      onClick={() =>
+                        setFinancialRequest({
+                          type: "payment_confirm",
+                          proposalId: proposal.id,
+                        })}
+                    >
+                      Conferir
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => setDiscarding(proposal.id)}
+                    >
+                      Descartar
+                    </Button>
+                  </>
+                )}
+            </ReviewItem>
+          );
+        })}
+        {families("open")}
+        {!reviewCount && (
+          <Card className="review-empty" label="Nada para revisar">
+            <b>Nada para revisar</b>
+            <Chip status="confirmed">
+              Pagamentos, planos e resultados estão em dia
+            </Chip>
+          </Card>
+        )}
+      </div>
+      {pendingReview.length > 0 && !financeEnabled && (
+        <p className="ui-sec review-why">{financeAvailability}</p>
+      )}
+      {groupId && !isDemo && (
+        <section className="review-failed" aria-label="Não deram certo">
+          <h2 className="ui-eyebrow">Não deram certo</h2>
+          <div className="review-list">{families("failed")}</div>
+        </section>
       )}
       {divisao && groupId && (
         <DivisaoDecisao
@@ -118,159 +349,6 @@ export function RevisaoScreen(
           onNotice={setNotice}
         />
       )}
-      {snapshot.records.filter((r) =>
-        r.groupId === groupId && r.state === "conflict"
-      ).map((record) => (
-        <section
-          className="panel conflict-panel"
-          key={record.id}
-        >
-          <AlertTriangle size={20} />
-          <div>
-            <h3>Uma alteração precisa de revisão</h3>
-            <p>
-              Seu rascunho foi preservado junto da versão recebida. Escolha qual
-              conteúdo usar como base; reenviar continua sendo uma proposta.
-            </p>
-            <pre>{JSON.stringify(record.data, null, 2)}</pre>
-            <div className="panel-actions">
-              <button
-                className="button secondary"
-                onClick={() => {
-                  void resolveConflict(db, {
-                    entityId: record.id,
-                    resolution: "keep-local",
-                  }).then(() =>
-                    setNotice({
-                      text: "Rascunho preservado para nova sincronização.",
-                    })
-                  ).catch((e) =>
-                    setNotice({
-                      text: errorMessage(e),
-                      error: true,
-                    })
-                  );
-                }}
-              >
-                Manter meu rascunho
-              </button>
-              <button
-                className="button secondary"
-                onClick={() => {
-                  void resolveConflict(db, {
-                    entityId: record.id,
-                    resolution: "use-server",
-                  }).then(() =>
-                    setNotice({
-                      text:
-                        "Versão recebida adotada. A cópia anterior foi preservada.",
-                    })
-                  ).catch((e) =>
-                    setNotice({
-                      text: errorMessage(e),
-                      error: true,
-                    })
-                  );
-                }}
-              >
-                Usar versão recebida
-              </button>
-            </div>
-          </div>
-        </section>
-      ))}
-      {pendingReview.length
-        ? (
-          <div className="review-list">
-            {pendingReview.map((proposal) => (
-              <section
-                className="panel review-card"
-                key={proposal.id}
-              >
-                <div className="review-icon">
-                  <Wallet size={24} />
-                </div>
-                <div className="review-copy">
-                  <span className="simple-pill amber">
-                    Pagamento proposto
-                  </span>
-                  <h2>
-                    {snapshot.persons.find((p) =>
-                      p.id === proposal.data.personId
-                    )?.data.name ?? "Pessoa do grupo"}
-                  </h2>
-                  <p>
-                    {proposal.data.note ||
-                      "Recebimento informado manualmente."}
-                  </p>
-                  <small>
-                    {snapshot.pools.find((p) => p.id === proposal.data.poolId)
-                      ?.data.title} · {formatDate(proposal.createdAt)}
-                  </small>
-                  <StateBadge state={proposal.state} />
-                </div>
-                <div className="review-value">
-                  <strong>
-                    {formatBRL(proposal.data.amountCents)}
-                  </strong>
-                  <small>Fora do caixa confirmado</small>
-                  <button
-                    className="button primary"
-                    disabled={!financeEnabled}
-                    onClick={() =>
-                      setFinancialRequest({
-                        type: "payment_confirm",
-                        proposalId: proposal.id,
-                      })}
-                  >
-                    Conferir recebimento
-                  </button>
-                  <button
-                    className="button secondary"
-                    onClick={() => {
-                      void save("payment-proposal", {
-                        ...proposal.data,
-                        status: "rejected",
-                      }, proposal.id).catch((e) =>
-                        setNotice({
-                          text: errorMessage(e),
-                          error: true,
-                        })
-                      );
-                    }}
-                  >
-                    Descartar proposta
-                  </button>
-                </div>
-              </section>
-            ))}
-            <div className="inline-note">
-              <ShieldCheck size={19} />
-              <span>
-                {financeEnabled
-                  ? "Conferir o recebimento é uma decisão humana online. Salvar ou sincronizar a proposta não confirma pagamento nem participação."
-                  : financeAvailability}
-              </span>
-            </div>
-          </div>
-        )
-        : isDemo
-        ? (
-          <EmptyState
-            icon={<CheckCheck size={30} />}
-            title="Tudo tranquilo por aqui"
-            description="Novos pagamentos preparados aparecerão para revisão e não alterarão o caixa."
-          />
-        )
-        : (
-          <p className="inline-note">
-            <CheckCheck size={18} />
-            <span>
-              Nenhum recebimento aguardando revisão. Confira os combinados e
-              participações abaixo.
-            </span>
-          </p>
-        )}
       {group && !isDemo && (
         <FinancialReview
           snapshot={snapshot.finances}
@@ -279,7 +357,7 @@ export function RevisaoScreen(
           pools={snapshot.pools}
           quotas={snapshot.quotas}
           enabled={financeEnabled}
-          availability={financeAvailability}
+          availability={pendingReview.length ? null : financeAvailability}
           open={setFinancialRequest}
         />
       )}

@@ -6,9 +6,17 @@ import { Planner } from "../planning";
 import type { latestApplied, latestManifest } from "../planning";
 import type { PlanningRequest } from "../planning-decision";
 import type { FormKind, Notice, Snapshot } from "../app-shared";
-import { Balls, Button, Card, Eyebrow, reais } from "../ui";
-import { GameGroups } from "../ui/Ball";
-import { ampliado, AUTORIA, porAutor } from "../ui/texto";
+import {
+  ampliado,
+  AUTORIA,
+  Balls,
+  Button,
+  Card,
+  Eyebrow,
+  GameGroups,
+  porAutor,
+  reais,
+} from "../ui";
 
 export function BolaoJogar(
   {

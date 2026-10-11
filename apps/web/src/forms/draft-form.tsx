@@ -1,14 +1,6 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import {
-  Check,
-  Clock3,
-  Dices,
-  LoaderCircle,
-  ShieldCheck,
-  Sparkles,
-  Users,
-} from "lucide-react";
+import { Check, LoaderCircle } from "lucide-react";
 import {
   betCost,
   betSignature,
@@ -21,10 +13,10 @@ import {
   validateBet,
 } from "@bolao/core";
 import type { LocalRecord, LotteryId } from "@bolao/core";
-import { LotteryBadge, Modal } from "../components";
+import { Modal } from "../components";
 import { createSeed, generateInWorker } from "../generation";
 import { errorMessage } from "../app-shared";
-import { ampliado } from "../ui/texto";
+import { ampliado, Button, Chip, MoneyInput } from "../ui";
 import type { FormKind, GenerationRun, SaveRecord } from "../app-shared";
 
 const localDateInput = (value: string | null) => {
@@ -68,9 +60,9 @@ export function DraftForm(
 ) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [lotteryId, setLotteryId] = useState<LotteryId>(
-    repeatOf?.data.lotteryId ?? pool?.data.lotteryId ?? "mega-sena",
-  );
+  const startLottery = repeatOf?.data.lotteryId ?? pool?.data.lotteryId ??
+    "mega-sena";
+  const [lotteryId, setLotteryId] = useState<LotteryId>(startLottery);
   const [selected, setSelected] = useState<number[]>([]);
   const [personId, setPersonId] = useState(persons[0]?.id ?? "");
   const entityFormKind = kind === "edit-group"
@@ -85,29 +77,27 @@ export function DraftForm(
     group: "Um grupo para chamar de nosso",
     "edit-group": "Editar grupo e combinados",
     pool: "Preparar um novo bolão",
-    "edit-pool": "Editar dados do bolão",
+    "edit-pool": "Editar o bolão",
     person: "Mais uma pessoa na turma",
-    quota: "Preparar participação",
-    payment: "Registrar pagamento a conferir",
+    quota: "Preparar a cota",
+    payment: "Anotar um pagamento",
     bet: "Os números da turma",
     generate: "Deixe os números com a gente",
   };
   const descriptions = {
-    group:
-      "Os dados serão salvos neste aparelho. Cada grupo tem seu próprio caixa.",
+    group: "Fica salvo neste aparelho. Cada grupo tem o seu próprio caixa.",
     "edit-group":
-      "A mudança fica salva neste aparelho. Publique uma nova versão na revisão para registrar novos aceites.",
-    pool: "Defina os detalhes iniciais. Tudo fica salvo neste aparelho até sincronizar.",
+      "Fica salvo neste aparelho. Para os combinados novos valerem, publique de novo na Revisão e registre os aceites.",
+    pool: "Fica salvo neste aparelho até sincronizar.",
     "edit-pool":
-      "Preço, prazo, modalidade e concurso ficam protegidos quando há participações confirmadas.",
-    person:
-      "Cadastrar uma pessoa não cria uma conta nem um direito financeiro.",
+      "Preço, prazo, modalidade e concurso ficam travados quando já há cotas confirmadas.",
+    person: "Cadastrar alguém não cria conta. Quem dá direito ao prêmio é a cota.",
     quota:
-      "Até duas casas decimais. A participação precisa ser confirmada online antes de valer.",
-    payment: "Informar um valor não confirma recebimento e não altera o caixa.",
-    bet: "Jogos preparados ficam locais. O registro é feito externamente.",
+      "Uma cota inteira ou uma parte, como 1 ou 1,5. Ela só vale depois de conferida com internet.",
+    payment: "Anotar um valor não confirma o pagamento nem mexe no caixa.",
+    bet: "O jogo fica neste aparelho. A aposta de verdade é feita na lotérica ou no site da Caixa.",
     generate:
-      "Os jogos são gerados neste aparelho, de forma verificável. Nenhum método melhora a chance de um jogo.",
+      "Os jogos são sorteados neste aparelho, sem repetir. Nenhum jeito de escolher aumenta a chance de ganhar.",
   };
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -246,6 +236,7 @@ export function DraftForm(
     <Modal
       title={titles[kind]}
       description={descriptions[kind]}
+      dirty={selected.length > 0 || lotteryId !== startLottery}
       onClose={() => {
         if (!busy) onClose();
       }}
@@ -315,17 +306,27 @@ export function DraftForm(
         )}
         {entityFormKind === "pool" && (
           <>
-            <label>
-              Modalidade<select
-                name="lottery"
-                value={lotteryId}
-                onChange={(e) => setLotteryId(e.target.value as LotteryId)}
-              >
+            <fieldset className="form-mods">
+              <legend>Modalidade</legend>
+              <div className="form-mods-list">
                 {Object.values(LOTTERIES).map((l) => (
-                  <option key={l.id} value={l.id}>{l.label}</option>
+                  <label className={`form-mod mod-${l.id}`} key={l.id}>
+                    <input
+                      type="radio"
+                      name="lottery"
+                      value={l.id}
+                      checked={lotteryId === l.id}
+                      onChange={() => setLotteryId(l.id)}
+                    />
+                    <i aria-hidden="true" />
+                    <span>
+                      {l.label}
+                      <small>{l.minNumbers} de {l.universeSize}</small>
+                    </span>
+                  </label>
                 ))}
-              </select>
-            </label>
+              </div>
+            </fieldset>
             <div className="form-columns">
               <label>
                 Concurso <span className="muted">(opcional)</span>
@@ -339,10 +340,9 @@ export function DraftForm(
                 />
               </label>
               <label>
-                Valor por cota (R$)<input
+                Valor por cota<MoneyInput
                   name="price"
                   required
-                  inputMode="decimal"
                   defaultValue={priceFrom
                     ? formatBRL(priceFrom.data.quotaPriceCents).replace(
                       "R$",
@@ -353,7 +353,7 @@ export function DraftForm(
               </label>
             </div>
             <label>
-              Prazo interno <span className="muted">(seu fuso local)</span>
+              Pagar até <span className="muted">(opcional)</span>
               <input
                 name="deadline"
                 type="datetime-local"
@@ -369,20 +369,15 @@ export function DraftForm(
                   ? pool?.data.participationMode
                   : "undecided"}
               >
-                <option value="undecided">Definir antes do fechamento</option>
-                <option value="internal">Acordo interno do grupo</option>
-                <option value="official">
-                  Cotas oficiais — verificar compatibilidade
-                </option>
+                <option value="undecided">Decidir depois</option>
+                <option value="internal">Combinado entre a turma</option>
+                <option value="official">Cotas oficiais da Caixa</option>
               </select>
             </label>
-            <div className="inline-note">
-              <Clock3 size={16} />
-              <span>
-                Este prazo é do grupo. O encerramento das apostas e o sorteio
-                precisam de informação oficial por concurso.
-              </span>
-            </div>
+            <p className="ui-sec form-note">
+              O prazo é da turma: depois dele a cobrança para. O horário das
+              apostas e do sorteio vem da Caixa, a cada concurso.
+            </p>
           </>
         )}
         {(kind === "quota" || kind === "payment") && (
@@ -415,26 +410,21 @@ export function DraftForm(
                 )}
               />
               <small>
-                Cota inteira ou fração, como 1 ou 1,5. Preparar de novo substitui
-                a cota desta pessoa.
+                Preparar de novo troca a cota desta pessoa.
               </small>
             </label>
-            <div className="inline-note">
-              <Users size={17} />
-              <span>
-                Frações internas não são cotas oficiais fracionadas. Pagamento
-                parcial não reduz automaticamente a participação.
-              </span>
-            </div>
+            <p className="ui-sec form-note">
+              Meia cota é um combinado da turma, não uma cota oficial da Caixa.
+              Pagar só uma parte não diminui a cota sozinho.
+            </p>
           </>
         )}
         {kind === "payment" && (
           <>
             <label>
-              Valor informado (R$)<input
+              Valor informado<MoneyInput
                 name="amount"
                 required
-                inputMode="decimal"
                 placeholder="0,00"
               />
             </label>
@@ -443,16 +433,13 @@ export function DraftForm(
                 name="note"
                 rows={3}
                 maxLength={2_000}
-                placeholder="Ex.: valor informado na conversa. Ainda falta conferir o recebimento."
+                placeholder="Ex.: a pessoa avisou na conversa; falta ver no banco."
               />
             </label>
-            <div className="inline-note">
-              <ShieldCheck size={17} />
-              <span>
-                Um comprovante é evidência para conferir. Este valor permanecerá
-                fora do saldo confirmado.
-              </span>
-            </div>
+            <p className="ui-sec form-note">
+              O comprovante ajuda a conferir. Até lá, este valor fica fora do
+              caixa.
+            </p>
             <label className="checkbox-label">
               <input
                 name="reviewNow"
@@ -468,7 +455,7 @@ export function DraftForm(
         {kind === "bet" && (
           <>
             <div className="number-picker-heading">
-              <LotteryBadge lotteryId={lotteryId} />
+              <Chip modality={lotteryId}>{rule.label}</Chip>
               <strong>
                 {selected.length} de {rule.minNumbers}–{rule.maxNumbers} dezenas
               </strong>
@@ -522,15 +509,9 @@ export function DraftForm(
         )}
         {kind === "generate" && (
           <>
-            <div className="generator-heading">
-              <span className={`pool-icon ${lotteryId}`}>
-                <Dices size={25} />
-              </span>
-              <div>
-                <strong>{rule.label}</strong>
-                <small>Geração determinística em segundo plano</small>
-              </div>
-            </div>
+            <p className="number-picker-heading">
+              <Chip modality={lotteryId}>{rule.label}</Chip>
+            </p>
             <div className="form-columns">
               <label>
                 Quantidade de jogos<input
@@ -551,34 +532,24 @@ export function DraftForm(
                 </select>
               </label>
             </div>
-            <div className="inline-note">
-              <Sparkles size={17} />
-              <span>
-                Os jogos são gerados de forma verificável. Dezenas existentes
-                são preservadas e jogos repetidos são evitados.
-              </span>
-            </div>
+            <p className="ui-sec form-note">
+              Os jogos que já estão no bolão continuam e nenhum jogo se repete.
+            </p>
           </>
         )}
         {error && <p className="form-error" role="alert">{error}</p>}
         <div className="modal-actions">
-          <button
-            type="button"
-            className="button secondary"
-            disabled={busy}
-            onClick={onClose}
-          >
+          <Button variant="ghost" disabled={busy} onClick={onClose}>
             Cancelar
-          </button>
-          <button
-            className="button primary"
+          </Button>
+          <Button
             type="submit"
             disabled={busy ||
               ((kind === "payment" || kind === "quota") && !persons.length)}
+            icon={busy
+              ? <LoaderCircle aria-hidden="true" className="spin" />
+              : <Check aria-hidden="true" />}
           >
-            {busy
-              ? <LoaderCircle size={17} className="spin" />
-              : <Check size={17} />}
             {busy
               ? "Salvando…"
               : kind === "generate"
@@ -586,7 +557,7 @@ export function DraftForm(
               : kind === "payment"
               ? "Salvar para revisão"
               : "Salvar neste aparelho"}
-          </button>
+          </Button>
         </div>
       </form>
     </Modal>

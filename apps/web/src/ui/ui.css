@@ -75,7 +75,62 @@
   color: var(--gold);
   text-shadow: 0 0 24px rgba(255, 207, 74, .4);
 }
+.ui-money.sm { font-size: 20px; letter-spacing: 0; }
 .ui-nb { white-space: nowrap; }
+
+/* topo de tela: rótulo, título e a ação principal ao lado (embaixo no celular estreito) */
+.ui-page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 20px;
+  margin-bottom: 20px;
+}
+.ui-page-head > div { flex: 1 1 240px; min-width: 0; }
+.ui-page-head .ui-title { margin-top: 6px; }
+.ui-page-head .ui-sec { margin-top: 8px; font-size: 15px; }
+.ui-page-head > .ui-btn { width: auto; }
+
+/* campo de formulário: 52 px, anel de foco visível; o de dinheiro leva "R$" na frente */
+.ui-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 0 14px;
+  border: 1.5px solid var(--ghost-line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .04);
+  color: var(--text);
+}
+.ui-input:focus-within {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px rgba(139, 116, 255, .6);
+}
+.ui-input-pre { flex: none; font-size: 16px; font-weight: 700; }
+.ui-input > input {
+  flex: 1;
+  min-width: 0;
+  min-height: 48px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font: 500 16px Sora, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+/* pendência da Revisão */
+.ui-review { display: grid; gap: 8px; }
+.ui-review-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.ui-review-main { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+.ui-review-main b { min-width: 0; font-size: 17px; font-weight: 700; overflow-wrap: anywhere; }
+.ui-review-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+.ui-review-actions > .ui-btn { flex: 1 1 140px; width: auto; }
+.ui-review-actions > .ui-sec { flex: 1 1 100%; color: var(--text); font-size: 15px; }
 
 /* cartões */
 .ui-card {
@@ -126,6 +181,9 @@
   padding: 8px 14px;
 }
 .ui-btn svg { width: 20px; height: 20px; flex: none; }
+/* desligado continua legível: fundo apagado e texto secundário, sem transparência */
+.ui-btn:disabled { opacity: 1; background: #2f2866; color: var(--muted); }
+.ui-btn.ghost:disabled { background: transparent; }
 .ui-btn:focus-visible,
 .ui-card.interactive:focus-visible,
 .ui-step:focus-visible {
@@ -147,6 +205,8 @@
   line-height: 1.2;
   white-space: nowrap;
 }
+/* o rosa da Lotofácil perde contraste no topo claro do fundo: tinta mais fraca, texto com 4,5:1 */
+.ui-chip.mod-lotofacil { background: color-mix(in srgb, var(--mod) 15%, transparent); }
 .ui-chip.dot::before {
   content: "";
   width: 7px;
@@ -163,6 +223,8 @@
   color: var(--amber);
 }
 .ui-chip.problem { padding: 0; background: none; color: var(--red); }
+/* família da pendência (Pagamento, Plano…): neutro, nunca a cor de uma modalidade */
+.ui-chip.family { background: rgba(255, 255, 255, .08); color: var(--text); }
 
 .ui-problem {
   display: flex;
@@ -487,6 +549,19 @@
   box-shadow: 0 -24px 60px rgba(0, 0, 0, .6);
 }
 .ui-sheet::backdrop { background: rgba(6, 4, 26, .8); }
+/* no computador a gaveta vira uma janela no meio da tela */
+@media (min-width: 761px) {
+  .ui-sheet {
+    inset: 0;
+    margin: auto;
+    max-height: calc(100dvh - 48px);
+    border: 1px solid rgba(255, 255, 255, .18);
+    border-radius: 24px;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, .6);
+  }
+  .ui-sheet-handle { display: none; }
+  .ui-sheet-body { padding: 22px 24px 24px; }
+}
 .ui-sheet-body { padding: 10px 18px calc(20px + env(safe-area-inset-bottom)); }
 .ui-sheet-handle {
   width: 40px;

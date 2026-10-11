@@ -37,6 +37,9 @@ import { downloadText } from "../registration-handoff";
 import type { RecordRequest } from "../record-decision";
 import type { Notice, PoolStep, Snapshot } from "../app-shared";
 import {
+  ampliado,
+  autores,
+  AUTORIA,
   Balls,
   Button,
   Card,
@@ -46,7 +49,9 @@ import {
   Disclosure,
   Eyebrow,
   formatWhen,
+  GameGroups,
   Money,
+  porAutor,
   ProblemBox,
   reais,
   renderShareCard,
@@ -54,8 +59,6 @@ import {
   shareCardImage,
 } from "../ui";
 import type { ShareCardData } from "../ui";
-import { GameGroups } from "../ui/Ball";
-import { ampliado, autores, AUTORIA, porAutor } from "../ui/texto";
 const BRASILIA = "America/Sao_Paulo";
 const prizeHits = {
   "mega-sena": [6, 5, 4],

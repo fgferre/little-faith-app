@@ -1,4 +1,4 @@
-export { Ball, Balls } from "./Ball";
+export { Ball, Balls, GameGroups } from "./Ball";
 export type { BallFinish, BallSize } from "./Ball";
 export { BrandMark } from "./BrandMark";
 export {
@@ -20,7 +20,10 @@ export {
   Eyebrow,
   initials,
   Money,
+  MoneyInput,
+  PageHead,
   ProblemBox,
+  ReviewItem,
 } from "./basics";
 export type { AvatarStatus, ChipStatus } from "./basics";
 export {
@@ -29,4 +32,14 @@ export {
   countdownText,
   formatWhen,
 } from "./Countdown";
-export { copiar, diaMes, formatInstant, reais, umEm } from "./texto";
+export {
+  ampliado,
+  autores,
+  AUTORIA,
+  copiar,
+  diaMes,
+  formatInstant,
+  porAutor,
+  reais,
+  umEm,
+} from "./texto";

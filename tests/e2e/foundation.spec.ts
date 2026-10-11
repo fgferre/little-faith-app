@@ -18,10 +18,16 @@ async function step(page: Page, name: string) {
     .getByRole("button", { name, exact: true }).click();
 }
 
+const LOTTERY_LABEL: Record<string, string> = {
+  "mega-sena": "Mega-Sena",
+  lotofacil: "Lotofácil",
+  quina: "Quina",
+};
+
 async function createPool(page: Page, lottery = "mega-sena") {
   await page.getByRole("button", { name: "Novo bolão" }).click();
   await page.getByLabel("Nome do bolão").fill("Bolão de teste");
-  await page.getByLabel("Modalidade").selectOption(lottery);
+  await page.getByRole("radio", { name: LOTTERY_LABEL[lottery] }).check();
   await page.getByLabel("Valor por cota").fill("30,00");
   await page.getByRole("button", { name: "Salvar neste aparelho" }).click();
   await expect(

@@ -11,15 +11,12 @@ import { MotionConfig } from "motion/react";
 import type { Session } from "@supabase/supabase-js";
 import {
   AlertTriangle,
-  ArrowRight,
-  ArrowUpRight,
   Bell,
   Check,
   ChevronDown,
   ChevronRight,
   Cloud,
   CloudOff,
-  Heart,
   History,
   Home,
   ListChecks,
@@ -28,7 +25,6 @@ import {
   Settings2,
   Sparkles,
   Ticket,
-  Users,
   WifiOff,
   X,
 } from "lucide-react";
@@ -42,8 +38,7 @@ import {
 } from "@bolao/core";
 import type { EntityDataMap, EntityKind } from "@bolao/core";
 import { createLocalStore, listRecords, saveDraft, sync } from "@bolao/local";
-import { Avatar, Clover } from "./components";
-import { BrandMark } from "./ui";
+import { BrandMark, Button, initials } from "./ui";
 import { createAccountTransport, supabase } from "./auth";
 import { seedDemo } from "./demo";
 import { saveLocalDraft } from "./repository";
@@ -317,10 +312,10 @@ export function App() {
   const financeAvailability = isDemo
     ? "Os recebimentos de exemplo ficam na demonstração. Crie seu grupo e entre na conta para confirmar pagamentos reais."
     : !online
-    ? "Você está offline. Prepare propostas neste aparelho e conecte-se para confirmar recebimentos e participações."
+    ? "Você está offline. Anote os pagamentos neste aparelho e conecte-se para confirmá-los."
     : !supabase
-    ? "A conexão Supabase ainda não foi configurada. As propostas ficam salvas; confirmações reais precisam do servidor."
-    : "Entre na conta e sincronize o grupo para confirmar recebimentos e participações.";
+    ? "A conta compartilhada ainda não foi ligada neste app. O que você anota fica salvo aqui; confirmar de verdade precisa dela."
+    : "Entre na sua conta e sincronize o grupo para confirmar pagamentos e cotas.";
   const pool = snapshot?.pools.find((p) => p.id === route.poolId) ??
     snapshot?.pools[0];
   const poolBets = snapshot?.bets.filter((b) => b.data.poolId === pool?.id) ??
@@ -498,14 +493,24 @@ export function App() {
   }
 
   const primaryAction = (
-    <button
-      className="button primary"
+    <Button
+      small
+      icon={<Plus aria-hidden="true" />}
       onClick={() => openForm(group ? "pool" : "group")}
     >
-      <Plus size={18} />
       {group ? "Novo bolão" : "Criar grupo"}
-    </button>
+    </Button>
   );
+  const pendingLabel = `${reviewCount} ${
+    reviewCount === 1 ? "pendência" : "pendências"
+  }`;
+  const peopleCount = snapshot?.persons.length ?? 0;
+  const peopleLine = `${peopleCount} ${
+    peopleCount === 1 ? "pessoa" : "pessoas"
+  }`;
+  const profileName = isDemo
+    ? "Organizador exemplo"
+    : session?.user.user_metadata.name as string || "Seu espaço";
 
   return (
     <MotionConfig reducedMotion="user">
@@ -516,47 +521,48 @@ export function App() {
             href="#/inicio"
             aria-label="Little Faith — início"
           >
-            <span className="brand-icon">
-              <BrandMark />
-            </span>
+            <BrandMark />
             <span>
               little faith<span className="brand-sub">
                 Seu bolão em boa companhia
               </span>
             </span>
           </a>
-          <div className="sidebar-group">
-            <span className="sidebar-label">SEU GRUPO</span>
-            {group
-              ? (
-                <>
-                  <div className="group-avatar">
-                    <Users size={20} />
-                  </div>
-                  <select
-                    aria-label="Grupo atual"
-                    value={group.id}
-                    onChange={(e) => {
-                      setGroupId(e.target.value);
-                      route.navigate("inicio");
-                    }}
-                  >
-                    {snapshot?.groups.map((g) => (
-                      <option value={g.id} key={g.id}>{g.data.name}</option>
-                    ))}
-                  </select>
-                  <ChevronDown size={14} />
-                </>
-              )
-              : (
-                <button
-                  className="group-create"
-                  onClick={() => openForm("group")}
+          {group
+            ? (
+              <label className="group-switch">
+                <span className="group-switch-av" aria-hidden="true">
+                  {initials(group.data.name)}
+                </span>
+                <span className="group-switch-name">
+                  <b>{group.data.name}</b>
+                  <small>{peopleLine}</small>
+                </span>
+                <ChevronDown aria-hidden="true" />
+                <select
+                  aria-label="Grupo atual"
+                  value={group.id}
+                  onChange={(e) => {
+                    setGroupId(e.target.value);
+                    route.navigate("inicio");
+                  }}
                 >
-                  <Plus size={17} />Criar um grupo
-                </button>
-              )}
-          </div>
+                  {snapshot?.groups.map((g) => (
+                    <option value={g.id} key={g.id}>{g.data.name}</option>
+                  ))}
+                </select>
+              </label>
+            )
+            : (
+              <Button
+                variant="ghost"
+                small
+                icon={<Plus aria-hidden="true" />}
+                onClick={() => openForm("group")}
+              >
+                Criar um grupo
+              </Button>
+            )}
           <nav aria-label="Navegação principal">
             {navigation.map(({ id, label, icon: Icon }) => (
               <a
@@ -565,59 +571,55 @@ export function App() {
                 key={id}
                 aria-current={route.screen === id ? "page" : undefined}
               >
-                <Icon size={21} />
+                <Icon aria-hidden="true" />
                 <span>{label}</span>
                 {id === "revisao" && reviewCount > 0 && (
-                  <span className="nav-count">{reviewCount}</span>
+                  <span className="nav-badge" aria-label={pendingLabel}>
+                    {reviewCount}
+                  </span>
                 )}
-                {route.screen === id && <span className="nav-active-dot" />}
               </a>
             ))}
           </nav>
           <div className="sidebar-bottom">
             <div className="sidebar-note">
-              <Sparkles size={20} />
+              <Sparkles aria-hidden="true" />
               <strong>Sorte boa é compartilhada.</strong>
               <p>O cuidado com o grupo começa por aqui.</p>
               {isDemo && (
-                <button
+                <Button
+                  variant="ghost"
+                  small
                   onClick={() => {
                     switchMode("local");
                     setForm("group");
                   }}
                 >
-                  Começar meu grupo <ArrowRight size={15} />
-                </button>
+                  Começar meu grupo
+                </Button>
               )}
             </div>
             <a
               className={`nav-item ${route.screen === "dados" ? "active" : ""}`}
               href="#/dados"
+              aria-current={route.screen === "dados" ? "page" : undefined}
             >
-              <Settings2 size={20} />Dados e integrações
+              <Settings2 aria-hidden="true" />Dados e integrações
             </a>
             <div className="profile">
-              <Avatar
-                name={isDemo
-                  ? "Organizador exemplo"
-                  : session?.user.user_metadata.name as string || "Meu grupo"}
-              />
+              <span className="ui-av" aria-hidden="true">
+                {initials(profileName)}
+              </span>
               <div>
-                <strong>
-                  {isDemo
-                    ? "Organizador exemplo"
-                    : session?.user.user_metadata.name as string ||
-                      "Seu espaço"}
-                </strong>
+                <strong>{profileName}</strong>
                 <span>
                   {isDemo
                     ? "Modo demonstração"
                     : session
                     ? "Conta conectada"
-                    : "Rascunhos locais"}
+                    : "Salvo neste aparelho"}
                 </span>
               </div>
-              <Heart size={15} />
             </div>
           </div>
         </aside>
@@ -629,7 +631,8 @@ export function App() {
                 <BrandMark />little faith
               </span>
               <span className="desktop-crumb">
-                Seu espaço <ChevronRight size={14} />
+                {group?.data.name ?? "Seu espaço"}{" "}
+                <ChevronRight aria-hidden="true" />
                 <strong>
                   {route.screen === "dados"
                     ? "Dados e integrações"
@@ -639,80 +642,97 @@ export function App() {
             </div>
             <div className="topbar-actions">
               <button
-                className={`connection-pill ${!online ? "offline" : ""}`}
+                type="button"
+                className={`connection-pill ${
+                  !online ? "offline" : isDemo || mode === "local" ? "local" : ""
+                }`}
                 onClick={() => route.navigate("dados")}
               >
                 {!online
-                  ? <WifiOff size={15} />
+                  ? <WifiOff aria-hidden="true" />
                   : isDemo || mode === "local"
-                  ? <CloudOff size={15} />
-                  : <Cloud size={15} />}
+                  ? <CloudOff aria-hidden="true" />
+                  : <Cloud aria-hidden="true" />}
                 <span>
                   {!online
                     ? "Você está offline"
                     : isDemo
-                    ? "Demonstração local"
+                    ? "Demonstração"
                     : mode === "local"
                     ? "Salvo no aparelho"
                     : syncing
                     ? "Sincronizando…"
                     : "Conectado"}
                 </span>
-                <span className="status-dot" />
               </button>
               <button
+                type="button"
                 className="icon-button notification"
-                aria-label="Ver pendências de revisão"
+                aria-label={reviewCount > 0
+                  ? `Ver pendências de revisão: ${pendingLabel}`
+                  : "Ver pendências de revisão"}
                 onClick={() => route.navigate("revisao")}
               >
-                <Bell size={19} />
-                {reviewCount > 0 && <i />}
+                <Bell aria-hidden="true" />
+                {reviewCount > 0 && <i aria-hidden="true" />}
               </button>
             </div>
           </header>
           {isDemo && (
             <div className="demo-banner">
-              <Sparkles size={14} />
+              <Sparkles aria-hidden="true" />
               <span>Um gostinho do app: estes são dados de exemplo.</span>
-              <button
+              <Button
+                variant="ghost"
+                small
                 onClick={() => {
                   switchMode("local");
                   setForm("group");
                 }}
               >
-                Criar meu grupo <ArrowUpRight size={14} />
-              </button>
+                Criar meu grupo
+              </Button>
             </div>
           )}
           {group && (
             <div className="mobile-context">
-              <Users size={15} />
-              <span>Grupo:</span>
-              <select
-                aria-label="Grupo atual no celular"
-                value={group.id}
-                onChange={(e) => {
-                  setGroupId(e.target.value);
-                  route.navigate("inicio");
-                }}
-              >
-                {snapshot?.groups.map((g) => (
-                  <option key={g.id} value={g.id}>{g.data.name}</option>
-                ))}
-              </select>
+              <label className="group-switch">
+                <span className="group-switch-av" aria-hidden="true">
+                  {initials(group.data.name)}
+                </span>
+                <span className="group-switch-name">
+                  <b>{group.data.name}</b>
+                </span>
+                <ChevronDown aria-hidden="true" />
+                <select
+                  aria-label="Grupo atual no celular"
+                  value={group.id}
+                  onChange={(e) => {
+                    setGroupId(e.target.value);
+                    route.navigate("inicio");
+                  }}
+                >
+                  {snapshot?.groups.map((g) => (
+                    <option key={g.id} value={g.id}>{g.data.name}</option>
+                  ))}
+                </select>
+              </label>
             </div>
           )}
           {!online && (
-            <div className="offline-banner">
-              <WifiOff size={16} />Você pode preparar jogos, que ficam salvos
-              neste aparelho. Confirmações precisam de conexão.
+            <div className="offline-banner" role="status">
+              <WifiOff aria-hidden="true" />
+              <span>
+                Você pode preparar jogos, que ficam salvos neste aparelho.
+                Confirmações precisam de conexão.
+              </span>
             </div>
           )}
           <main id="main-content" className="content">
             {!snapshot
               ? (
                 <div className="loading">
-                  <LoaderCircle className="spin" />Abrindo seus dados locais…
+                  <LoaderCircle className="spin" aria-hidden="true" />Abrindo seus dados…
                 </div>
               )
               : (
@@ -788,12 +808,14 @@ export function App() {
                       groupId={groupId}
                       snapshot={snapshot}
                       group={group}
+                      financialView={financialView}
                       isDemo={isDemo}
                     />
                   )}
 
                   {route.screen === "dados" && (
                     <DadosScreen
+                      db={db}
                       snapshot={snapshot}
                       group={group}
                       session={session}
@@ -816,12 +838,6 @@ export function App() {
                       setTimeZone={setTimeZone}
                     />
                   )}
-                  <footer className="page-footer">
-                    <span>
-                      <Clover />Um pouco de fé. Um cuidado de cada vez.
-                    </span>
-                    <span>Feito para compartilhar bons momentos.</span>
-                  </footer>
                 </>
               )}
           </main>
@@ -835,9 +851,15 @@ export function App() {
               className={route.screen === id ? "active" : ""}
               aria-current={route.screen === id ? "page" : undefined}
             >
-              <Icon size={21} />
+              <span className="bottom-nav-icon">
+                <Icon aria-hidden="true" />
+                {id === "revisao" && reviewCount > 0 && (
+                  <span className="nav-badge" aria-label={pendingLabel}>
+                    {reviewCount}
+                  </span>
+                )}
+              </span>
               <span>{label}</span>
-              {id === "revisao" && reviewCount > 0 && <i />}
             </a>
           ))}
         </nav>
@@ -846,13 +868,16 @@ export function App() {
             className={`toast ${notice.error ? "error" : ""}`}
             role={notice.error ? "alert" : "status"}
           >
-            {notice.error ? <AlertTriangle size={18} /> : <Check size={18} />}
+            {notice.error
+              ? <AlertTriangle aria-hidden="true" />
+              : <Check aria-hidden="true" />}
             <span>{notice.text}</span>
             <button
+              type="button"
               aria-label="Dispensar aviso"
               onClick={() => setNotice(null)}
             >
-              <X size={17} />
+              <X aria-hidden="true" />
             </button>
           </div>
         )}

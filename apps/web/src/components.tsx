@@ -1,53 +1,8 @@
-import { useEffect, useId, useRef } from "react";
-import {
-  AlertTriangle,
-  ArrowRight,
-  ArrowUpRight,
-  Check,
-  Clock3,
-  CloudOff,
-  Ticket,
-  X,
-} from "lucide-react";
+import { useEffect, useId, useRef, useState } from "react";
+import { AlertTriangle, Check, Clock3, CloudOff, X } from "lucide-react";
 import type { ReactNode } from "react";
-import type { LocalRecord, LocalState, LotteryId } from "@bolao/core";
-import { betCost, formatBRL, LOTTERIES, sumCents } from "@bolao/core";
-
-export function Clover(
-  { className = "", decorative = true }: {
-    className?: string;
-    decorative?: boolean;
-  },
-) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 48 48"
-      fill="none"
-      aria-hidden={decorative}
-    >
-      <path
-        d="M24 24C7 19 8 4 18 9c3-12 19-7 12 6 14-8 22 6 11 12 9 9-3 20-13 10-9 13-24 2-15-9C1 29 2 13 17 19z"
-        fill="currentColor"
-      />
-      <path
-        d="M24 23c-2 9 0 14 6 20"
-        stroke="currentColor"
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-export function LotteryBadge({ lotteryId }: { lotteryId: LotteryId }) {
-  return (
-    <span className={`lottery-badge ${lotteryId}`}>
-      <span className="lottery-dot" />
-      {LOTTERIES[lotteryId].label}
-    </span>
-  );
-}
+import type { LocalState, LotteryId } from "@bolao/core";
+import { Button } from "./ui";
 
 export function StateBadge({ state }: { state: LocalState }) {
   const labels = {
@@ -91,43 +46,6 @@ export function Numbers(
   );
 }
 
-export function Avatar(
-  { name, index = 0, small = false }: {
-    name: string;
-    index?: number;
-    small?: boolean;
-  },
-) {
-  const initials = name.split(" ").filter(Boolean).map((s) => s[0]).slice(0, 2)
-    .join("");
-  return (
-    <span
-      className={`avatar color-${index % 5} ${small ? "small" : ""}`}
-      aria-label={name}
-    >
-      {initials}
-    </span>
-  );
-}
-
-export function EmptyState(
-  { icon, title, description, action }: {
-    icon: ReactNode;
-    title: string;
-    description: string;
-    action?: ReactNode;
-  },
-) {
-  return (
-    <div className="empty-state">
-      <span className="empty-icon">{icon}</span>
-      <h2>{title}</h2>
-      <p>{description}</p>
-      {action}
-    </div>
-  );
-}
-
 export function SectionTitle(
   { title, subtitle, action }: {
     title: string;
@@ -146,63 +64,81 @@ export function SectionTitle(
   );
 }
 
-export function TextLink(
-  { children, onClick }: { children: ReactNode; onClick: () => void },
-) {
-  return (
-    <button className="text-link" onClick={onClick}>
-      {children}
-      <ArrowUpRight size={15} />
-    </button>
-  );
-}
-
+/**
+ * Gaveta de baixo no celular e janela no meio no computador, como o formulário da direção visual.
+ * Esc ou um toque fora perguntam "Sair sem salvar?" quando algo já foi preenchido.
+ */
 export function Modal(
-  { title, description, children, onClose }: {
+  { title, description, dirty = false, children, onClose }: {
     title: string;
     description?: string;
+    /** Algo foi escolhido fora dos campos (dezenas, modalidade) e ainda não foi salvo. */
+    dirty?: boolean;
     children: ReactNode;
     onClose: () => void;
   },
 ) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
+  const [typed, setTyped] = useState(false);
+  const [asking, setAsking] = useState(false);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     const dialog = ref.current!;
     dialog.showModal();
     dialog.querySelector<HTMLElement>(
-      'input:not([type="checkbox"]), textarea, select',
+      'input:not([type="checkbox"]):not([type="radio"]), textarea, select',
     )?.focus();
     return () => {
       dialog.close();
       previous?.focus();
     };
   }, []);
+  const leave = () => {
+    if (asking) setAsking(false);
+    else if (dirty || typed) setAsking(true);
+    else onClose();
+  };
   return (
     <dialog
       ref={ref}
-      className="modal"
+      className="ui-sheet modal"
       aria-labelledby={titleId}
+      onChange={() => setTyped(true)}
       onCancel={(event) => {
         event.preventDefault();
-        onClose();
+        leave();
       }}
       onClick={(event) => {
-        if (event.target === ref.current) onClose();
+        if (event.target === ref.current) leave();
       }}
     >
-      <div className="modal-header">
-        <div>
-          <span className="eyebrow">VAMOS ORGANIZAR</span>
+      <div className="ui-sheet-body">
+        <div className="ui-sheet-handle" aria-hidden="true" />
+        <header className="ui-sheet-head">
           <h2 id={titleId}>{title}</h2>
-        </div>
-        <button className="icon-button" aria-label="Fechar" onClick={onClose}>
-          <X size={21} />
-        </button>
+          <button
+            type="button"
+            className="ui-sheet-x"
+            aria-label="Fechar"
+            onClick={onClose}
+          >
+            <X aria-hidden="true" />
+          </button>
+        </header>
+        {description && <p className="ui-sec modal-description">{description}</p>}
+        {children}
+        {asking && (
+          <div className="modal-leave" role="group" aria-label="Sair sem salvar?">
+            <strong>Sair sem salvar?</strong>
+            <p className="ui-sec">O que você preencheu aqui será perdido.</p>
+            <Button onClick={onClose}>Sair sem salvar</Button>
+            <Button variant="ghost" autoFocus onClick={() => setAsking(false)}>
+              Continuar preenchendo
+            </Button>
+          </div>
+        )}
       </div>
-      {description && <p className="modal-description">{description}</p>}
-      {children}
     </dialog>
   );
 }
@@ -223,50 +159,5 @@ export function Stat(
       <strong>{value}</strong>
       <small>{note}</small>
     </section>
-  );
-}
-
-export function PoolCard(
-  { pool, bets, onClick }: {
-    pool: LocalRecord<"pool">;
-    bets: LocalRecord<"bet">[];
-    onClick: () => void;
-  },
-) {
-  return (
-    <button className={`pool-card ${pool.data.lotteryId}`} onClick={onClick}>
-      <div className="pool-card-top">
-        <span className={`pool-icon ${pool.data.lotteryId}`}>
-          <Clover />
-        </span>
-        <span className="draft-pill">Em preparação</span>
-      </div>
-      <LotteryBadge lotteryId={pool.data.lotteryId} />
-      <h2>{pool.data.title}</h2>
-      <p>
-        {pool.data.contestNumber
-          ? `Concurso ${pool.data.contestNumber}`
-          : "Concurso a definir"}
-      </p>
-      <div className="pool-card-stats">
-        <span>
-          <Ticket size={16} />
-          {bets.length} jogos
-        </span>
-        <strong>
-          {formatBRL(
-            sumCents(
-              bets.map((b) =>
-                betCost(b.data.lotteryId, b.data.numbers)
-              ),
-            ),
-          )}
-        </strong>
-      </div>
-      <div className="pool-card-footer">
-        <StateBadge state={pool.state} />
-        <ArrowRight size={19} />
-      </div>
-    </button>
   );
 }

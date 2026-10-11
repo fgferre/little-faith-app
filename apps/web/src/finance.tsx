@@ -6,8 +6,6 @@ import {
   Check,
   LoaderCircle,
   RefreshCw,
-  ShieldCheck,
-  Wallet,
 } from "lucide-react";
 import {
   computeFinance,
@@ -31,7 +29,8 @@ import {
 } from "@bolao/local";
 import type { BolaoDatabase, PersistentFinancialCommand } from "@bolao/local";
 import { createAccountTransport } from "./auth";
-import { EmptyState, Modal, SectionTitle } from "./components";
+import { Modal } from "./components";
+import { Button, Card, Chip, Eyebrow, MoneyInput, ReviewItem } from "./ui";
 import { draftQuotaCost } from "./quota-display";
 import { readReviewSnapshot } from "./review-snapshot";
 
@@ -51,13 +50,7 @@ const titles: Record<FinancialRequest["type"], string> = {
   payment_allocate: "Destinar dinheiro a um bolão",
   payment_reverse: "Estornar um recebimento",
   quota_confirm: "Confirmar participação",
-  recover: "Verificar uma decisão enviada",
-};
-const movementLabels = {
-  "payment-received": "Recebimento",
-  "payment-allocated": "Destinação ao bolão",
-  "payment-reversed": "Estorno do recebimento",
-  "allocation-reversed": "Estorno da destinação",
+  recover: "Conferir uma decisão enviada",
 };
 const date = (value: string) =>
   new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" })
@@ -80,32 +73,33 @@ export function FinancialCash(
     ? computeFinance(snapshot)
     : { cashCents: "0", allocatedCents: "0", unallocatedCents: "0" };
   return (
-    <section className="panel finance-cash" aria-label="Caixa do grupo">
-      <SectionTitle
-        title="Caixa do grupo"
-        subtitle="Recebimentos e estornos do grupo inteiro. Destinar dinheiro não cria outro recebimento."
-      />
-      <div className="finance-totals">
+    <Card className="finance-card" label="Caixa do grupo">
+      <Eyebrow>Caixa do grupo</Eyebrow>
+      <p className="ui-sec">
+        Pagamentos conferidos do grupo inteiro, já sem os estornos. Destinar a
+        um bolão não conta o dinheiro duas vezes.
+      </p>
+      <dl className="finance-totals">
         <div>
-          <span>Recebido líquido</span>
-          <strong>{formatBRL(totals.cashCents)}</strong>
+          <dt>Recebido</dt>
+          <dd>{formatBRL(totals.cashCents)}</dd>
         </div>
         <div>
-          <span>Destinado aos bolões</span>
-          <strong>{formatBRL(totals.allocatedCents)}</strong>
+          <dt>Destinado aos bolões</dt>
+          <dd>{formatBRL(totals.allocatedCents)}</dd>
         </div>
         <div>
-          <span>Ainda sem destino</span>
-          <strong>{formatBRL(totals.unallocatedCents)}</strong>
+          <dt>Ainda sem destino</dt>
+          <dd>{formatBRL(totals.unallocatedCents)}</dd>
         </div>
-      </div>
+      </dl>
       {!snapshot && (
-        <p className="muted">
-          As confirmações ficam disponíveis após entrar na conta e sincronizar o
-          grupo.
+        <p className="ui-sec">
+          Os pagamentos conferidos aparecem aqui depois de entrar na conta e
+          sincronizar o grupo.
         </p>
       )}
-    </section>
+    </Card>
   );
 }
 
@@ -116,7 +110,8 @@ interface ReviewProps {
   pools: LocalRecord<"pool">[];
   quotas: LocalRecord<"quota">[];
   enabled: boolean;
-  availability: string;
+  /** Por que as conferências estão desligadas; null quando a tela já explicou. */
+  availability: string | null;
   open: (request: FinancialRequest) => void;
 }
 
@@ -131,32 +126,32 @@ export function FinancialReview(
   return (
     <div className="finance-sections">
       <FinancialCash snapshot={snapshot} />
-      {!enabled && (
-        <p className="inline-note">
-          <ShieldCheck size={18} />
-          <span>{availability}</span>
-        </p>
+      {!enabled && availability && (
+        <p className="ui-sec finance-why">{availability}</p>
       )}
-      <section className="panel">
-        <SectionTitle
-          title="Combinados e aceites"
-          subtitle={statute
-            ? `Versão ${statute.version} publicada em ${
-              date(statute.publishedAt)
-            }`
-            : "Publique uma versão antes de confirmar participações."}
-          action={
-            <button
-              className="button secondary"
-              disabled={!enabled || !group.data.statute.trim() ||
-                statute?.sourceGroupVersion === group.serverVersion}
-              onClick={() => open({ type: "statute_publish" })}
-            >
-              <BookOpen size={16} />
-              {statute ? "Publicar nova versão" : "Publicar combinados"}
-            </button>
-          }
-        />
+      <Card className="finance-card" label="Combinados e aceites">
+        <div className="finance-head">
+          <div>
+            <Eyebrow>Combinados e aceites</Eyebrow>
+            <p className="ui-sec">
+              {statute
+                ? `Versão ${statute.version} publicada em ${
+                  date(statute.publishedAt)
+                }`
+                : "Publique os combinados antes de confirmar as cotas."}
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            small
+            icon={<BookOpen aria-hidden="true" />}
+            disabled={!enabled || !group.data.statute.trim() ||
+              statute?.sourceGroupVersion === group.serverVersion}
+            onClick={() => open({ type: "statute_publish" })}
+          >
+            {statute ? "Publicar nova versão" : "Publicar combinados"}
+          </Button>
+        </div>
         <p className="statute-text">
           {statute?.text ??
             (group.data.statute || "Nenhum combinado informado.")}
@@ -185,13 +180,12 @@ export function FinancialReview(
                       <td>
                         {acceptance
                           ? (
-                            <span className="simple-pill green">
-                              Aceite registrado
-                            </span>
+                            <Chip status="confirmed">Aceite registrado</Chip>
                           )
                           : (
-                            <button
-                              className="button secondary"
+                            <Button
+                              variant="ghost"
+                              small
                               disabled={!enabled}
                               onClick={() =>
                                 open({
@@ -200,7 +194,7 @@ export function FinancialReview(
                                 })}
                             >
                               Registrar aceite
-                            </button>
+                            </Button>
                           )}
                       </td>
                     </tr>
@@ -210,22 +204,23 @@ export function FinancialReview(
             </table>
           </div>
         )}
-      </section>
+      </Card>
       {quotas.length > 0 && (
-        <section className="panel">
-          <SectionTitle
-            title="Participações para conferir"
-            subtitle="Pagamento integral, maioridade, aceite e prazo são verificados no servidor. Receber dinheiro não confirma uma participação."
-          />
+        <Card className="finance-card" label="Cotas para conferir">
+          <Eyebrow>Cotas para conferir</Eyebrow>
+          <p className="ui-sec">
+            A cota vale quando a pessoa pagou tudo no prazo, é maior de idade e
+            aceitou os combinados. Receber dinheiro sozinho não confirma a cota.
+          </p>
           <div className="table-wrapper">
             <table>
               <thead>
                 <tr>
                   <th>Pessoa e bolão</th>
-                  <th>Cotas preparadas</th>
+                  <th>Cotas</th>
                   <th>Devido</th>
                   <th>Destinado</th>
-                  <th>Direito</th>
+                  <th>Situação</th>
                 </tr>
               </thead>
               <tbody>
@@ -282,7 +277,7 @@ export function FinancialReview(
                               quota.serverVersion) &&
                           (
                             <small className="cell-note">
-                              Rascunho diverge do direito confirmado
+                              A cota mudou depois da confirmação
                             </small>
                           )}
                       </td>
@@ -295,15 +290,14 @@ export function FinancialReview(
                       <td>
                         {confirmed
                           ? (
-                            <span className="simple-pill green">
-                              Confirmada
-                            </span>
+                            <Chip status="confirmed">Confirmada</Chip>
                           )
                           : (
                             <>
                               <span className="cell-note">{reason}</span>
-                              <button
-                                className="button secondary"
+                              <Button
+                                variant="ghost"
+                                small
                                 disabled={!enabled || !eligible}
                                 onClick={() =>
                                   open({
@@ -312,7 +306,7 @@ export function FinancialReview(
                                   })}
                               >
                                 Conferir participação
-                              </button>
+                              </Button>
                             </>
                           )}
                       </td>
@@ -322,22 +316,23 @@ export function FinancialReview(
               </tbody>
             </table>
           </div>
-        </section>
+        </Card>
       )}
       {!!snapshot?.payments.length && (
-        <section className="panel">
-          <SectionTitle
-            title="Recebimentos do grupo"
-            subtitle="Um recebimento pode financiar vários bolões. O valor sem destino continua identificado pela pessoa."
-          />
+        <Card className="finance-card" label="Pagamentos recebidos">
+          <Eyebrow>Pagamentos recebidos</Eyebrow>
+          <p className="ui-sec">
+            Um pagamento pode cobrir vários bolões. O que ainda não tem destino
+            continua no nome da pessoa.
+          </p>
           <div className="table-wrapper">
             <table>
               <thead>
                 <tr>
                   <th>Pessoa</th>
-                  <th>Recebimento original</th>
+                  <th>Valor recebido</th>
                   <th>Sem destino</th>
-                  <th>Estado e ações</th>
+                  <th>Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -361,7 +356,7 @@ export function FinancialReview(
                           .name}
                         <small className="cell-note">
                           {payment.bankReference ??
-                            "Referência bancária não informada"}
+                            "Sem referência do banco"}
                         </small>
                       </td>
                       <td>
@@ -373,11 +368,12 @@ export function FinancialReview(
                       <td>{formatBRL(remaining.toString())}</td>
                       <td>
                         {reversed
-                          ? <span className="simple-pill amber">Estornado</span>
+                          ? <Chip status="pending">Estornado</Chip>
                           : (
                             <div className="finance-row-actions">
-                              <button
-                                className="button secondary"
+                              <Button
+                                variant="ghost"
+                                small
                                 disabled={!enabled || remaining <= 0n}
                                 onClick={() =>
                                   open({
@@ -386,9 +382,10 @@ export function FinancialReview(
                                   })}
                               >
                                 Destinar saldo
-                              </button>
-                              <button
-                                className="button secondary"
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                small
                                 disabled={!enabled}
                                 onClick={() =>
                                   open({
@@ -397,7 +394,7 @@ export function FinancialReview(
                                   })}
                               >
                                 Estornar
-                              </button>
+                              </Button>
                             </div>
                           )}
                       </td>
@@ -407,103 +404,18 @@ export function FinancialReview(
               </tbody>
             </table>
           </div>
-        </section>
+        </Card>
       )}
     </div>
   );
 }
 
-export function FinancialHistory(
-  { snapshot, persons, pools }: {
-    snapshot: FinancialSnapshot | null;
-    persons: LocalRecord<"person">[];
-    pools: LocalRecord<"pool">[];
-  },
-) {
-  if (!snapshot?.movements.length) {
-    return (
-      <EmptyState
-        icon={<Wallet size={30} />}
-        title="O histórico começa com uma confirmação"
-        description="As propostas ficam na revisão. Recebimentos, destinações e estornos aparecerão aqui após confirmação humana no servidor."
-      />
-    );
-  }
-  return (
-    <div className="finance-sections">
-      <FinancialCash snapshot={snapshot} />
-      <section className="panel">
-        <SectionTitle
-          title="Movimentações registradas"
-          subtitle="Recebimentos e destinações têm totais separados. Estornos compensam os originais sem apagar o histórico."
-        />
-        <div className="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Movimentação</th>
-                <th>Pessoa</th>
-                <th>Bolão</th>
-                <th>Valor</th>
-                <th>Registro</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...snapshot.movements].sort((a, b) =>
-                b.createdAt.localeCompare(a.createdAt) ||
-                b.id.localeCompare(a.id)
-              ).map((movement) => (
-                <tr key={movement.id}>
-                  <td>
-                    {movementLabels[movement.kind]}
-                    <small className="cell-note">{movement.reason}</small>
-                  </td>
-                  <td>
-                    {persons.find((p) => p.id === movement.personId)?.data.name}
-                  </td>
-                  <td>
-                    {pools.find((p) => p.id === movement.poolId)?.data.title ??
-                      "Caixa do grupo"}
-                  </td>
-                  <td
-                    className={BigInt(movement.amountCents) < 0n
-                      ? "text-amber"
-                      : ""}
-                  >
-                    {formatBRL(movement.amountCents)}
-                  </td>
-                  <td>{date(movement.createdAt)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {snapshot.revocations.map((revocation) => {
-          const quota = snapshot.quotas.find((q) =>
-            q.id === revocation.quotaId
-          );
-          return (
-            <p className="inline-note" key={revocation.id}>
-              <ShieldCheck size={18} />
-              <span>
-                Participação de{" "}
-                {persons.find((p) => p.id === quota?.personId)?.data.name} em
-                {" "}
-                {pools.find((p) => p.id === quota?.poolId)?.data.title}{" "}
-                revogada em {date(revocation.revokedAt)}: {revocation.reason}
-              </span>
-            </p>
-          );
-        })}
-      </section>
-    </div>
-  );
-}
-
+/** Decisões de pagamento que ficaram sem resposta ("open") ou não deram certo ("failed"), em cartões da Revisão. */
 export function FinancialPending(
-  { db, groupId, open }: {
+  { db, groupId, show, open }: {
     db: BolaoDatabase;
     groupId: string;
+    show: "open" | "failed";
     open: (request: FinancialRequest) => void;
   },
 ) {
@@ -511,55 +423,50 @@ export function FinancialPending(
     () => db.financialCommands.where("groupId").equals(groupId).toArray(),
     [db, groupId],
   );
-  const failed =
-    commands?.filter((command) =>
-      command.status === "conflict" || command.status === "rejected"
-    ).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 10) ?? [];
-  return (
-    <>
-      {commands?.filter(unresolved).map((command) => (
-        <section className="panel finance-pending" key={command.idempotencyKey}>
-          <SectionTitle
-            title="Uma decisão precisa de verificação"
-            subtitle={`${titles[command.command.action.type]} · ${
-              date(command.createdAt)
-            }`}
-          />
-          <p>
-            A resposta do servidor ainda não foi registrada neste aparelho.
-            Consulte o recibo antes de tomar outra decisão; reconectar não
-            reenviará esta confirmação.
-          </p>
-          <button
-            className="button secondary"
-            onClick={() =>
-              open({ type: "recover", idempotencyKey: command.idempotencyKey })}
-          >
-            <RefreshCw size={16} />Verificar decisão
-          </button>
-        </section>
-      ))}
-      {failed.length > 0 && (
-        <section className="panel finance-pending">
-          <SectionTitle
-            title="Decisões não confirmadas"
-            subtitle="Estes resultados ficam registrados. Atualize os dados e faça uma nova revisão para decidir novamente."
-          />
-          {failed.map((command) => (
-            <p key={command.idempotencyKey}>
-              <strong>{titles[command.command.action.type]}</strong> ·{" "}
-              {date(command.createdAt)}
-              <span className="cell-note">
-                {command.receipt?.message ?? (command.status === "conflict"
-                  ? "Os dados mudaram durante a revisão."
-                  : "A decisão foi recusada pelo servidor.")}
-              </span>
-            </p>
-          ))}
-        </section>
-      )}
-    </>
-  );
+  if (show === "open") {
+    return commands?.filter(unresolved).map((command) => (
+      <ReviewItem
+        key={command.idempotencyKey}
+        family="Pagamento"
+        title={titles[command.command.action.type]}
+        state="A conferir"
+        line={`Enviada em ${
+          date(command.createdAt)
+        }. A resposta não chegou a este aparelho. Confira antes de decidir de novo; reconectar não envia outra vez.`}
+      >
+        <Button
+          aria-label="Conferir decisão"
+          onClick={() =>
+            open({ type: "recover", idempotencyKey: command.idempotencyKey })}
+        >
+          Conferir
+        </Button>
+      </ReviewItem>
+    ));
+  }
+  return commands?.filter((command) =>
+    command.status === "conflict" || command.status === "rejected"
+  ).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 10).map((
+    command,
+  ) => (
+    <ReviewItem
+      key={command.idempotencyKey}
+      family="Pagamento"
+      title={titles[command.command.action.type]}
+      status="problem"
+      state="Não confirmada"
+      line={
+        <>
+          {date(command.createdAt)}
+          <span className="ui-review-note">
+            {command.receipt?.message ?? (command.status === "conflict"
+              ? "Os dados mudaram durante a conferência."
+              : "A decisão foi recusada.")}
+          </span>
+        </>
+      }
+    />
+  ));
 }
 
 interface Preview {
@@ -1028,17 +935,14 @@ export function FinancialDialog(
   return (
     <Modal
       title={titles[request.type]}
-      description="Confira os dados antes de decidir. A decisão usa a versão apresentada e será validada em uma única transação no servidor."
+      description="Confira os dados antes de decidir. Vale o que está nesta tela; se algo mudar no grupo enquanto isso, você confere de novo."
       onClose={() => {
         if (!busy) onClose();
       }}
     >
       {!enabled
         ? (
-          <p className="inline-note">
-            <ShieldCheck size={18} />
-            <span>{availability}</span>
-          </p>
+          <p className="modal-why">{availability}</p>
         )
         : (
           <form
@@ -1191,9 +1095,8 @@ export function FinancialDialog(
                           </select>
                         </label>
                         <label>
-                          Valor a destinar (R$)<input
+                          Valor a destinar<MoneyInput
                             required
-                            inputMode="decimal"
                             value={amount}
                             disabled={frozen}
                             onChange={(event) =>

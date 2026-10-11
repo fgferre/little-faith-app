@@ -4,29 +4,32 @@ Lista viva do que está aberto. Leia só a seção O BASTÃO e o item da vez; o 
 Item resolvido sai da lista e vira commit com o número entre parênteses; a história de cada número fica no git (`git log --all --grep="(NNN)"`).
 Número é identidade, não posição: item novo entra no fim da sua seção. **Próximo número livre: 14.**
 
-## O BASTÃO — onde a rodada parou (11/10) — ETAPA 6 NO APP E O APP INTEIRO NO ESTILO NOVO; `npm run done` VERDE
+## O BASTÃO — onde a rodada parou (11/10) — APP INTEIRO NO ESTILO NOVO, ETAPA 6 FEITA, PILOTO PREPARADO; `npm run done` VERDE
 
-**Estado:** etapas 1–6 feitas no núcleo, no aparelho, no servidor e nas telas. O app inteiro está no estilo "Noite
-do sorteio" afinado (kit em `apps/web/src/ui`, bolas de metal polido, faixa de etapas no lugar das abas, Início com
-contagem, Sorteio com revelação, vitória e derrota, Dividir com dinheiro de verdade, cartão de imagem para o
-WhatsApp). Encerrar/reabrir o bolão ficam para depois (o servidor responde com aviso).
+**Estado:** etapas 1–6 da especificação feitas no núcleo, no aparelho, no servidor e nas telas. Todas as telas estão
+no estilo "Noite do sorteio" afinado (`docs/estilo/DIRECAO.md`): Início com contagem, bolão por etapas (Montar,
+Arrecadar, Jogar com jogos por pessoa e ampliados, Registrar, Sorteio com revelação, vitória e derrota, Dividir com
+dinheiro de verdade), Revisão, Histórico, Dados, Bolões e formulários em gaveta; cartão de imagem para o WhatsApp.
+Encerrar/reabrir o bolão ficam para depois (servidor responde com aviso).
 
 **Verificado em 11/10, nesta sessão, com a máquina quieta:** `npm run done` verde — tipos, lint, 313 testes, SQL no
-PGlite (17 respostas da divisão reconstruídas pelo núcleo), 15 testes da API, build e 34 fluxos no navegador, com o
-novo fluxo da divisão (custo, prêmio, resgate, pagar, desfazer, pagar de novo com conflito real do servidor).
+PGlite (17 respostas da divisão reconstruídas pelo núcleo), 15 testes da API, build e 34 fluxos no navegador. Fotos da
+rodada em `.tmp/e5/` (apagável).
 
-**Decisões dele (10–11/10):** revisão do produto pedida por ele (itens 6 a 11); o piloto vem antes do agente e do
-backup completo, *sem data fixa*; estilo "Noite do sorteio" afinado, bolas *"deveriam lembrar metais"*, polido.
+**Decisões dele (10–11/10):** piloto antes do agente e do backup completo, *sem data fixa*; estilo afinado, bolas de
+metal polido; "os dois em paralelo" (piloto preparado + telas restantes); cada pessoa pode ter vários jogos e jogos
+com mais dezenas (feito).
 
 **Git:** commits só locais em `main`, sem remoto e sem push. **Fora daqui:** sem Supabase real, OAuth Google, cron ou
-deploy (item 5). Nenhum subagente ativo. Fotos da rodada em `.tmp/e5/` (apagável; o git tem o código).
+deploy (item 5); o passo a passo está em `docs/PILOTO.md` e cada passo com conta ou chave é dele. Nenhum subagente
+ativo. Não há `PLAN.md`: a rodada acabou; o próximo plano nasce do item que ele escolher.
 
 **Textos pedidos por ele, já aplicados:** marca *"Seu bolão em boa companhia"*; início *"Faça sua fezinha, organize
 suas apostas e boa sorte!"*.
 
-**A próxima rodada:** E6 do `PLAN.md` (documentação com os números que passaram; README e ARCHITECTURE no estado
-real; IMPLEMENTATION sai) e depois E7, o piloto — ligar o Supabase de verdade, Google e publicação pedem a palavra
-dele a cada passo.
+**A próxima rodada — a ordem é dele:** (a) o piloto (`docs/PILOTO.md`, pede a palavra dele a cada passo); (b) o dia do
+prêmio e o participante (itens 6 e 7: quem guarda o bilhete, cartão por pessoa sem conta); (c) repetir bolão com a
+mesma turma (8); (d) a demonstração com um bolão inteiro, com prêmio (11); (e) os fluxos que oscilam sob carga (13).
 
 ## ALTA — bloqueia a entrega ou pode perder trabalho
 
@@ -59,11 +62,6 @@ jogos, a foto do bilhete, o resultado e a minha parte. (A imagem do bolão para 
 
 **8. Repetir o bolão com a mesma turma (revisão de 10/10).**
 É a ação mais comum de quem joga toda semana e ficou na entrega B. Uma cópia simples para o próximo concurso basta.
-
-**9. As telas falam a língua do sistema (revisão de 10/10; o Início e a tela do bolão já foram refeitos em 11/10 — restam Revisão, Histórico, Dados e os formulários).**
-"Rascunho", "proposta", "manifesto", "SHA-256", "semente de 256 bits", "Monte Carlo", "1 cota = 100 unidades", chance
-em "0,0001198%" (melhor "1 em 834 mil"), estados de sincronização em cada linha. Criar o grupo começa por um texto de
-regras com cara de contrato; criar o bolão pede o número do concurso à mão, sem sugerir o próximo sorteio.
 
 **11. A demonstração para antes do melhor (revisão de 10/10).**
 Registro, resultado e divisão não aparecem no modo de exemplo, e a Revisão some nele. A demonstração devia mostrar um

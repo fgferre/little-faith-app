@@ -102,7 +102,7 @@ test.beforeEach(async ({ request }) => {
 test("a human confirms cash, allocates across pools, confirms a fully paid quota and reverses without deleting history", async ({ page, request }) => {
   await login(page);
   await publishAndAccept(page);
-  await page.getByRole("button", { name: "Conferir recebimento", exact: true })
+  await page.getByRole("button", { name: "Conferir", exact: true })
     .click();
   await page.getByLabel("Referência bancária").fill("transferencia-parcial-1");
   await approve(page);
@@ -167,11 +167,11 @@ test("a human confirms cash, allocates across pools, confirms a fully paid quota
   await page.goto("http://127.0.0.1:4182/#/historico");
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
   await expect(
-    page.getByRole("cell", { name: "Estorno do recebimento", exact: false }),
+    page.getByText("Estorno do recebimento", { exact: false }),
   ).toBeVisible();
   await expect(
     page.getByText(
-      /Participação de Pessoa financeira em Mega financeira revogada/,
+      /A cota de Pessoa financeira em Mega financeira foi cancelada/,
     ),
   ).toBeVisible();
   await page.screenshot({
@@ -204,7 +204,7 @@ test("a committed payment with a lost response recovers its receipt, and reconne
     expect(response.ok()).toBe(true);
     await route.abort("failed");
   });
-  await page.getByRole("button", { name: "Conferir recebimento", exact: true })
+  await page.getByRole("button", { name: "Conferir", exact: true })
     .click();
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("checkbox").last().check();
@@ -218,16 +218,16 @@ test("a committed payment with a lost response recovers its receipt, and reconne
   await dialog.getByRole("button", { name: "Fechar revisão", exact: true })
     .click();
   await expect(
-    page.getByText("Uma decisão precisa de verificação", { exact: true }),
+    page.getByRole("button", { name: "Conferir decisão", exact: true }),
   ).toBeVisible();
   await context.setOffline(true);
   await context.setOffline(false);
   await page.reload();
   await expect(
-    page.getByRole("button", { name: "Verificar decisão", exact: true }),
+    page.getByRole("button", { name: "Conferir decisão", exact: true }),
   ).toBeVisible();
   expect(decisions).toBe(1);
-  await page.getByRole("button", { name: "Verificar decisão", exact: true })
+  await page.getByRole("button", { name: "Conferir decisão", exact: true })
     .click();
   await page.getByRole("dialog").getByRole("button", {
     name: "Consultar recibo",
@@ -235,7 +235,7 @@ test("a committed payment with a lost response recovers its receipt, and reconne
   }).click();
   await expect(page.getByRole("dialog")).not.toBeVisible();
   await expect(
-    page.getByText("Uma decisão precisa de verificação", { exact: true }),
+    page.getByRole("button", { name: "Conferir decisão", exact: true }),
   ).not.toBeVisible();
   expect(decisions).toBe(1);
   const snapshot = await (await request.post(`${api}/finance_pull`, {
@@ -248,7 +248,7 @@ test("a committed payment with a lost response recovers its receipt, and reconne
 
 test("a concurrent group change invalidates the reviewed decision without moving cash", async ({ page, request }) => {
   await login(page);
-  await page.getByRole("button", { name: "Conferir recebimento", exact: true })
+  await page.getByRole("button", { name: "Conferir", exact: true })
     .click();
   await expect(page.getByRole("dialog").getByLabel("Referência bancária"))
     .toBeVisible();
@@ -282,10 +282,7 @@ test("a concurrent group change invalidates the reviewed decision without moving
   ).toBeVisible();
   await page.reload();
   await expect(
-    page.getByRole("heading", {
-      name: "Decisões não confirmadas",
-      exact: true,
-    }),
+    page.getByRole("region", { name: "Não deram certo", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByText(
@@ -303,7 +300,7 @@ test("a deliberate retry after reconnect shows and resends exactly the original 
     if (decisions.length === 1) await route.abort("failed");
     else await route.fulfill({ response: await route.fetch() });
   });
-  await page.getByRole("button", { name: "Conferir recebimento", exact: true })
+  await page.getByRole("button", { name: "Conferir", exact: true })
     .click();
   await page.getByLabel("Bolão de destino").selectOption({
     label: "Quina financeira",
@@ -375,7 +372,7 @@ test("going offline while the review loads still allows closing the dialog", asy
     await released;
     await route.abort("failed");
   });
-  await page.getByRole("button", { name: "Conferir recebimento", exact: true })
+  await page.getByRole("button", { name: "Conferir", exact: true })
     .click();
   await started;
   await context.setOffline(true);
@@ -388,7 +385,7 @@ test("going offline while the review loads still allows closing the dialog", asy
 
 test("refreshing a changed proposal after reconnect requires a new human check", async ({ page, context, request }) => {
   await login(page);
-  await page.getByRole("button", { name: "Conferir recebimento", exact: true })
+  await page.getByRole("button", { name: "Conferir", exact: true })
     .click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByLabel("Valor a destinar")).toHaveValue("30,00");
@@ -476,7 +473,7 @@ test("offline and unconfigured groups keep proposals outside real financial conf
     page.getByRole("button", { name: "Publicar combinados", exact: true }),
   ).toBeDisabled();
   await expect(
-    page.getByText("A conexão Supabase ainda não foi configurada.", {
+    page.getByText("A conta compartilhada ainda não foi ligada neste app.", {
       exact: false,
     }),
   ).toBeVisible();
@@ -729,7 +726,7 @@ test("a lost plan response is recovered after reload without replaying the appli
   await page.goto("http://127.0.0.1:4182/#/revisao");
   await page.reload();
   await page.getByRole("button", {
-    name: "Verificar decisão do plano",
+    name: "Conferir decisão do plano",
     exact: true,
   }).click();
   await page.getByRole("button", {
@@ -775,17 +772,11 @@ test("a stale plan approval reports a persistent conflict without reserving anot
   await expect(dialog).not.toBeVisible();
   await page.goto("http://127.0.0.1:4182/#/revisao");
   await expect(
-    page.getByRole("heading", {
-      name: "Decisões de plano que precisam de revisão",
-      exact: true,
-    }),
+    page.getByRole("region", { name: "Plano: Aplicar o plano", exact: true }),
   ).toBeVisible();
   await page.reload();
   await expect(
-    page.getByRole("heading", {
-      name: "Decisões de plano que precisam de revisão",
-      exact: true,
-    }),
+    page.getByRole("region", { name: "Plano: Aplicar o plano", exact: true }),
   ).toBeVisible();
   expect((await fixturePost(request, "plan_pull", { groupId })).appliedPlans)
     .toHaveLength(0);
@@ -1180,7 +1171,7 @@ test("an accepted partial registration with a lost response is recovered without
   await page.goto("http://127.0.0.1:4182/#/revisao");
   await page.reload();
   await page.getByRole("button", {
-    name: "Verificar conferência do registro",
+    name: "Conferir o registro",
     exact: true,
   }).click();
   await page.getByRole("button", {
