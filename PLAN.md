@@ -10,11 +10,11 @@ Especificação: `docs/ESPECIFICACAO.md` › "Apuração e rateio" e "Ordem de i
 
 - [x] E0. Direção visual: três direções em imagem; ele escolheu a C, "Noite do sorteio" (10/10).
 - [x] E1. `npm run done` volta a passar (10/10: tipos e lint corrigidos, testes no schema v5, cópia de emergência v5).
-- [ ] E2. Testes próprios de settlement no core: caixa/direitos, centavos, parcial, oficial, compensação, conflito,
+- [x] E2. Testes próprios de settlement no core (10/10: 29 casos; o código já concordava com as regras): caixa/direitos, centavos, parcial, oficial, compensação, conflito,
   encerramento e reabertura.
 - [ ] E3. Sync v5 em `packages/local` (exports públicos feitos em 10/10); repetir os cenários integrados afetados da etapa 5 (o E2E de
   resultados já passou sozinho em 10/10).
-- [ ] E4. Backend: migration, RPCs e família HTTP de settlement, com validação SQL↔core, autorização humana, locks,
+- [x] E4. Backend (10/10: seis ações; encerrar/reabrir ficam rejeitados com aviso): migration, RPCs e família HTTP de settlement, com validação SQL↔core, autorização humana, locks,
   revisão e idempotência.
 - [ ] E5. Frontend, já na direção escolhida: tela, transporte, pendências e histórico; a fila de settlement entra na
   proteção de revisão de **todas** as famílias de comandos; o caixa exibido passa a ser a projeção conciliada.

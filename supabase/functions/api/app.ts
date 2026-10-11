@@ -6,8 +6,9 @@ import { collectOfficialResult, ResultCollectionFailure, type CollectionContext 
 import { validateEvidenceMetadata, validateEvidenceUploadMetadata } from '../../../packages/core/src/evidence.ts';
 import {
   exactKeys, isCursor, isFinancialReceipt, isFinancialSnapshot, isHumanSession, isObject,
-  isPlanningReceipt, isPlanningSnapshot, isPushReceipt, isRegistrationReceipt, isRegistrationSnapshot, isResultReceipt, isResultSnapshot, isUuid,
-  parseFinancialReview, parsePlanningReview, parsePush, parseRegistrationReview, parseResultReview, readVerifiedTokenClaims,
+  isPlanningReceipt, isPlanningSnapshot, isPushReceipt, isRegistrationReceipt, isRegistrationSnapshot, isResultReceipt, isResultSnapshot,
+  isSettlementReceipt, isSettlementSnapshot, isUuid, parseFinancialReview, parsePlanningReview, parsePush, parseRegistrationReview, parseResultReview,
+  parseSettlementReview, readVerifiedTokenClaims, SETTLEMENT_ACTION_TYPES,
 } from './contract.ts';
 
 export interface ApiConfig {
@@ -178,6 +179,15 @@ export function createApi(config: ApiConfig): Hono<ApiEnvironment> {
       return c.json(data);
     }
     if (isObject(value) && isObject(value.command) && isObject(value.command.action)
+      && SETTLEMENT_ACTION_TYPES.includes(String(value.command.action.type))) {
+      const command = parseSettlementReview(value);
+      if (!command) return c.json({ code: 'invalid_request', message: 'Informe uma apuração válida para revisão humana.' }, 400);
+      const { data, error } = await c.get('supabase').rpc('settlement_decide', { p_command: command });
+      if (error) { const failure = rpcError(error.code); return c.json({ code: failure.code, message: failure.message }, failure.status); }
+      if (!isSettlementReceipt(data)) return c.json({ code: 'invalid_backend_response', message: 'A decisão de apuração não pôde ser verificada; consulte o comando.' }, 503);
+      return c.json(data);
+    }
+    if (isObject(value) && isObject(value.command) && isObject(value.command.action)
       && ['plan_apply', 'pool_lock'].includes(String(value.command.action.type))) {
       const command = parsePlanningReview(value);
       if (!command) return c.json({ code: 'invalid_request', message: 'Informe um plano ou trava válido para revisão humana.' }, 400);
@@ -229,6 +239,23 @@ export function createApi(config: ApiConfig): Hono<ApiEnvironment> {
     if (error) { const failure = rpcError(error.code); return c.json({ code: failure.code, message: failure.message }, failure.status); }
     if (data === null) return c.json({ code: 'command_not_found', message: 'Comando de planejamento ainda não recebido para esta conta.' }, 404);
     if (!isPlanningReceipt(data)) return c.json({ code: 'invalid_backend_response', message: 'Não foi possível verificar o recibo de planejamento.' }, 503);
+    return c.json(data);
+  });
+  app.post('/v1/settlement_pull', async c => {
+    const value: unknown = await c.req.json().catch(() => null);
+    if (!isObject(value) || !exactKeys(value, ['groupId']) || !isUuid(value.groupId)) return c.json({ code: 'invalid_request', message: 'Informe um grupo válido para consultar a apuração.' }, 400);
+    const { data, error } = await c.get('supabase').rpc('settlement_pull', { p_group_id: value.groupId });
+    if (error) { const failure = rpcError(error.code); return c.json({ code: failure.code, message: failure.message }, failure.status); }
+    if (!isSettlementSnapshot(data)) return c.json({ code: 'invalid_backend_response', message: 'O retrato da apuração não pôde ser verificado; preserve os dados locais.' }, 503);
+    return c.json(data);
+  });
+  app.get('/v1/settlement_command_status', async c => {
+    const key = c.req.query('idempotencyKey');
+    if (!isUuid(key)) return c.json({ code: 'invalid_request', message: 'Chave de idempotência inválida.' }, 400);
+    const { data, error } = await c.get('supabase').rpc('settlement_command_status', { p_idempotency_key: key });
+    if (error) { const failure = rpcError(error.code); return c.json({ code: failure.code, message: failure.message }, failure.status); }
+    if (data === null) return c.json({ code: 'command_not_found', message: 'Decisão de apuração ainda não recebida para esta conta.' }, 404);
+    if (!isSettlementReceipt(data)) return c.json({ code: 'invalid_backend_response', message: 'O recibo da apuração não pôde ser verificado.' }, 503);
     return c.json(data);
   });
   app.post('/v1/results_pull', async c => {

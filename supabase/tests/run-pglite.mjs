@@ -33,6 +33,7 @@ try {
   const { validateEvidenceMetadata } = await import(pathToFileURL(resolve(compiledCore, 'evidence.js')).href);
   const { validateResultReceipt, validateResultSnapshot } = await import(pathToFileURL(resolve(compiledCore, 'results.js')).href);
   const { parseCaixaResult } = await import(pathToFileURL(resolve(compiledCore, 'caixa-results.js')).href);
+  const { validateSettlementReceipt, validateSettlementSnapshot } = await import(pathToFileURL(resolve(compiledCore, 'settlement.js')).href);
   await db.exec(`
     create role authenticated nologin;
     create role anon nologin;
@@ -102,7 +103,19 @@ try {
       else throw new Error(`Unknown contract sample kind: ${kind}`);
     } catch (error) { throw new Error(`SQL/core registration/result contract mismatch: ${label}`, { cause: error }); }
   }
-  console.log(`Foundation, finance, planning, registration and results SQL passed; ${samples.length} financial + ${planningSamples.length} planning + ${stage5Samples.length} registration/result responses validated by the real core; all 32 catalog rules match, manifests/raw sources independently hashed (Auth/Storage stubs; platform integration remains separate).`);
+  const settlementResults = await db.exec(await readFile(new URL('./settlement.sql', import.meta.url), 'utf8'));
+  const settlementSamples = settlementResults.flatMap(result => result.rows).filter(row => typeof row.label === 'string' && row.data && row.kind);
+  if (settlementSamples.length === 0) throw new Error('Settlement SQL must return contract samples.');
+  let settlementFacts = 0;
+  for (const { label, kind, data } of settlementSamples) {
+    try {
+      // The core rebuilds every expense, prize, redemption and distribution; one cent of drift rejects the snapshot.
+      if (kind !== 'receipt' && kind !== 'snapshot') throw new Error(`Unknown contract sample kind: ${kind}`);
+      const snapshot = kind === 'receipt' ? validateSettlementReceipt(data).snapshot : validateSettlementSnapshot(data);
+      if (snapshot) settlementFacts = Math.max(settlementFacts, snapshot.expenses.length + snapshot.prizes.length + snapshot.redemptions.length + snapshot.distributions.length);
+    } catch (error) { throw new Error(`SQL/core settlement contract mismatch: ${label}`, { cause: error }); }
+  }
+  console.log(`Foundation, finance, planning, registration, results and settlement SQL passed; ${samples.length} financial + ${planningSamples.length} planning + ${stage5Samples.length} registration/result + ${settlementSamples.length} settlement responses (${settlementFacts} settlement facts rebuilt) validated by the real core; all 32 catalog rules match, manifests/raw sources independently hashed (Auth/Storage stubs; platform integration remains separate).`);
 } catch (error) {
   for (let cause = error; cause; cause = cause.cause) console.error(cause.message, cause.where ?? '');
   process.exitCode = 1;

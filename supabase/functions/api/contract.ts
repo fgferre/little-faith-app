@@ -8,6 +8,8 @@ import type { ResultCommand, ResultReceipt, ResultSnapshot } from '../../../pack
 import { MAX_RESULT_COMMAND_BYTES, validateResultCommand, validateResultReceipt, validateResultSnapshot } from '../../../packages/core/src/results.ts';
 import type { RegistrationCommand, RegistrationReceipt, RegistrationSnapshot } from '../../../packages/core/src/registration-types.ts';
 import { MAX_REGISTRATION_COMMAND_BYTES, validateRegistrationCommand, validateRegistrationReceipt, validateRegistrationSnapshot } from '../../../packages/core/src/registration.ts';
+import type { SettlementCommand, SettlementReceipt, SettlementSnapshot } from '../../../packages/core/src/settlement-types.ts';
+import { MAX_SETTLEMENT_COMMAND_BYTES, validateSettlementCommand, validateSettlementReceipt, validateSettlementSnapshot } from '../../../packages/core/src/settlement.ts';
 
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const kinds: EntityKind[] = ['group', 'person', 'pool', 'quota', 'bet', 'payment-proposal'];
@@ -107,6 +109,21 @@ export function isRegistrationReceipt(value: unknown): value is RegistrationRece
 }
 export function isRegistrationSnapshot(value: unknown): value is RegistrationSnapshot {
   try { validateRegistrationSnapshot(value); return true; } catch { return false; }
+}
+/** Closing/reopening are parsed here and answered by SQL with an explicit rejection receipt. */
+export const SETTLEMENT_ACTION_TYPES = ['expense_confirm', 'prize_confirm', 'redemption_record', 'redemption_reverse',
+  'distribution_record', 'distribution_reverse', 'pool_settle', 'pool_reopen'];
+export function parseSettlementReview(value: unknown): SettlementCommand | null {
+  if (!isObject(value) || !exactKeys(value, ['command']) || new TextEncoder().encode(JSON.stringify(value.command)).length > MAX_SETTLEMENT_COMMAND_BYTES) return null;
+  try { validateSettlementCommand(value.command); } catch { return null; }
+  // Preserve the exact submitted command so a changed payload cannot reuse its receipt.
+  return value.command as SettlementCommand;
+}
+export function isSettlementReceipt(value: unknown): value is SettlementReceipt {
+  try { validateSettlementReceipt(value); return true; } catch { return false; }
+}
+export function isSettlementSnapshot(value: unknown): value is SettlementSnapshot {
+  try { validateSettlementSnapshot(value); return true; } catch { return false; }
 }
 
 /** Called only after Supabase Auth validated this exact bearer token. Never authorizes on its own. */

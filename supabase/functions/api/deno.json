@@ -22,7 +22,10 @@
     "../../../packages/core/src/lossless-json": "../../../packages/core/src/lossless-json.ts",
     "../../../packages/core/src/results": "../../../packages/core/src/results.ts",
     "../../../packages/core/src/registration": "../../../packages/core/src/registration.ts",
-    "../../../packages/core/src/planning": "../../../packages/core/src/planning.ts"
+    "../../../packages/core/src/planning": "../../../packages/core/src/planning.ts",
+    "../../../packages/core/src/registered-prizes": "../../../packages/core/src/registered-prizes.ts",
+    "../../../packages/core/src/settlement-types": "../../../packages/core/src/settlement-types.ts",
+    "../../../packages/core/src/settlement": "../../../packages/core/src/settlement.ts"
   },
   "compilerOptions": { "strict": true, "noUncheckedIndexedAccess": true },
   "tasks": { "check": "deno check index.ts", "test": "deno test --allow-env api_test.ts" }

@@ -3,7 +3,7 @@ import { createResultsCollector } from './collector.ts';
 import { evidenceMime, hashBytes, uploadOriginal, EvidenceFailure } from './evidence.ts';
 import { collectOfficialResult, ResultCollectionFailure } from './results.ts';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { isFinancialReceipt, isFinancialSnapshot, isHumanSession, isPlanningReceipt, isPlanningSnapshot, parseFinancialReview, parsePlanningReview, parsePush } from './contract.ts';
+import { isFinancialReceipt, isFinancialSnapshot, isHumanSession, isPlanningReceipt, isPlanningSnapshot, isSettlementReceipt, isSettlementSnapshot, parseFinancialReview, parsePlanningReview, parsePush, parseSettlementReview } from './contract.ts';
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -317,5 +317,85 @@ Deno.test('planning HTTP routes forward human decisions, recover receipts and fa
     invalidBackend = true;
     assert((await app.request('/api/v1/review_decide', { method: 'POST', headers, body: JSON.stringify({ command }) })).status === 503, 'accepted without bound server fact fails closed');
     assert((await app.request('/api/v1/plan_pull', { method: 'POST', headers, body: JSON.stringify({ groupId: id }) })).status === 503, 'incomplete manifest history fails closed');
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+function emptySettlement(groupRevision = 0) {
+  return { groupId: id, groupRevision,
+    financial: { groupId: id, groupRevision, statutes: [], acceptances: [], payments: [], allocations: [], movements: [], quotas: [], revocations: [] },
+    registration: { groupId: id, groupRevision, manifests: [], evidence: [], reports: [] },
+    results: { groupId: id, groupRevision, results: [], selections: [], calendarVersions: [] },
+    expenses: [], prizes: [], redemptions: [], distributions: [], closures: [] };
+}
+
+Deno.test('settlement uses the shared validator and requires a real receipt fact', () => {
+  const command = { apiVersion: 'v1', idempotencyKey: id, groupId: id, expectedRevision: 0,
+    action: { type: 'distribution_record', poolId: id, poolVersion: 2, personId: id, kind: 'prize-payment', amountCents: '1500',
+      evidenceIds: [id], sourceReference: 'Transferência identificada', eventAt: '2026-10-10T12:00:00.000Z', reason: 'Pagamento do direito.' } };
+  assert(parseSettlementReview({ command }) === command, 'original command preserved for idempotency');
+  assert(parseSettlementReview({ command: { ...command, actorId: id } }) === null, 'organizer identity comes from Auth');
+  assert(parseSettlementReview({ command: { ...command, action: { ...command.action, amountCents: '1500.00' } } }) === null, 'cents are canonical integer strings');
+  assert(parseSettlementReview({ command: { ...command, action: { ...command.action, reason: ' ' } } }) === null, 'payments keep a human reason');
+  assert(parseSettlementReview({ command: { ...command, action: { ...command.action, poolVersion: 0 } } }) === null, 'offline version cannot settle');
+  const settle = { ...command, action: { type: 'pool_settle', poolId: id, poolVersion: 2, registrationReportId: id, prizeConfirmationId: null,
+    expenseConfirmationId: null, leftoverDisposition: 'group-reserve', pendingExplanation: '', reason: 'Encerramento.' } };
+  assert(parseSettlementReview({ command: settle }) === settle, 'closing reaches SQL, which answers with an explicit rejection');
+  const huge = { ...command, action: { ...command.action, sourceReference: 'x'.repeat(1_048_576) } };
+  assert(parseSettlementReview({ command: huge }) === null, 'commands above 1 MiB rejected before the RPC');
+  const snapshot = emptySettlement();
+  assert(isSettlementSnapshot(snapshot), 'complete empty settlement history');
+  assert(!isSettlementSnapshot({ ...snapshot, closures: undefined }), 'history arrays cannot be omitted');
+  assert(!isSettlementSnapshot({ ...snapshot, results: { ...snapshot.results, groupRevision: 1 } }), 'source families share one revision cut');
+  assert(!isSettlementReceipt({ apiVersion: 'v1', idempotencyKey: id, receiptId: id, groupId: id, status: 'accepted',
+    groupRevision: 0, message: null, confirmedAt: '2026-10-10T12:00:00.000Z', snapshot }), 'server UUID alone cannot confirm a settlement fact');
+});
+
+Deno.test('settlement HTTP routes forward human decisions, recover receipts and fail closed', async () => {
+  // The mocked transport checks wiring and contract validation; real Auth remains an integration check.
+  const claims = { sub: id, role: 'authenticated', session_id: id, app_metadata: {}, is_anonymous: false };
+  const token = `fixture.${btoa(JSON.stringify(claims))}.fixture`;
+  const snapshot = emptySettlement();
+  const command = { apiVersion: 'v1', idempotencyKey: id, groupId: id, expectedRevision: 0,
+    action: { type: 'pool_settle', poolId: id, poolVersion: 2, registrationReportId: id, prizeConfirmationId: null,
+      expenseConfirmationId: null, leftoverDisposition: 'group-reserve', pendingExplanation: '', reason: 'Encerramento.' } };
+  const receipt = { apiVersion: 'v1', idempotencyKey: id, receiptId: null, groupId: id, status: 'rejected',
+    groupRevision: 0, message: 'Encerramento e reabertura ainda não estão disponíveis.', confirmedAt: null, snapshot };
+  const calls: { name: string; parameters: unknown }[] = [];
+  let invalidBackend = false;
+  let missingReceipt = false;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input, init) => {
+    const request = new Request(input, init);
+    assert(request.headers.get('Authorization') === `Bearer ${token}`, 'human token propagated unchanged');
+    assert(request.headers.get('apikey') === 'test-public-key', 'public project key only');
+    const path = new URL(request.url).pathname;
+    if (path === '/auth/v1/user') return Response.json({ id, app_metadata: {}, is_anonymous: false });
+    const name = path.replace('/rest/v1/rpc/', '');
+    calls.push({ name, parameters: await request.json() });
+    if (name === 'settlement_pull') return Response.json(invalidBackend ? { ...snapshot, closures: undefined } : snapshot);
+    if (name === 'settlement_decide') return Response.json(invalidBackend ? { ...receipt, receiptId: id, status: 'accepted', message: null, confirmedAt: '2026-10-10T12:00:00.000Z' } : receipt);
+    if (name === 'settlement_command_status') return Response.json(missingReceipt ? null : receipt);
+    throw new Error(`Unexpected mocked RPC: ${name}`);
+  };
+  try {
+    const app = createApi({ supabaseUrl: 'https://fixture.supabase.co', publishableKey: 'test-public-key', allowedOrigins: ['https://app.example'] });
+    const headers = { Authorization: `Bearer ${token}`, Origin: 'https://app.example', 'Content-Type': 'application/json' };
+    const pulled = await app.request('/api/v1/settlement_pull', { method: 'POST', headers, body: JSON.stringify({ groupId: id }) });
+    assert(pulled.status === 200 && JSON.stringify(await pulled.json()) === JSON.stringify(snapshot), 'complete settlement snapshot returned');
+    assert(JSON.stringify(calls.at(-1)) === JSON.stringify({ name: 'settlement_pull', parameters: { p_group_id: id } }), 'pull RPC parameters');
+    const reviewed = await app.request('/api/v1/review_decide', { method: 'POST', headers, body: JSON.stringify({ command }) });
+    assert(reviewed.status === 200 && (await reviewed.json()).message === receipt.message, 'unavailable closing is forwarded as a valid rejection receipt');
+    assert(JSON.stringify(calls.at(-1)) === JSON.stringify({ name: 'settlement_decide', parameters: { p_command: command } }), 'settlement action routes to its own RPC');
+    const count = calls.length;
+    const malformed = await app.request('/api/v1/review_decide', { method: 'POST', headers, body: JSON.stringify({ command: { ...command, action: { ...command.action, leftoverDisposition: 'wallet' } } }) });
+    assert(malformed.status === 400 && calls.length === count, 'malformed settlement rejected before RPC');
+    const recovered = await app.request(`/api/v1/settlement_command_status?idempotencyKey=${id}`, { headers });
+    assert(recovered.status === 200 && JSON.stringify(await recovered.json()) === JSON.stringify(receipt), 'lost settlement receipt recovered');
+    assert(JSON.stringify(calls.at(-1)) === JSON.stringify({ name: 'settlement_command_status', parameters: { p_idempotency_key: id } }), 'status RPC parameters');
+    missingReceipt = true;
+    assert((await app.request(`/api/v1/settlement_command_status?idempotencyKey=${id}`, { headers })).status === 404, 'missing settlement receipt cannot become acceptance');
+    invalidBackend = true;
+    assert((await app.request('/api/v1/review_decide', { method: 'POST', headers, body: JSON.stringify({ command }) })).status === 503, 'accepted without bound server fact fails closed');
+    assert((await app.request('/api/v1/settlement_pull', { method: 'POST', headers, body: JSON.stringify({ groupId: id }) })).status === 503, 'incomplete settlement history fails closed');
   } finally { globalThis.fetch = originalFetch; }
 });
