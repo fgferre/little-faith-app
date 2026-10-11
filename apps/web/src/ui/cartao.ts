@@ -1,13 +1,20 @@
 import type { LotteryId } from "@bolao/core";
 
-/** Um jogo no cartão: só o apelido e os números, nunca dados de pagamento. */
+/** Um jogo no cartão: só os números, nunca dados de pagamento. */
 export interface ShareCardGame {
-  name: string;
   numbers: number[];
   /** Selo do jogo premiado ("Quadra!"): os acertos ficam em ouro. */
   tag?: string | undefined;
   /** Contagem apagada do jogo sem prêmio ("3 acertos"): os acertos ganham anel de ouro. */
   hits?: string | undefined;
+  /** Jogo ampliado, em letra pequena: "7 dezenas". */
+  size?: string | undefined;
+}
+
+/** Os jogos de quem escolheu ("Rafael · 4 jogos"); os sem autor em "Jogos da turma · 18". */
+export interface ShareCardGroup {
+  label: string;
+  games: ShareCardGame[];
 }
 
 export interface ShareCardData {
@@ -17,8 +24,8 @@ export interface ShareCardData {
   chip: string;
   /** Números sorteados; null antes do sorteio. */
   drawn: number[] | null;
-  /** Jogos em ordem (premiados primeiro); o cartão mostra até 6 e conta o resto. */
-  games: ShareCardGame[];
+  /** Jogos por quem escolheu, em ordem; o cartão mostra até 6 jogos e conta o resto. */
+  groups: ShareCardGroup[];
   /** Linha final: título e prêmio em ouro (value), ou título com um detalhe apagado. */
   result: {
     title: string;
@@ -349,127 +356,127 @@ function brandMark(ctx: Ctx, x: number, cy: number, em: number) {
 }
 
 interface GamesLayout {
-  shown: ShareCardGame[];
+  groups: ShareCardGroup[];
+  shown: { game: ShareCardGame; group: number }[];
   more: number;
-  stacked: boolean;
   d: number;
   gap: number;
-  nameW: number;
   perLine: number;
+  lines: number;
   rowH: number;
   rowGap: number;
   height: number;
 }
-const NAME_SIZE = 40;
+const HEAD_SIZE = 40;
+const HEAD_H = 52; // cabeçalho "Rafael · 4 jogos" com o espaço abaixo
+const HEAD_GAP = 10;
 const TAG_H = 52;
+const TEXT_H = 44; // uma linha pequena: "3 acertos", "7 dezenas"
 const MORE_H = 60; // linha "+N jogos" com o espaço acima
 
-function noteWidth(ctx: Ctx, game: ShareCardGame) {
+/** O que vai ao lado das bolas, de cima para baixo: o selo ou os acertos, e o "7 dezenas". */
+function noteParts(ctx: Ctx, game: ShareCardGame) {
+  const parts: { tag: boolean; text: string; w: number; h: number }[] = [];
   if (game.tag) {
     font(ctx, 800, SMALL);
-    return ctx.measureText(game.tag).width + 36;
-  }
-  if (game.hits) {
+    parts.push({ tag: true, text: game.tag, w: ctx.measureText(game.tag).width + 36, h: TAG_H });
+  } else if (game.hits) {
     font(ctx, 600, SMALL);
-    return ctx.measureText(game.hits).width;
+    parts.push({ tag: false, text: game.hits, w: ctx.measureText(game.hits).width, h: TEXT_H });
   }
-  return 0;
+  if (game.size) {
+    font(ctx, 600, SMALL);
+    parts.push({ tag: false, text: game.size, w: ctx.measureText(game.size).width, h: TEXT_H });
+  }
+  return {
+    parts,
+    w: Math.max(0, ...parts.map((part) => part.w)),
+    h: parts.reduce((sum, part) => sum + part.h, 0) + Math.max(0, parts.length - 1) * 6,
+  };
 }
 
 /**
- * Quantos jogos cabem (até 6) e em que tamanho: lado a lado com o nome quando a fileira cabe,
- * senão o nome em cima (Lotofácil). Bolas menores que 70 px viram "+N jogos" em vez de encolher mais.
+ * Quantos jogos cabem (até 6) e em que tamanho, com o cabeçalho de cada grupo em cima: as bolas numa
+ * fileira quando cabem, senão em duas linhas (ou mais). Bolas menores que 70 px (64 em várias linhas)
+ * viram "+N jogos" em vez de encolher mais.
  */
 function layoutGames(
   ctx: Ctx,
-  games: ShareCardGame[],
+  groups: ShareCardGroup[],
   rings: boolean,
   space: number,
 ): GamesLayout {
   const gap = rings ? 12 : 10;
+  const all = groups.flatMap((group, index) =>
+    group.games.map((game) => ({ game, group: index }))
+  );
   const fallback = (count: number): GamesLayout | null => {
-    const shown = games.slice(0, count);
-    const more = games.length - count;
-    const extra = more > 0 ? MORE_H : 0;
-    font(ctx, 700, NAME_SIZE);
-    const nameW = Math.min(
-      240,
-      Math.max(0, ...shown.map((g) => ctx.measureText(g.name).width)),
-    );
-    const noteW = Math.max(0, ...shown.map((g) => noteWidth(ctx, g)));
-    const n = Math.max(1, ...shown.map((g) => g.numbers.length));
+    const shown = all.slice(0, count);
+    const more = all.length - count;
+    const heads = new Set(shown.map((item) => item.group)).size;
+    const notes = shown.map((item) => noteParts(ctx, item.game));
+    const noteW = Math.max(0, ...notes.map((note) => note.w));
+    const noteH = Math.max(0, ...notes.map((note) => note.h));
+    const n = Math.max(1, ...shown.map((item) => item.game.numbers.length));
+    const avail = CW - (noteW ? noteW + 24 : 0);
     const maxD = noteW ? 84 : 96;
-
-    const inline = CW - nameW - 24 - (noteW ? noteW + 24 : 0);
-    const wide = Math.min(maxD, Math.floor((inline - (n - 1) * gap) / n));
-    if (wide >= 70) {
-      const rowGap = 12;
-      const tall = Math.floor((space - extra - (count - 1) * rowGap) / count);
-      const d = Math.max(36, Math.min(wide, tall));
-      if (d < 70 && count > 1) return null;
-      const rowH = Math.max(d, TAG_H);
-      return {
-        shown,
-        more,
-        stacked: false,
-        d,
-        gap,
-        nameW,
-        perLine: n,
-        rowH,
-        rowGap,
-        height: count * rowH + (count - 1) * rowGap + extra,
-      };
-    }
-    // nome em cima, bolas embaixo em duas linhas (ou mais)
-    const lines = Math.max(2, Math.ceil(n / 10));
-    const perLine = Math.ceil(n / lines);
-    const across = Math.min(
-      84,
-      Math.floor((CW - (perLine - 1) * gap) / perLine),
-    );
-    const rowGap = 22;
-    const head = TAG_H + 12;
-    const tall = Math.floor(
-      ((space - extra - (count - 1) * rowGap) / count - head -
-        (lines - 1) * 8) / lines,
-    );
-    const d = Math.max(36, Math.min(across, tall));
-    if (d < 64 && count > 1) return null;
-    const rowH = head + lines * d + (lines - 1) * 8;
-    return {
-      shown,
-      more,
-      stacked: true,
-      d,
-      gap,
-      nameW,
-      perLine,
-      rowH,
-      rowGap,
-      height: count * rowH + (count - 1) * rowGap + extra,
+    const least = (lines: number) => lines === 1 ? 70 : 64;
+    const across = (lines: number) => {
+      const perLine = Math.ceil(n / lines);
+      return Math.min(maxD, Math.floor((avail - (perLine - 1) * gap) / perLine));
     };
+    let lines = 1;
+    while (lines < 4 && across(lines) < least(lines)) lines++;
+    const perLine = Math.ceil(n / lines);
+    const rowGap = lines === 1 ? 12 : 22;
+    const fixed = heads * (HEAD_H + HEAD_GAP) + (more > 0 ? MORE_H : 0);
+    const tall = Math.floor(
+      ((space - fixed - (count - 1) * rowGap) / count - (lines - 1) * 8) / lines,
+    );
+    const d = Math.max(36, Math.min(across(lines), tall));
+    const rowH = Math.max(lines * d + (lines - 1) * 8, noteH);
+    const height = fixed + count * rowH + (count - 1) * rowGap;
+    if ((d < least(lines) || height > space) && count > 1) return null;
+    return { groups, shown, more, d, gap, perLine, lines, rowH, rowGap, height };
   };
-  for (let count = Math.min(MAX_GAMES, games.length); count > 1; count--) {
+  for (let count = Math.min(MAX_GAMES, all.length); count > 1; count--) {
     const layout = fallback(count);
     if (layout) return layout;
   }
-  return fallback(Math.min(1, games.length))!;
+  return fallback(Math.min(1, all.length))!;
 }
 
-function drawNote(ctx: Ctx, game: ShareCardGame, x: number, cy: number, align: "left" | "right") {
-  if (game.tag) {
-    font(ctx, 800, SMALL);
-    const w = ctx.measureText(game.tag).width + 36;
-    const left = align === "left" ? x : x - w;
-    rounded(ctx, left, cy - TAG_H / 2, w, TAG_H, TAG_H / 2);
-    ctx.fillStyle = GOLD;
-    ctx.fill();
-    line(ctx, game.tag, left + w / 2, cy, GOLD_INK, "center");
-  } else if (game.hits) {
-    font(ctx, 600, SMALL);
-    line(ctx, game.hits, x, cy, MUTED, align);
+function drawNote(ctx: Ctx, game: ShareCardGame, x: number, cy: number) {
+  const note = noteParts(ctx, game);
+  let top = cy - note.h / 2;
+  for (const part of note.parts) {
+    const mid = top + part.h / 2;
+    if (part.tag) {
+      font(ctx, 800, SMALL);
+      rounded(ctx, x, top, part.w, TAG_H, TAG_H / 2);
+      ctx.fillStyle = GOLD;
+      ctx.fill();
+      line(ctx, part.text, x + part.w / 2, mid, GOLD_INK, "center");
+    } else {
+      font(ctx, 600, SMALL);
+      line(ctx, part.text, x, mid, MUTED);
+    }
+    top += part.h + 6;
   }
+}
+
+/** "Rafael · 4 jogos": o nome em destaque e a contagem apagada. */
+function drawHead(ctx: Ctx, label: string, cy: number) {
+  const cut = label.lastIndexOf(" · ");
+  const count = cut < 0 ? "" : label.slice(cut);
+  font(ctx, 600, HEAD_SIZE);
+  const countW = ctx.measureText(count).width;
+  font(ctx, 700, HEAD_SIZE);
+  const name = clip(ctx, cut < 0 ? label : label.slice(0, cut), CW - countW);
+  line(ctx, name, X0, cy, INK);
+  const x = X0 + ctx.measureText(name).width;
+  font(ctx, 600, HEAD_SIZE);
+  line(ctx, count, x, cy, MUTED);
 }
 
 function drawGames(
@@ -479,39 +486,34 @@ function drawGames(
   top: number,
 ) {
   let y = top;
+  let group = -1;
+  const { d, gap } = layout;
   const finish = (game: ShareCardGame, n: number): Finish =>
     drawn?.has(n) ? game.tag ? "gold" : "ring" : "silver";
-  for (const game of layout.shown) {
-    const numbers = sorted(game.numbers);
-    font(ctx, 700, NAME_SIZE);
-    const name = clip(ctx, game.name, layout.nameW);
-    if (!layout.stacked) {
-      const cy = y + layout.rowH / 2;
-      line(ctx, name, X0, cy, INK);
-      let x = X0 + layout.nameW + 24;
-      for (const n of numbers) {
-        ball(ctx, x + layout.d / 2, cy, layout.d, finish(game, n), pad(n), .48);
-        x += layout.d + layout.gap;
-      }
-      drawNote(ctx, game, x - layout.gap + 24, cy, "left");
-    } else {
-      const head = y + TAG_H / 2;
-      line(ctx, name, X0, head, INK);
-      drawNote(ctx, game, X1, head, "right");
-      numbers.forEach((n, i) => {
-        const col = i % layout.perLine;
-        const row = Math.floor(i / layout.perLine);
-        ball(
-          ctx,
-          X0 + col * (layout.d + layout.gap) + layout.d / 2,
-          y + TAG_H + 12 + row * (layout.d + 8) + layout.d / 2,
-          layout.d,
-          finish(game, n),
-          pad(n),
-          .48,
-        );
-      });
+  for (const item of layout.shown) {
+    if (item.group !== group) {
+      group = item.group;
+      drawHead(ctx, layout.groups[group]!.label, y + HEAD_H / 2);
+      y += HEAD_H + HEAD_GAP;
     }
+    const numbers = sorted(item.game.numbers);
+    const lines = Math.ceil(numbers.length / layout.perLine);
+    const ballsTop = y + (layout.rowH - (lines * d + (lines - 1) * 8)) / 2;
+    numbers.forEach((n, i) => {
+      const col = i % layout.perLine;
+      const row = Math.floor(i / layout.perLine);
+      ball(
+        ctx,
+        X0 + col * (d + gap) + d / 2,
+        ballsTop + row * (d + 8) + d / 2,
+        d,
+        finish(item.game, n),
+        pad(n),
+        .48,
+      );
+    });
+    const used = Math.min(numbers.length, layout.perLine);
+    drawNote(ctx, item.game, X0 + used * (d + gap) - gap + 24, y + layout.rowH / 2);
     y += layout.rowH + layout.rowGap;
   }
   if (layout.more > 0) {
@@ -663,9 +665,9 @@ function draw(ctx: Ctx, data: ShareCardData) {
   const resultLimit = BOTTOM - 52 - 44 - resultH;
 
   let gamesEnd = y;
-  if (data.games.length) {
+  if (data.groups.some((group) => group.games.length)) {
     const top = eyebrow(ctx, "Nossos jogos", y + 32) + 16;
-    const layout = layoutGames(ctx, data.games, !!data.drawn, resultLimit - 40 - top);
+    const layout = layoutGames(ctx, data.groups, !!data.drawn, resultLimit - 40 - top);
     drawGames(ctx, layout, data.drawn ? new Set(data.drawn) : null, top);
     gamesEnd = top + layout.height;
   }

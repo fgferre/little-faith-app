@@ -1,4 +1,5 @@
-import { formatBRL } from "@bolao/core";
+import { formatBRL, LOTTERIES, officialPoolRule } from "@bolao/core";
+import type { LotteryId } from "@bolao/core";
 
 /** Dinheiro grande sem centavos quando eles são zero: "R$ 240"; senão "R$ 240,50". */
 export function reais(cents: string) {
@@ -71,4 +72,70 @@ export function diaMes(value: string, timeZone: string) {
     month: "2-digit",
     timeZone,
   }).format(new Date(value));
+}
+
+/** A regra da autoria, uma vez sob "Nossos jogos". */
+export const AUTORIA =
+  "Quem escolheu os números não ganha mais por isso: o prêmio é dividido pelas cotas.";
+
+/**
+ * Jogo com mais dezenas que o mínimo, pela tabela oficial da modalidade: "7 dezenas · vale 7 jogos · R$ 42,00";
+ * null no jogo simples.
+ */
+export function ampliado(lotteryId: LotteryId, count: number) {
+  if (count <= LOTTERIES[lotteryId].minNumbers) return null;
+  const rule = officialPoolRule(lotteryId, count);
+  return `${count} dezenas · vale ${
+    Number(rule.elementaryCombinations).toLocaleString("pt-BR")
+  } jogos · ${formatBRL(rule.betPriceCents)}`;
+}
+
+/** Quem escolheu o jogo: "Rafael" · "Rafael e Ana" · "Rafael, Ana e Bia"; null quando não tem autor. */
+export function autores(
+  ids: readonly string[],
+  nameOf: (id: string) => string | null,
+) {
+  const names = ids.map(nameOf).filter((name): name is string => !!name);
+  if (!names.length) return null;
+  return names.length === 1
+    ? names[0]!
+    : `${names.slice(0, -1).join(", ")} e ${names.at(-1)}`;
+}
+
+export interface GrupoDeJogos<T> {
+  /** "Rafael · 4 jogos" · "Rafael e Ana · 1 jogo" · "Jogos da turma · 18" */
+  label: string;
+  games: T[];
+}
+
+/** Jogos por quem escolheu, na ordem em que aparecem; os sem autor (do plano ou do organizador) por último. */
+export function porAutor<T>(
+  games: readonly T[],
+  authorIds: (game: T) => readonly string[],
+  nameOf: (id: string) => string | null,
+): GrupoDeJogos<T>[] {
+  const groups = new Map<string, { name: string; games: T[] }>();
+  const turma: T[] = [];
+  for (const game of games) {
+    const ids = authorIds(game).filter((id) => nameOf(id));
+    const name = autores(ids, nameOf);
+    if (!name) {
+      turma.push(game);
+      continue;
+    }
+    const key = [...ids].sort().join(",");
+    const group = groups.get(key) ?? { name, games: [] };
+    group.games.push(game);
+    groups.set(key, group);
+  }
+  const plural = (n: number) => `${n} ${n === 1 ? "jogo" : "jogos"}`;
+  return [
+    ...[...groups.values()].map((group) => ({
+      label: `${group.name} · ${plural(group.games.length)}`,
+      games: group.games,
+    })),
+    ...(turma.length
+      ? [{ label: `Jogos da turma · ${turma.length}`, games: turma }]
+      : []),
+  ];
 }

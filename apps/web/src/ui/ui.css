@@ -296,6 +296,24 @@
   display: block;
   margin-top: 3px;
 }
+/* sem nome: o selo ao lado das bolas; o jogo ampliado numa linha apagada embaixo */
+.ui-game-side { margin-left: auto; }
+.ui-game-detail {
+  flex-basis: 100%;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+/* quem escolheu: cabeçalho de cada grupo nas listas de jogos */
+.ui-game-head {
+  padding: 14px 0 2px;
+  border-top: 1px solid var(--border);
+  font-size: 14px;
+  font-weight: 700;
+}
+.ui-game-head:first-child { padding-top: 2px; border-top: 0; }
+.ui-game-head + .pool-game { border-top: 0; padding-top: 6px; }
+.ui-authorship { margin-top: 2px; }
 /* selo de jogo premiado e contagem de acertos de jogo sem prêmio */
 .ui-tag {
   display: inline-block;

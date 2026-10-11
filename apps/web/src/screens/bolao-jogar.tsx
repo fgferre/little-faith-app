@@ -1,14 +1,14 @@
 import { Plus, Sparkles } from "lucide-react";
-import { formatBRL } from "@bolao/core";
+import { formatBRL, LOTTERIES } from "@bolao/core";
 import type { LocalRecord } from "@bolao/core";
 import type { BolaoDatabase } from "@bolao/local";
 import { Planner } from "../planning";
 import type { latestApplied, latestManifest } from "../planning";
 import type { PlanningRequest } from "../planning-decision";
 import type { FormKind, Notice, Snapshot } from "../app-shared";
-import { Balls, Button, Card, Disclosure, Eyebrow, reais } from "../ui";
-
-const SHOWN = 6;
+import { Balls, Button, Card, Eyebrow, reais } from "../ui";
+import { GameGroups } from "../ui/Ball";
+import { ampliado, AUTORIA, porAutor } from "../ui/texto";
 
 export function BolaoJogar(
   {
@@ -46,19 +46,22 @@ export function BolaoJogar(
   },
 ) {
   const locked = !!manifest || pool.data.status !== "draft";
-  const sizes = [...new Set(poolBets.map((b) => b.data.numbers.length))].sort((
-    a,
-    b,
-  ) => a - b);
-  const author = (bet: LocalRecord<"bet">, index: number) => {
-    const person = snapshot.persons.find((p) => p.id === bet.data.authorIds[0]);
+  const lotteryId = pool.data.lotteryId;
+  const simple = LOTTERIES[lotteryId].minNumbers;
+  const expanded = poolBets.filter((b) => b.data.numbers.length > simple)
+    .length;
+  const nameOf = (id: string) => {
+    const person = snapshot.persons.find((p) => p.id === id);
     return person
       ? (person.data.nickname || person.data.name).split(" ")[0]!
-      : `Jogo ${index + 1}`;
+      : null;
   };
-  const game = (bet: LocalRecord<"bet">, index: number) => (
+  const game = (bet: LocalRecord<"bet">) => (
     <li className="pool-game" key={bet.id}>
-      <Balls numbers={bet.data.numbers} name={author(bet, index)} />
+      <Balls
+        numbers={bet.data.numbers}
+        detail={ampliado(lotteryId, bet.data.numbers.length)}
+      />
     </li>
   );
 
@@ -72,28 +75,19 @@ export function BolaoJogar(
               <p className="ui-sec">
                 {poolBets.length} {poolBets.length === 1 ? "jogo" : "jogos"} ·
                 {" "}
-                {reais(draftGamesCost)} · {sizes.length === 1
-                  ? `${poolBets.length === 1 ? "de" : "todos de"} ${
-                    sizes[0]
-                  } números`
-                  : `de ${sizes[0]} a ${sizes.at(-1)} números`}
+                {expanded
+                  ? `${expanded} ${
+                    expanded === 1 ? "ampliado" : "ampliados"
+                  } · ${reais(draftGamesCost)}`
+                  : `${reais(draftGamesCost)} · ${
+                    poolBets.length === 1 ? "de" : "todos de"
+                  } ${simple} números`}
               </p>
-              <ul className="pool-games">
-                {poolBets.slice(0, SHOWN).map(game)}
-              </ul>
-              {poolBets.length > SHOWN && (
-                <Disclosure
-                  summary={`Ver mais ${poolBets.length - SHOWN} ${
-                    poolBets.length - SHOWN === 1 ? "jogo" : "jogos"
-                  }`}
-                >
-                  <ul className="pool-games">
-                    {poolBets.slice(SHOWN).map((bet, index) =>
-                      game(bet, index + SHOWN)
-                    )}
-                  </ul>
-                </Disclosure>
-              )}
+              <p className="ui-sec ui-authorship">{AUTORIA}</p>
+              <GameGroups
+                groups={porAutor(poolBets, (b) => b.data.authorIds, nameOf)}
+                row={game}
+              />
             </>
           )
           : (

@@ -24,6 +24,7 @@ import type { LocalRecord, LotteryId } from "@bolao/core";
 import { LotteryBadge, Modal } from "../components";
 import { createSeed, generateInWorker } from "../generation";
 import { errorMessage } from "../app-shared";
+import { ampliado } from "../ui/texto";
 import type { FormKind, GenerationRun, SaveRecord } from "../app-shared";
 
 const localDateInput = (value: string | null) => {
@@ -472,6 +473,11 @@ export function DraftForm(
                 {selected.length} de {rule.minNumbers}–{rule.maxNumbers} dezenas
               </strong>
             </div>
+            {selected.length > rule.minNumbers && (
+              <p className="ui-sec" aria-live="polite">
+                {ampliado(lotteryId, selected.length)}
+              </p>
+            )}
             <div className={`number-picker ${lotteryId}`}>
               {Array.from({ length: rule.universeSize }, (_, i) => i + 1).map((
                 n,

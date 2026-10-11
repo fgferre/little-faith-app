@@ -54,8 +54,8 @@ import {
   shareCardImage,
 } from "../ui";
 import type { ShareCardData } from "../ui";
-
-const SHOWN = 6;
+import { GameGroups } from "../ui/Ball";
+import { ampliado, autores, AUTORIA, porAutor } from "../ui/texto";
 const BRASILIA = "America/Sao_Paulo";
 const prizeHits = {
   "mega-sena": [6, 5, 4],
@@ -148,6 +148,7 @@ function useFirstReveal(id: string | undefined) {
 interface Game {
   key: string;
   name: string;
+  authorIds: readonly string[];
   numbers: number[];
   prize?: RegisteredPrize;
 }
@@ -258,14 +259,14 @@ export function BolaoSorteio(
   // Quem fez cada jogo: pela trava, senão pelos jogos do bolão.
   const sameNumbers = (a: number[], b: number[]) =>
     a.length === b.length && a.every((n, i) => n === b[i]);
-  const nameOf = (personId: string | undefined) => {
+  const nameOf = (personId: string) => {
     const person = plan?.persons.find((p) => p.id === personId) ??
       snapshot.persons.find((p) => p.id === personId);
     return person
       ? (person.data.nickname || person.data.name).split(" ")[0]!
       : null;
   };
-  const author = (numbers: number[], index: number) => {
+  const authorIdsOf = (numbers: number[]) => {
     const sorted = [...numbers].sort((a, b) => a - b);
     const planned = plan?.plan.bets.find((bet) =>
       sameNumbers([...bet.numbers].sort((a, b) => a - b), sorted)
@@ -273,26 +274,39 @@ export function BolaoSorteio(
     const bet = poolBets.find((item) =>
       sameNumbers([...item.data.numbers].sort((a, b) => a - b), sorted)
     );
-    return nameOf(planned?.authorIds[0] ?? bet?.data.authorIds[0]) ??
-      `Jogo ${index + 1}`;
+    return planned?.authorIds ?? bet?.data.authorIds ?? [];
+  };
+  const toGame = (key: string, numbers: number[], prize?: RegisteredPrize) => {
+    const authorIds = authorIdsOf(numbers);
+    return {
+      key,
+      name: autores(authorIds, nameOf) ?? "Jogo da turma",
+      authorIds,
+      numbers,
+      ...(prize ? { prize } : {}),
+    };
   };
   const assessed = assessment && !conflict && assessment.status !== "waiting";
   const games: Game[] = assessed
-    ? assessment.games.map((prize, index) => ({
-      key: `${prize.plannedTicketKey}:${prize.observedBetIndex}`,
-      name: author(prize.numbers, index),
-      numbers: prize.numbers,
-      prize,
-    }))
+    ? assessment.games.map((prize) =>
+      toGame(
+        `${prize.plannedTicketKey}:${prize.observedBetIndex}`,
+        prize.numbers,
+        prize,
+      )
+    )
     : (plan?.plan.bets.map((bet) => bet.numbers) ??
-      poolBets.map((bet) => bet.data.numbers)).map((numbers, index) => ({
-        key: String(index),
-        name: author(numbers, index),
-        numbers,
-      }));
+      poolBets.map((bet) => bet.data.numbers)).map((numbers, index) =>
+        toGame(String(index), numbers)
+      );
   const wins = (game: Game) => !!game.prize && bestTier(game.prize) > 0;
   const winners = games.filter(wins);
   const ordered = [...winners, ...games.filter((game) => !wins(game))];
+  // Por quem escolheu, os sem autor no fim; o grupo com jogo premiado vem antes dos outros.
+  const groups = porAutor(ordered, (game) => game.authorIds, nameOf)
+    .map((group, index) => ({ group, index, win: group.games.some(wins) }))
+    .sort((a, b) => Number(b.win) - Number(a.win) || a.index - b.index)
+    .map(({ group }) => group);
   const best = [...games].sort((a, b) =>
     (b.prize?.hits ?? 0) - (a.prize?.hits ?? 0)
   )[0];
@@ -392,17 +406,22 @@ export function BolaoSorteio(
       modality: lotteryId,
       chip: date ? `${rule.label} · ${date}` : rule.label,
       drawn,
-      games: ordered.map((game) => {
-        const tier = game.prize ? bestTier(game.prize) : 0;
-        return {
-          name: game.name,
-          numbers: game.numbers,
-          tag: hits && tier > 0 ? winTag(lotteryId, tier) : undefined,
-          hits: hits && tier === 0
-            ? acertos(game.numbers.filter((n) => hits.has(n)).length)
-            : undefined,
-        };
-      }),
+      groups: groups.map((group) => ({
+        label: group.label,
+        games: group.games.map((game) => {
+          const tier = game.prize ? bestTier(game.prize) : 0;
+          return {
+            numbers: game.numbers,
+            tag: hits && tier > 0 ? winTag(lotteryId, tier) : undefined,
+            hits: hits && tier === 0
+              ? acertos(game.numbers.filter((n) => hits.has(n)).length)
+              : undefined,
+            size: game.numbers.length > rule.minNumbers
+              ? `${game.numbers.length} dezenas`
+              : undefined,
+          };
+        }),
+      })),
       result: !drawn
         ? {
           title: drawAt
@@ -451,7 +470,7 @@ export function BolaoSorteio(
       <li className="pool-game" key={game.key}>
         <Balls
           numbers={game.numbers}
-          name={game.name}
+          detail={ampliado(lotteryId, game.numbers.length)}
           hits={hits}
           winner={tier > 0}
           note={!hits ? undefined : tier > 0
@@ -611,20 +630,7 @@ export function BolaoSorteio(
       />
     </Card>
   );
-  const gamesList = (
-    <>
-      <ul className="pool-games">{ordered.slice(0, SHOWN).map(gameRow)}</ul>
-      {ordered.length > SHOWN && (
-        <Disclosure
-          summary={`Ver mais ${ordered.length - SHOWN} ${
-            ordered.length - SHOWN === 1 ? "jogo" : "jogos"
-          }`}
-        >
-          <ul className="pool-games">{ordered.slice(SHOWN).map(gameRow)}</ul>
-        </Disclosure>
-      )}
-    </>
-  );
+  const gamesList = <GameGroups groups={groups} row={gameRow} />;
 
   if (!drawn && !conflict) {
     const future = drawAt !== null && Date.parse(drawAt) > Date.now();
@@ -895,6 +901,7 @@ export function BolaoSorteio(
             ? ""
             : " · ainda sem a conferência do registro"}
         </p>
+        <p className="ui-sec ui-authorship">{AUTORIA}</p>
         {gamesList}
       </Card>
       {sheet}

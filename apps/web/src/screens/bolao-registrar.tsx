@@ -48,8 +48,8 @@ import {
   ProblemBox,
   reais,
 } from "../ui";
-
-const SHOWN = 6;
+import { GameGroups } from "../ui/Ball";
+import { ampliado, porAutor } from "../ui/texto";
 
 interface TicketDraft {
   present: boolean;
@@ -490,18 +490,14 @@ export function BolaoRegistrar(
   const list = manifest!;
   const plan = list.content.plan;
   const registrar = personName(list, list.content.responsible.registrarPersonId);
-  const game = (key: string, index: number) => {
-    const bet = plan.bets.find((item) => item.key === key)!;
-    return (
-      <li className="pool-game" key={key}>
-        <Balls
-          numbers={bet.numbers}
-          name={personName(list, bet.authorIds[0]) ?? `Jogo ${index + 1}`}
-        />
-      </li>
-    );
-  };
-  const keys = plan.bets.map((bet) => bet.key);
+  const game = (bet: (typeof plan.bets)[number]) => (
+    <li className="pool-game" key={bet.key}>
+      <Balls
+        numbers={bet.numbers}
+        detail={ampliado(plan.lotteryId, bet.numbers.length)}
+      />
+    </li>
+  );
   return (
     <div className="pool-cols">
       <Card className="pool-card" label="Lista para o registrador">
@@ -512,18 +508,14 @@ export function BolaoRegistrar(
           {reais(plan.betCostCents)}
           {registrar && ` · registra: ${registrar}`}
         </p>
-        <ul className="pool-games">{keys.slice(0, SHOWN).map(game)}</ul>
-        {keys.length > SHOWN && (
-          <Disclosure
-            summary={`Ver mais ${
-              plural(keys.length - SHOWN, "jogo", "jogos")
-            }`}
-          >
-            <ul className="pool-games">
-              {keys.slice(SHOWN).map((key, index) => game(key, index + SHOWN))}
-            </ul>
-          </Disclosure>
-        )}
+        <GameGroups
+          groups={porAutor(
+            plan.bets,
+            (bet) => bet.authorIds,
+            (id) => personName(list, id),
+          )}
+          row={game}
+        />
         <div className="pool-actions">
           <Button
             variant={verified ? "ghost" : "primary"}
