@@ -6,7 +6,7 @@ import { EmptyState, PoolCard } from "../components";
 import type { latestApplied, latestManifest } from "../planning";
 import type { PlanningRequest } from "../planning-decision";
 import type { RecordRequest } from "../record-decision";
-import type { FormKind, Notice, Route, Snapshot, Tab } from "../app-shared";
+import type { FormKind, Notice, Route, Snapshot } from "../app-shared";
 import { BolaoScreen } from "./bolao";
 
 export function BoloesScreen(
@@ -18,12 +18,9 @@ export function BoloesScreen(
     pool,
     poolBets,
     poolQuotas,
-    payments,
     financialView,
     manifest,
-    registration,
     appliedPlan,
-    tab,
     route,
     isDemo,
     financeEnabled,
@@ -36,7 +33,6 @@ export function BoloesScreen(
     proposedCents,
     primaryAction,
     openForm,
-    setTab,
     setPlanningRequest,
     setRecordRequest,
     setNotice,
@@ -48,12 +44,9 @@ export function BoloesScreen(
     pool: LocalRecord<"pool"> | undefined;
     poolBets: LocalRecord<"bet">[];
     poolQuotas: LocalRecord<"quota">[];
-    payments: Snapshot["confirmed"];
     financialView: FinancialView | null;
     manifest: ReturnType<typeof latestManifest>;
-    registration: Snapshot["registrations"][number] | undefined;
     appliedPlan: ReturnType<typeof latestApplied>;
-    tab: Tab;
     route: Route;
     isDemo: boolean;
     financeEnabled: boolean;
@@ -66,7 +59,6 @@ export function BoloesScreen(
     proposedCents: string;
     primaryAction: ReactNode;
     openForm: (kind: FormKind) => void;
-    setTab: (tab: Tab) => void;
     setPlanningRequest: (request: PlanningRequest) => void;
     setRecordRequest: (request: RecordRequest) => void;
     setNotice: (notice: Notice) => void;
@@ -74,20 +66,16 @@ export function BoloesScreen(
 ) {
   return (
     <>
-      <div className="page-heading compact">
-        <div>
-          <span className="eyebrow">SORTE EM GRUPO</span>
-          <h1>
-            {route.poolId && pool ? pool.data.title : "Nossos bolões"}
-          </h1>
-          <p>
-            {route.poolId
-              ? "Da primeira ideia ao último detalhe."
-              : "Organize cada concurso, sem misturar o caixa dos grupos."}
-          </p>
+      {!route.poolId && (
+        <div className="page-heading compact">
+          <div>
+            <span className="eyebrow">SORTE EM GRUPO</span>
+            <h1>Nossos bolões</h1>
+            <p>Organize cada concurso, sem misturar o caixa dos grupos.</p>
+          </div>
+          {primaryAction}
         </div>
-        {primaryAction}
-      </div>
+      )}
       {!route.poolId
         ? (
           <div className="pool-grid">
@@ -96,10 +84,7 @@ export function BoloesScreen(
                 key={p.id}
                 pool={p}
                 bets={snapshot.bets.filter((b) => b.data.poolId === p.id)}
-                onClick={() => {
-                  setTab("resumo");
-                  route.navigate("boloes", p.id);
-                }}
+                onClick={() => route.navigate("boloes", p.id)}
               />
             ))}
             {!snapshot.pools.length && (
@@ -122,12 +107,9 @@ export function BoloesScreen(
             pool={pool}
             poolBets={poolBets}
             poolQuotas={poolQuotas}
-            payments={payments}
             financialView={financialView}
             manifest={manifest}
-            registration={registration}
             appliedPlan={appliedPlan}
-            tab={tab}
             route={route}
             isDemo={isDemo}
             financeEnabled={financeEnabled}
@@ -139,7 +121,6 @@ export function BoloesScreen(
             draftGamesCost={draftGamesCost}
             proposedCents={proposedCents}
             openForm={openForm}
-            setTab={setTab}
             setPlanningRequest={setPlanningRequest}
             setRecordRequest={setRecordRequest}
             setNotice={setNotice}

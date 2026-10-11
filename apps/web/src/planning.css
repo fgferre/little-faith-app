@@ -13,7 +13,8 @@
   display: grid;
   gap: 8px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 13px;
+  font-weight: 600;
   flex: 1;
   min-width: 180px;
 }
@@ -22,49 +23,91 @@
   width: 100%;
   min-height: 44px;
   padding: 11px 12px;
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--ghost-line);
   border-radius: 9px;
   color: var(--text);
   background: var(--surface);
   font: inherit;
 }
+/* o planejador da tela do bolão: nada aqui pode alargar a coluna */
+.planner {
+  gap: 16px;
+  min-width: 0;
+}
+.planner > *,
+.planner .ui-card {
+  min-width: 0;
+}
+.planner .ui-card > .ui-eyebrow {
+  margin-bottom: 8px;
+}
+.planner .ui-card > .ui-btn {
+  margin-top: 14px;
+}
+.planner .planning-settings {
+  margin: 14px 0 0;
+}
+.planner-h {
+  margin: 2px 0 6px;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.planner-note {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  margin: 12px 0 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .04);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.planner-note > svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  color: var(--purple-ink);
+}
+.planner-note > span {
+  flex: 1 1 200px;
+}
+.planner-after {
+  margin-top: 10px;
+}
 .plan-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
 }
-.plan-card {
-  min-width: 0;
-  padding: 22px;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  border: 1px solid var(--border);
-  border-radius: 15px;
-  background: var(--surface);
-}
 .plan-card.selected {
-  border-color: var(--purple);
-  box-shadow: inset 0 0 0 1px var(--purple);
+  border-color: var(--purple-ink);
+  box-shadow: inset 0 0 0 1px var(--purple-ink);
 }
-.plan-card h3 {
-  font-size: 19px;
-  margin: 9px 0;
+.plan-card > .ui-btn,
+.plan-card > .ui-chip {
+  margin-top: 10px;
 }
-.plan-card > p {
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.8;
-  margin-bottom: 18px;
+.plan-chance {
+  display: grid;
+  gap: 2px;
+  margin: 12px 0 4px;
 }
-.plan-card > .button {
-  margin-top: auto;
+.plan-chance strong {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
 }
 .plan-values {
   display: grid;
   gap: 12px;
   margin: 8px 0 20px;
-  font-size: 11px;
+  font-size: 13px;
 }
 .plan-values > div {
   display: flex;
@@ -82,20 +125,7 @@
 .plan-values .plan-total {
   border-top: 1px solid var(--border);
   padding-top: 13px;
-  font-size: 14px;
-}
-.plan-summary {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-.plan-summary p {
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.8;
-  margin-top: 8px;
+  font-size: 15px;
 }
 .planning-actions {
   display: flex;
@@ -106,15 +136,15 @@
 }
 .planning-details {
   margin-top: 20px;
-  font-size: 11px;
-  line-height: 1.8;
+  font-size: 13px;
+  line-height: 1.7;
 }
 .planning-details summary {
   min-height: 44px;
   display: flex;
   align-items: center;
   cursor: pointer;
-  color: var(--purple);
+  color: var(--purple-ink);
   font-weight: 650;
 }
 .planning-details p {
@@ -124,8 +154,14 @@
 .planning-details code,
 .manifest-hash {
   overflow-wrap: anywhere;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--muted);
+}
+.planner .planning-details {
+  margin-top: 12px;
+}
+.planner .planning-details summary {
+  display: inline-flex;
 }
 .planning-games {
   display: grid;
@@ -142,25 +178,68 @@
   margin: 8px 0;
   line-height: 1.8;
 }
-.simulation-progress {
-  display: grid;
-  gap: 12px;
-  padding: 20px 0;
-  font-size: 12px;
+/* simulação: uma linha de progresso de altura fixa e uma tabela de colunas fixas, para nada pular */
+.planner-sim {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
 }
-.simulation-progress progress {
+.planner-sim h4 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 700;
+}
+.planner-sim > .ui-btn {
+  margin-top: 10px;
+}
+.planner-sim > .ui-sec {
+  margin-top: 10px;
+}
+.planner-progress {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+}
+.planner-progress-line {
+  height: 1.4em;
+  margin: 0;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.planner-progress progress {
   width: 100%;
   height: 8px;
-  accent-color: var(--purple);
+  accent-color: var(--mint);
 }
-.simulation-result {
-  margin-top: 20px;
+.planner-table {
+  min-width: 0;
+  margin-top: 14px;
 }
-.simulation-result p {
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.8;
-  margin: 12px 0;
+.planner-table table {
+  table-layout: fixed;
+  width: 100%;
+  font-size: 13px;
+}
+.planner-table th,
+.planner-table td {
+  padding: 10px 8px;
+  vertical-align: top;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.planner-col-event {
+  width: 30%;
+}
+.planner-col-chance {
+  width: 30%;
+}
+.planner-col-range {
+  width: 40%;
 }
 .planning-review-text {
   display: grid;
@@ -169,7 +248,7 @@
   padding: 20px;
   border-radius: 12px;
   background: var(--bg);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.8;
 }
 .planning-review-text > p {
@@ -180,28 +259,21 @@
   align-items: center;
   gap: 12px;
   min-height: 44px;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.8;
 }
 .planning-review-checkbox input {
   width: 18px;
   height: 18px;
-  accent-color: var(--purple);
+  accent-color: var(--purple-ink);
   flex-shrink: 0;
-}
-@media (max-width: 1100px) {
-  .plan-grid {
-    grid-template-columns: 1fr;
-  }
 }
 @media (max-width: 480px) {
   .planning-settings label {
     min-width: 100%;
   }
-  .plan-card {
-    padding: 20px;
-  }
   .planning-actions > .button,
+  .planning-actions > .ui-btn,
   .planning-settings > .button {
     width: 100%;
   }

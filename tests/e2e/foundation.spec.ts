@@ -8,9 +8,14 @@ async function createGroup(page: Page) {
   await page.getByRole("button", { name: "Criar meu grupo", exact: true })
     .click();
   await page.getByLabel("Nome do grupo").fill("Grupo de teste");
-  await page.getByRole("button", { name: "Salvar rascunho" }).click();
+  await page.getByRole("button", { name: "Salvar neste aparelho" }).click();
   await expect(page.getByRole("dialog")).not.toBeVisible();
   await expect(page.getByRole("button", { name: "Novo bolão" })).toBeVisible();
+}
+
+async function step(page: Page, name: string) {
+  await page.getByRole("navigation", { name: "Etapas do bolão" })
+    .getByRole("button", { name, exact: true }).click();
 }
 
 async function createPool(page: Page, lottery = "mega-sena") {
@@ -18,7 +23,7 @@ async function createPool(page: Page, lottery = "mega-sena") {
   await page.getByLabel("Nome do bolão").fill("Bolão de teste");
   await page.getByLabel("Modalidade").selectOption(lottery);
   await page.getByLabel("Valor por cota").fill("30,00");
-  await page.getByRole("button", { name: "Salvar rascunho" }).click();
+  await page.getByRole("button", { name: "Salvar neste aparelho" }).click();
   await expect(
     page.getByRole("heading", { name: "Bolão de teste", exact: true }),
   ).toBeVisible();
@@ -43,25 +48,26 @@ test("demo is clearly marked and never mixes with the organizer drafts", async (
 test("offline drafts survive closing the page, and a payment proposal never increases the balance", async ({ page, context }) => {
   await createGroup(page);
   await createPool(page);
-  await page.getByRole("tab", { name: "Pessoas e cotas" }).click();
+  await step(page, "Arrecadar");
   await page.getByRole("button", { name: "Adicionar pessoa" }).click();
   await page.getByLabel("Nome", { exact: true }).fill("Pessoa de teste");
   await page.getByRole("checkbox").check();
-  await page.getByRole("button", { name: "Salvar rascunho" }).click();
+  await page.getByRole("button", { name: "Salvar neste aparelho" }).click();
   await page.getByRole("button", { name: "Preparar cota", exact: true })
     .click();
   await page.getByLabel("Quantidade de cotas").fill("1,25");
-  await page.getByRole("button", { name: "Salvar rascunho" }).click();
-  await expect(page.getByRole("cell", { name: "R$ 37,50", exact: true }))
-    .toBeVisible();
+  await page.getByRole("button", { name: "Salvar neste aparelho" }).click();
+  const person = page.locator(".pool-person", { hasText: "Pessoa de teste" });
+  await expect(person.locator(".pool-person-due")).toHaveText("R$ 37,50");
   await page.evaluate(async () => {
     await navigator.serviceWorker.ready;
   });
   await context.setOffline(true);
-  await page.getByRole("button", { name: "Preparar pagamento" }).click();
+  await page.getByRole("button", { name: "Registrar pagamento" }).click();
   await page.getByLabel("Valor informado").fill("37,50");
   await page.getByRole("button", { name: "Salvar para revisão" }).click();
-  await page.getByRole("tab", { name: "Resumo", exact: true }).click();
+  await expect(person.getByText("Pagamento em conferência")).toBeVisible();
+  await step(page, "Montar");
   await expect(
     page.locator(".stat-card").filter({ hasText: "Recebimentos no caixa" })
       .getByText("R$ 0,00", { exact: true }),
@@ -77,11 +83,14 @@ test("offline drafts survive closing the page, and a payment proposal never incr
   await expect(
     reopened.getByRole("heading", { name: "Bolão de teste", exact: true }),
   ).toBeVisible();
-  await reopened.getByRole("tab", { name: "Pessoas e cotas" }).click();
-  await expect(reopened.getByRole("cell", { name: /Pessoa de teste/ }))
-    .toBeVisible();
-  await expect(reopened.getByRole("cell", { name: "R$ 37,50", exact: true }))
-    .toBeVisible();
+  await step(reopened, "Arrecadar");
+  const reopenedPerson = reopened.locator(".pool-person", {
+    hasText: "Pessoa de teste",
+  });
+  await expect(reopenedPerson).toBeVisible();
+  await expect(reopenedPerson.locator(".pool-person-due")).toHaveText(
+    "R$ 37,50",
+  );
   await expect(reopened.getByText("Você pode preparar jogos e rascunhos."))
     .toBeVisible();
 });
@@ -90,16 +99,17 @@ for (const lottery of ["mega-sena", "lotofacil", "quina"]) {
   test(`generates valid ${lottery} games in a worker and restores them after reload`, async ({ page }) => {
     await createGroup(page);
     await createPool(page, lottery);
-    await page.getByRole("tab", { name: "Jogos", exact: true }).click();
+    await step(page, "Jogar");
     await page.getByRole("button", { name: "Gerar jogos", exact: true })
       .click();
     await page.getByLabel("Quantidade de jogos").fill("3");
     await page.getByRole("button", { name: "Gerar e salvar jogos" }).click();
-    await expect(page.locator(".bet-row")).toHaveCount(3);
+    await expect(page.locator(".pool-game")).toHaveCount(3);
     await page.reload();
-    await page.getByRole("tab", { name: "Jogos", exact: true }).click();
-    await expect(page.locator(".bet-row")).toHaveCount(3);
-    const numbers = await page.locator(".number-row").allTextContents();
+    await step(page, "Jogar");
+    await expect(page.locator(".pool-game")).toHaveCount(3);
+    const numbers = await page.locator(".pool-game .ui-balls")
+      .allTextContents();
     expect(new Set(numbers).size).toBe(3);
   });
 }
@@ -107,20 +117,20 @@ for (const lottery of ["mega-sena", "lotofacil", "quina"]) {
 test("blocks duplicate bets and keeps the existing game", async ({ page }) => {
   await createGroup(page);
   await createPool(page);
-  await page.getByRole("tab", { name: "Jogos", exact: true }).click();
+  await step(page, "Jogar");
   for (let attempt = 0; attempt < 2; attempt++) {
     await page.getByRole("button", { name: "Adicionar dezenas" }).click();
     for (const n of [1, 2, 3, 4, 5, 6]) {
       await page.getByRole("button", { name: `Dezena ${n}`, exact: true })
         .click();
     }
-    await page.getByRole("button", { name: "Salvar rascunho" }).click();
+    await page.getByRole("button", { name: "Salvar neste aparelho" }).click();
     if (attempt === 0) await expect(page.getByRole("dialog")).not.toBeVisible();
     else {await expect(page.getByRole("alert")).toHaveText(
         /Este jogo já está no bolão/,
       );}
   }
-  await expect(page.locator(".bet-row")).toHaveCount(1);
+  await expect(page.locator(".pool-game")).toHaveCount(1);
 });
 
 test("rejects a quota that would create a fraction of a cent without damaging the pool", async ({ page }) => {
@@ -128,19 +138,19 @@ test("rejects a quota that would create a fraction of a cent without damaging th
   await page.getByRole("button", { name: "Novo bolão" }).click();
   await page.getByLabel("Nome do bolão").fill("Bolão dos centavos");
   await page.getByLabel("Valor por cota").fill("30,01");
-  await page.getByRole("button", { name: "Salvar rascunho" }).click();
-  await page.getByRole("tab", { name: "Pessoas e cotas" }).click();
+  await page.getByRole("button", { name: "Salvar neste aparelho" }).click();
+  await step(page, "Arrecadar");
   await page.getByRole("button", { name: "Adicionar pessoa" }).click();
   await page.getByLabel("Nome", { exact: true }).fill("Pessoa da cota");
   await page.getByRole("checkbox").check();
-  await page.getByRole("button", { name: "Salvar rascunho" }).click();
+  await page.getByRole("button", { name: "Salvar neste aparelho" }).click();
   await page.getByRole("button", { name: "Preparar cota", exact: true })
     .click();
   await page.getByLabel("Quantidade de cotas").fill("0,25");
-  await page.getByRole("button", { name: "Salvar rascunho" }).click();
+  await page.getByRole("button", { name: "Salvar neste aparelho" }).click();
   await expect(page.getByRole("alert")).toHaveText(/fração de centavo/);
   await page.getByRole("button", { name: "Cancelar", exact: true }).click();
-  await page.getByRole("tab", { name: "Resumo", exact: true }).click();
+  await step(page, "Montar");
   await expect(page.getByRole("heading", { name: "Bolão dos centavos" }))
     .toBeVisible();
   await expect(
@@ -174,7 +184,7 @@ for (const width of [320, 390, 768, 1440]) {
       ),
     ).toBe(true);
     await page.getByRole("button", { name: /Mega entre amigos/ }).click();
-    await page.getByRole("tab", { name: "Jogos", exact: true }).click();
+    await step(page, "Jogar");
     expect(
       await page.evaluate(() =>
         document.documentElement.scrollWidth <= window.innerWidth
@@ -209,7 +219,7 @@ test("the current group never shows another group pool list", async ({ page }) =
   await page.goto("/#/dados");
   await page.getByRole("button", { name: "Adicionar outro grupo" }).click();
   await page.getByLabel("Nome do grupo").fill("Outro grupo");
-  await page.getByRole("button", { name: "Salvar rascunho" }).click();
+  await page.getByRole("button", { name: "Salvar neste aparelho" }).click();
   await page.goto("/#/boloes");
   await expect(page.getByRole("button", { name: /Bolão de teste/ })).not
     .toBeVisible();
@@ -236,11 +246,11 @@ test("hash routes and the offline worker work under a static Pages-style subdire
   await context.setOffline(true);
   await page.reload();
   await page.getByRole("button", { name: /Mega entre amigos/ }).click();
-  await page.getByRole("tab", { name: "Jogos", exact: true }).click();
+  await step(page, "Jogar");
   await page.getByRole("button", { name: "Gerar jogos", exact: true }).click();
   await page.getByLabel("Quantidade de jogos").fill("2");
   await page.getByRole("button", { name: "Gerar e salvar jogos" }).click();
-  await expect(page.locator(".bet-row")).toHaveCount(26);
+  await expect(page.locator(".pool-game")).toHaveCount(26);
   const names = await page.evaluate(async () => caches.keys());
   expect(
     names.every((key) =>
@@ -301,22 +311,27 @@ test("offline portfolio planning and simulation resume saved batches after closi
   await context.setOffline(true);
   await page.locator(".bottom-nav").getByRole("link", { name: "Bolões", exact: true }).click();
   await page.getByRole("button", { name: /Mega entre amigos/ }).click();
-  await page.getByRole("tab", { name: "Planejador", exact: true }).click();
+  await step(page, "Jogar");
   await page.getByRole("button", { name: "Comparar alternativas", exact: true }).click();
-  await expect(page.getByRole("article", { name: "Plano Espalhada", exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Plano Espalhada", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Revisar aplicação do plano", exact: true })).toBeDisabled();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.getByRole("button", { name: "Simular carteira", exact: true }).click();
   const progress = page.getByRole("progressbar", { name: "Progresso da simulação", exact: true });
+  // A linha de progresso diz o estado gravado: só lemos as amostras quando a pausa chegou ao aparelho.
+  const line = page.locator(".planner-progress-line");
+  await expect(line).toContainText("Calculando");
   await expect.poll(async () => Number(await progress.getAttribute("value"))).toBeGreaterThanOrEqual(2_000);
   await page.getByRole("button", { name: "Pausar simulação", exact: true }).click();
+  await expect(line).toContainText("Pausada");
   await expect(page.getByRole("button", { name: "Retomar simulação", exact: true })).toBeVisible();
   const samples = Number(await progress.getAttribute("value"));
   const url = page.url();
   await page.close();
   const reopened = await context.newPage();
   await reopened.goto(url);
-  await reopened.getByRole("tab", { name: "Planejador", exact: true }).click();
+  await step(reopened, "Jogar");
+  await expect(reopened.locator(".planner-progress-line")).toContainText("Pausada");
   await expect(reopened.getByRole("progressbar", { name: "Progresso da simulação", exact: true })).toHaveAttribute("value", String(samples));
   await reopened.getByRole("button", { name: "Retomar simulação", exact: true }).click();
   await expect(reopened.getByRole("button", { name: "Refinar para 1 milhão", exact: true })).toBeVisible({ timeout: 35_000 });
@@ -324,6 +339,7 @@ test("offline portfolio planning and simulation resume saved batches after closi
   await reopened.getByRole("button", { name: "Refinar para 1 milhão", exact: true }).click();
   await expect.poll(async () => Number(await reopened.getByRole("progressbar", { name: "Progresso da simulação", exact: true }).getAttribute("value"))).toBeGreaterThanOrEqual(200_000);
   await reopened.getByRole("button", { name: "Pausar simulação", exact: true }).click();
+  await expect(reopened.locator(".planner-progress-line")).toContainText("Pausada");
   await expect(reopened.getByRole("button", { name: "Retomar simulação", exact: true })).toBeVisible();
   await reopened.screenshot({ path: "test-results/planning-simulation-mobile.png", fullPage: true });
 });

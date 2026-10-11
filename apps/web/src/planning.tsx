@@ -44,8 +44,9 @@ import {
 import type { BolaoDatabase, PersistentPlanningAnalysis } from "@bolao/local";
 import { createSeed } from "./generation";
 import { demoPlanningFinancial, planningRights } from "./planning-preview";
-import { Numbers, SectionTitle } from "./components";
+import { Numbers } from "./components";
 import type { PlanningRequest } from "./planning-decision";
+import { Button, Card, Chip, Disclosure, Eyebrow, umEm } from "./ui";
 
 const strategies: Record<PlanStrategy, string> = {
   spread: "Espalhada",
@@ -61,11 +62,6 @@ const errorMessage = (error: unknown) =>
   error instanceof Error
     ? error.message
     : "Não foi possível concluir o planejamento.";
-const percent = (value: number) =>
-  new Intl.NumberFormat("pt-BR", {
-    style: "percent",
-    maximumSignificantDigits: 4,
-  }).format(value);
 const date = (value: string) =>
   new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" })
     .format(new Date(value));
@@ -167,12 +163,11 @@ export function Planner(
     const candidates = meta
       ? await db.planningCandidates.bulkGet(meta.ids)
       : [];
-    const selected = meta?.selectedId ?? candidates[0]?.id;
-    const coverage = selected
-      ? (await db.metadata.get(`planning-coverage:${selected}`))?.value as
-        | ExactPortfolioProbability
-        | undefined
-      : undefined;
+    const coverages = meta
+      ? await db.metadata.bulkGet(
+        meta.ids.map((id) => `planning-coverage:${id}`),
+      )
+      : [];
     const [analyses, planning, reports] = await Promise.all([
       listPlanningAnalyses(db, group.id, pool.id),
       getPlanningSnapshot(db, group.id),
@@ -185,7 +180,12 @@ export function Planner(
         !!candidate && candidate.groupId === group.id &&
         candidate.poolId === pool.id
       ),
-      coverage,
+      coverage: new Map(
+        (meta?.ids ?? []).map((id, index) => [
+          id,
+          coverages[index]?.value as ExactPortfolioProbability | undefined,
+        ]),
+      ),
       analyses,
       planning,
       reports: reports.filter((report) => report.poolId === pool.id),
@@ -444,48 +444,46 @@ export function Planner(
   }
 
   return (
-    <div className="planning-sections">
-      <section className="panel planner">
-        <SectionTitle
-          title="Um plano para a turma"
-          subtitle="Compare jogos, custos e chances com o orçamento das participações confirmadas."
-        />
-        <div className="planner-overview">
+    <div className="planning-sections planner">
+      <Card className="planner-card" label="Um plano para a turma">
+        <Eyebrow>Um plano para a turma</Eyebrow>
+        <p className="ui-sec">
+          Compare jogos, custo e chance com o dinheiro das cotas confirmadas.
+        </p>
+        <dl className="pool-facts">
           <div>
-            <span>
-              {isDemo ? "Orçamento do exemplo" : "Orçamento das participações"}
-            </span>
-            <strong>{formatBRL(budget)}</strong>
+            <dt>{isDemo ? "Orçamento do exemplo" : "Orçamento"}</dt>
+            <dd>{formatBRL(budget)}</dd>
           </div>
           <div>
-            <span>Jogos fixos preservados</span>
-            <strong>{bets.length}</strong>
+            <dt>Jogos que ficam</dt>
+            <dd>{bets.length}</dd>
           </div>
           <div>
-            <span>Participações consideradas</span>
-            <strong>{rights.length}</strong>
+            <dt>Cotas confirmadas</dt>
+            <dd>{rights.length}</dd>
           </div>
-        </div>
+        </dl>
         {isDemo && (
-          <p className="inline-note">
-            Este cálculo usa recebimentos sintéticos e concurso de exemplo.
-            Aplicação e trava reais precisam da sua conta.
+          <p className="planner-note">
+            Este cálculo usa pagamentos de exemplo e um concurso de exemplo.
+            Aplicar e travar de verdade pede a sua conta.
           </p>
         )}
         {setupMissing && (
-          <div className="inline-note">
+          <div className="planner-note">
             <span>
               Defina o concurso e escolha cotas oficiais ou acordo interno antes
               de planejar.
             </span>
-            <button className="button secondary" onClick={editPool}>
+            <Button variant="ghost" small onClick={editPool}>
               Completar bolão
-            </button>
+            </Button>
           </div>
         )}
         {budget === "0" && (
-          <p className="inline-note">
-            Confirme as participações na Revisão para formar o orçamento deste
+          <p className="planner-note">
+            Confirme os pagamentos na Revisão para formar o orçamento deste
             bolão.
           </p>
         )}
@@ -523,136 +521,141 @@ export function Planner(
               </option>
             </select>
           </label>
-          <button
-            className="button primary"
-            disabled={busy || setupMissing || budget === "0" ||
-              pool.data.status === "registered" ||
-              pool.data.status === "settled"}
-            onClick={() => void generate()}
-          >
-            {generating
-              ? <LoaderCircle className="spin" size={17} />
-              : <Sparkles size={17} />}Comparar alternativas
-          </button>
         </div>
-        <p className="muted">
-          As alternativas preservam os jogos fixos. Taxas e destino de sobras
-          ficam preparados para aprovação; a busca compara candidatos dentro do
-          orçamento.
+        <Button
+          icon={generating
+            ? <LoaderCircle className="spin" aria-hidden="true" />
+            : <Sparkles aria-hidden="true" />}
+          disabled={busy || setupMissing || budget === "0" ||
+            pool.data.status === "registered" ||
+            pool.data.status === "settled"}
+          onClick={() => void generate()}
+        >
+          Comparar alternativas
+        </Button>
+        <p className="ui-sec planner-after">
+          As alternativas mantêm os jogos fixos. A taxa e o destino da sobra
+          ficam para aprovação.
         </p>
         {error && <p className="form-error" role="alert">{error}</p>}
-      </section>
+      </Card>
       {!!local?.candidates.length && (
         <div className="plan-grid" aria-label="Alternativas de plano">
-          {local.candidates.map((saved) =>
-            saved && (
-              <article
-                className={`plan-card ${
-                  selected?.id === saved.id ? "selected" : ""
-                }`}
-                aria-label={`Plano ${strategies[saved.candidate.strategy]}`}
+          {local.candidates.map((saved) => {
+            if (!saved) return null;
+            const plan = saved.candidate;
+            const chosen = selected?.id === saved.id;
+            const coverage = local.coverage.get(saved.id);
+            return (
+              <Card
                 key={saved.id}
+                className={`plan-card ${chosen ? "selected" : ""}`}
+                label={`Plano ${strategies[plan.strategy]}`}
               >
-                <span className="eyebrow">PROPOSTA LOCAL</span>
-                <h3>{strategies[saved.candidate.strategy]}</h3>
-                <p>{saved.candidate.explanation}</p>
-                <PlanValues plan={saved.candidate} />
-                <button
-                  className={`button ${
-                    selected?.id === saved.id ? "primary" : "secondary"
-                  }`}
-                  disabled={busy}
-                  onClick={() =>
-                    void db.metadata.put({
-                      key: selectionKey,
-                      value: { ...local.meta!, selectedId: saved.id },
-                    })}
-                >
-                  {selected?.id === saved.id
-                    ? "Selecionada"
-                    : `Comparar ${
-                      strategies[saved.candidate.strategy].toLowerCase()
-                    }`}
-                </button>
-              </article>
-            )
-          )}
+                <Eyebrow>Alternativa</Eyebrow>
+                <h3 className="planner-h">{strategies[plan.strategy]}</h3>
+                <p className="ui-sec">{plan.explanation}</p>
+                <p className="plan-chance">
+                  <strong>
+                    {coverage?.probability != null
+                      ? umEm(coverage.probability)
+                      : "Chance a calcular"}
+                  </strong>
+                  <span className="ui-sec">chance do prêmio principal</span>
+                </p>
+                <dl className="pool-facts">
+                  <div>
+                    <dt>Custo</dt>
+                    <dd>{formatBRL(plan.totalCostCents)}</dd>
+                  </div>
+                  <div>
+                    <dt>Sobra</dt>
+                    <dd>{formatBRL(plan.leftoverCents)}</dd>
+                  </div>
+                  <div>
+                    <dt>Jogos</dt>
+                    <dd>{plan.bets.length}</dd>
+                  </div>
+                </dl>
+                <Disclosure summary="Ver cálculo">
+                  <p>
+                    {coverage?.status === "exact"
+                      ? `Chance exata: ${
+                        BigInt(coverage.distinctCombinations!).toLocaleString(
+                          "pt-BR",
+                        )
+                      } em ${
+                        BigInt(coverage.denominator).toLocaleString("pt-BR")
+                      } combinações possíveis (${
+                        (BigInt(coverage.elementaryCombinations) -
+                          BigInt(coverage.distinctCombinations!))
+                          .toLocaleString("pt-BR")
+                      } repetidas entre os jogos).`
+                      : coverage?.reason ??
+                        "A chance exata ainda precisa ser calculada para este plano."}
+                  </p>
+                  <PlanValues plan={plan} />
+                </Disclosure>
+                {chosen
+                  ? <Chip status="confirmed">Plano escolhido</Chip>
+                  : (
+                    <Button
+                      variant="ghost"
+                      disabled={busy}
+                      onClick={() =>
+                        void db.metadata.put({
+                          key: selectionKey,
+                          value: { ...local.meta!, selectedId: saved.id },
+                        })}
+                    >
+                      Escolher este plano
+                    </Button>
+                  )}
+              </Card>
+            );
+          })}
         </div>
       )}
       {!!local?.meta?.unavailable.length && (
-        <section className="panel">
-          <SectionTitle title="Restrições das alternativas" />
+        <Card className="planner-card" label="Restrições das alternativas">
+          <Eyebrow>Restrições das alternativas</Eyebrow>
           {local.meta.unavailable.map((item) => (
-            <p className="inline-note" key={item.strategy}>
-              <span>
-                <strong>{strategies[item.strategy]}:</strong> {item.reason}
-              </span>
+            <p className="ui-sec" key={item.strategy}>
+              <strong>{strategies[item.strategy]}:</strong> {item.reason}
             </p>
           ))}
-        </section>
+        </Card>
       )}
       {selected && local && (
-        <section className="panel">
-          <SectionTitle
-            title={`A proposta ${strategies[selected.strategy].toLowerCase()}`}
-            subtitle={`${selected.bets.length} jogos em ${selected.tickets.length} cartela(s). ${
-              selected.participationMode === "official"
-                ? "Correspondência com cotas oficiais verificada pelo catálogo."
-                : "Participação por acordo interno do grupo."
-            }`}
-          />
-          {local.coverage?.status === "exact"
-            ? (
-              <div className="planner-overview">
-                <div>
-                  <span>Combinações distintas</span>
-                  <strong>
-                    {Number(local.coverage.distinctCombinations).toLocaleString(
-                      "pt-BR",
-                    )}
-                  </strong>
-                </div>
-                <div>
-                  <span>Combinações repetidas</span>
-                  <strong>
-                    {(BigInt(local.coverage.elementaryCombinations) -
-                      BigInt(local.coverage.distinctCombinations!))
-                      .toLocaleString("pt-BR")}
-                  </strong>
-                </div>
-                <div>
-                  <span>Chance do prêmio principal</span>
-                  <strong>{percent(local.coverage.probability!)}</strong>
-                </div>
-              </div>
-            )
-            : (
-              <p className="inline-note">
-                {local?.coverage?.reason ??
-                  "A cobertura exata ainda precisa ser calculada para esta proposta."}
-              </p>
-            )}
-          <p className="inline-note">
-            <ShieldCheck size={18} />
+        <Card className="planner-card" label="Plano escolhido">
+          <Eyebrow>Plano escolhido</Eyebrow>
+          <h3 className="planner-h">{strategies[selected.strategy]}</h3>
+          <p className="ui-sec">
+            {selected.bets.length} jogos em {selected.tickets.length}{" "}
+            {selected.tickets.length === 1 ? "cartela" : "cartelas"}.{" "}
+            {selected.participationMode === "official"
+              ? "As cotas oficiais conferem com o catálogo da CAIXA."
+              : "Participação por acordo interno do grupo."}
+          </p>
+          <p className="planner-note">
+            <ShieldCheck aria-hidden="true" />
             <span>
-              Aplicar escolhe o plano e reserva seu custo. Travar congela os
-              direitos e os jogos antes do registro externo.
+              Aplicar escolhe o plano e reserva o custo. Travar congela as cotas
+              e os jogos antes do registro na lotérica.
             </span>
           </p>
-          {!enabled && <p className="inline-note">{availability}</p>}
-          <div className="planning-actions">
-            <button
-              className="button primary"
-              disabled={!enabled || busy || registered}
-              onClick={() => open({ type: "plan_apply", plan: selected })}
-            >
-              <ShieldCheck size={17} />Revisar aplicação do plano
-            </button>
-          </div>
+          {!enabled && <p className="planner-note">{availability}</p>}
+          <Button
+            icon={<ShieldCheck aria-hidden="true" />}
+            disabled={!enabled || busy || registered}
+            onClick={() => open({ type: "plan_apply", plan: selected })}
+          >
+            Revisar aplicação do plano
+          </Button>
           {registered && (
-            <p className="inline-note">
-              O registro externo já foi conferido. O plano registrado e seus
-              direitos estão congelados.
+            <p className="planner-note">
+              O registro na lotérica já foi conferido. O plano registrado e as
+              cotas estão congelados.
             </p>
           )}
           <SimulationView
@@ -674,7 +677,7 @@ export function Planner(
           >
             Regras e cartelas · fonte CAIXA
           </a>
-        </section>
+        </Card>
       )}
       {applied && (
         <AppliedPlanView
@@ -723,19 +726,14 @@ export function PlanValues({ plan }: { plan: PreparedPlan }) {
 
 export function PlanDetails({ plan }: { plan: PreparedPlan }) {
   return (
-    <details className="planning-details">
-      <summary>Ver jogos, cartelas e reprodução do cálculo</summary>
+    <Disclosure className="planning-details" summary="Ver jogos e cartelas">
       <p>
-        Concurso {plan.contestNumber} · {LOTTERIES[plan.lotteryId].label} ·{" "}
-        {plan.catalogVersion}
+        Concurso {plan.contestNumber} · {LOTTERIES[plan.lotteryId].label}
       </p>
       <p>
-        Semente da geração: <code>{plan.seed}</code>
-      </p>
-      <p>
-        A autoria dos números fica registrada separadamente dos direitos.
-        Cartelas e correspondências são propostas do grupo; os recibos oficiais
-        serão conferidos após o registro externo.
+        Os jogos são gerados de forma verificável. A autoria dos números fica
+        separada do direito ao prêmio. Cartelas e cotas são sugestões do grupo;
+        os recibos oficiais são conferidos depois do registro na lotérica.
       </p>
       <div className="planning-games">
         {plan.tickets.map((ticket, index) => (
@@ -782,7 +780,13 @@ export function PlanDetails({ plan }: { plan: PreparedPlan }) {
           </div>
         ))}
       </div>
-    </details>
+      <Disclosure summary="Detalhes técnicos">
+        <p>Catálogo {plan.catalogVersion}</p>
+        <p>
+          Código da geração: <code>{plan.seed}</code>
+        </p>
+      </Disclosure>
+    </Disclosure>
   );
 }
 
@@ -802,27 +806,36 @@ function SimulationView({
   disabled: boolean;
 }) {
   const result = analysis?.result;
+  const events = result
+    ? [
+      ["Algum prêmio", result.anyPrize] as const,
+      ...Object.entries(result.tiers).sort(([a], [b]) => Number(b) - Number(a))
+        .map(([tier, estimate]) => [`${tier} acertos`, estimate] as const),
+    ]
+    : [];
   return (
-    <section className="simulation-result" aria-label="Simulação da carteira">
-      <h3>Chance de ao menos um prêmio</h3>
-      <p>
-        Monte Carlo considera sobreposições entre os jogos. A simulação começa
-        com 200 mil sorteios e pode ser refinada para 1 milhão, com intervalo de
-        confiança de 95%.
+    <section className="planner-sim" aria-label="Simulação da carteira">
+      <h4>Chance de ganhar algum prêmio</h4>
+      <p className="ui-sec">
+        O aparelho sorteia 200 mil vezes para estimar a chance da carteira,
+        contando os jogos que se repetem em parte. Depois dá para refinar para 1
+        milhão de sorteios.
       </p>
       {analysis && (
-        <div className="simulation-progress">
-          <span>
+        <div className="planner-progress">
+          <p className="planner-progress-line" aria-live="polite">
             {analysis.checkpoint.processedSamples.toLocaleString("pt-BR")} de
             {" "}
             {analysis.input.targetSamples.toLocaleString("pt-BR")} sorteios ·
             {" "}
-            {running
-              ? "Calculando"
-              : analysis.status === "complete"
+            {analysis.status === "complete"
               ? "Concluída"
+              : running
+              ? "Calculando"
+              : analysis.status === "paused"
+              ? "Pausada"
               : "Pode ser retomada"}
-          </span>
+          </p>
           <progress
             aria-label="Progresso da simulação"
             max={analysis.input.targetSamples}
@@ -830,88 +843,78 @@ function SimulationView({
           />
         </div>
       )}
-      <div className="planning-actions">
-        {running
-          ? (
-            <button className="button secondary" onClick={pause}>
-              <Pause size={17} />Pausar simulação
-            </button>
-          )
-          : (!analysis || analysis.status !== "complete") && (
-            <button
-              className="button secondary"
-              disabled={disabled}
-              onClick={start}
-            >
-              <Play size={17} />
-              {analysis ? "Retomar simulação" : "Simular carteira"}
-            </button>
-          )}
-        {analysis?.status === "complete" &&
-          analysis.input.targetSamples < 1_000_000 && (
-          <button
-            className="button secondary"
-            disabled={disabled}
-            onClick={refine}
+      {running
+        ? (
+          <Button
+            variant="ghost"
+            icon={<Pause aria-hidden="true" />}
+            onClick={pause}
           >
-            Refinar para 1 milhão
-          </button>
+            Pausar simulação
+          </Button>
+        )
+        : (!analysis || analysis.status !== "complete") && (
+          <Button
+            variant="ghost"
+            icon={<Play aria-hidden="true" />}
+            disabled={disabled}
+            onClick={start}
+          >
+            {analysis ? "Retomar simulação" : "Simular carteira"}
+          </Button>
         )}
-      </div>
+      {analysis?.status === "complete" &&
+        analysis.input.targetSamples < 1_000_000 && (
+        <Button variant="ghost" disabled={disabled} onClick={refine}>
+          Refinar para 1 milhão
+        </Button>
+      )}
       {result && (
         <>
-          <div className="table-wrapper">
+          <div className="planner-table">
             <table>
+              <colgroup>
+                <col className="planner-col-event" />
+                <col className="planner-col-chance" />
+                <col className="planner-col-range" />
+              </colgroup>
               <thead>
                 <tr>
-                  <th>Evento na carteira</th>
-                  <th>Estimativa</th>
-                  <th>Intervalo de 95%</th>
+                  <th scope="col">Evento</th>
+                  <th scope="col">Chance</th>
+                  <th scope="col">Faixa provável</th>
                 </tr>
               </thead>
               <tbody>
-                {[
-                  ["Ao menos um prêmio", result.anyPrize],
-                  ...Object.entries(result.tiers).sort(([a], [b]) =>
-                    Number(b) - Number(a)
-                  ).map(([tier, estimate]) =>
-                    [`Ao menos um de ${tier} acertos`, estimate] as const
-                  ),
-                ].map(([label, estimate]) => (
-                  <tr key={String(label)}>
-                    <td>{String(label)}</td>
+                {events.map(([label, estimate]) => (
+                  <tr key={label}>
+                    <td>{label}</td>
                     <td>
-                      {typeof estimate === "string"
-                        ? estimate
-                        : estimate.hits === 0
+                      {estimate.hits === 0
                         ? "Não observado"
-                        : percent(estimate.probability)}
+                        : umEm(estimate.probability)}
                     </td>
                     <td>
-                      {typeof estimate === "string"
-                        ? ""
-                        : `${percent(estimate.lower95)} a ${
-                          percent(estimate.upper95)
-                        }`}
+                      {umEm(estimate.lower95)} a {umEm(estimate.upper95)}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <p>
-            Zero ocorrências nesta amostra não significa chance zero. A chance
-            exata do prêmio principal aparece acima quando a união pôde ser
-            calculada.
+          <p className="ui-sec">
+            Zero ocorrências nesta amostra não significa chance zero. A faixa
+            provável cobre 95% dos casos.
           </p>
-          <details className="planning-details">
-            <summary>Reproduzir a simulação</summary>
+          <Disclosure summary="Detalhes técnicos">
             <p>
               {result.algorithmVersion} ·{" "}
-              {result.samples.toLocaleString("pt-BR")} amostras independentes
+              {result.samples.toLocaleString("pt-BR")} sorteios independentes
             </p>
-            <code>{result.seed}</code>
-          </details>
+            <p>
+              Código da simulação: <code>{result.seed}</code>
+            </p>
+          </Disclosure>
         </>
       )}
     </section>
@@ -947,34 +950,33 @@ export function AppliedPlanView({
     if (!manifest) return;
     if (!await verifyManifest(manifest)) {
       throw new Error(
-        "O manifesto não corresponde ao hash confirmado. Sincronize antes de baixar.",
+        "O registro da trava não bate com o código de verificação confirmado. Sincronize antes de baixar.",
       );
     }
     download(
       manifest.canonical,
-      `manifesto-${manifest.poolId}-v${manifest.version}.json`,
+      `registro-da-trava-${manifest.poolId}-v${manifest.version}.json`,
       "application/json",
     );
   };
   return (
-    <section className="panel" aria-label="Plano confirmado">
-      <SectionTitle
-        title={`Plano confirmado · versão ${plan.version}`}
-        subtitle={`Aplicado no servidor em ${
-          date(plan.appliedAt)
-        }. Jogos gerados pertencem a este plano; seus rascunhos fixos são preservados.`}
-      />
+    <Card className="planner-card" label="Plano confirmado">
+      <h3 className="planner-h">Plano confirmado · versão {plan.version}</h3>
+      <p className="ui-sec">
+        Aplicado no servidor em {date(plan.appliedAt)}. Os jogos gerados
+        pertencem a este plano; os jogos fixos continuam.
+      </p>
       <PlanValues plan={plan.plan} />
-      <p className="inline-note">
+      <p className="planner-note">
         {same
-          ? `Bolão travado · manifesto versão ${manifest.version}.`
+          ? `Bolão travado · registro da trava versão ${manifest.version}.`
           : manifest
-          ? "Há um plano novo. A trava anterior continua preservada até confirmar a nova versão."
-          : "O plano está aplicado. Confira os responsáveis e trave o bolão antes do registro externo."}
+          ? "Há um plano novo. A trava anterior continua valendo até confirmar a nova versão."
+          : "O plano está aplicado. Confira os responsáveis e trave o bolão antes do registro na lotérica."}
       </p>
       <div className="planning-actions">
-        <button
-          className="button primary"
+        <Button
+          icon={<ShieldCheck aria-hidden="true" />}
           disabled={!enabled || !!same || frozen}
           onClick={() =>
             open({
@@ -983,44 +985,45 @@ export function AppliedPlanView({
               appliedPlanId: plan.id,
             })}
         >
-          <ShieldCheck size={17} />
           {manifest ? "Revisar nova trava" : "Revisar trava do bolão"}
-        </button>
+        </Button>
         {manifest && (
-          <button
-            className="button secondary"
+          <Button
+            variant="ghost"
+            icon={<Download aria-hidden="true" />}
             onClick={() =>
               void downloadManifest().catch((error) =>
                 onNotice({ text: errorMessage(error), error: true })
               )}
           >
-            <Download size={17} />Baixar manifesto privado
-          </button>
+            Baixar registro da trava
+          </Button>
         )}
       </div>
       {manifest && (
-        <details className="planning-details">
-          <summary>Ver o que ficou congelado</summary>
+        <Disclosure summary="Detalhes técnicos">
           <p>
             Versão {manifest.version} · confirmada em {date(manifest.lockedAt)}
             {" "}
             · {manifest.lockedAt} (UTC)
           </p>
           <p>
-            Participantes, direitos, responsáveis, recebimentos, alocações,
-            regras, preços e jogos ficam registrados nesta versão. O documento é
-            privado e contém fatos financeiros do grupo.
+            Participantes, cotas, responsáveis, pagamentos, regras, preços e
+            jogos ficam guardados nesta versão. O arquivo é privado e contém o
+            dinheiro do grupo.
           </p>
-          <p className="manifest-hash">SHA-256: {manifest.sha256}</p>
+          <p className="manifest-hash">
+            Código de verificação: {manifest.sha256}
+          </p>
           <p>
-            O hash identifica o conteúdo deste arquivo. A auditoria e o horário
-            do servidor não constituem prova absoluta contra alterações por quem
+            O código identifica o conteúdo do arquivo. O horário e a auditoria
+            do servidor não são prova absoluta contra mudanças feitas por quem
             administra a infraestrutura.
           </p>
           <PlanDetails plan={manifest.content.plan} />
-        </details>
+        </Disclosure>
       )}
       <PlanDetails plan={plan.plan} />
-    </section>
+    </Card>
   );
 }

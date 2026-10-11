@@ -5,9 +5,11 @@ export { StepStrip } from "./StepStrip";
 export type { StepItem } from "./StepStrip";
 export {
   Avatars,
+  Bar,
   Button,
   Card,
   Chip,
+  Disclosure,
   Eyebrow,
   initials,
   Money,
@@ -20,3 +22,4 @@ export {
   countdownText,
   formatWhen,
 } from "./Countdown";
+export { copiar, reais, umEm } from "./texto";

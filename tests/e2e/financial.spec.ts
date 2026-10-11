@@ -59,6 +59,11 @@ async function login(page: Page, proposalVisible = true) {
   }
 }
 
+async function step(page: Page, name: string) {
+  await page.getByRole("navigation", { name: "Etapas do bolão" })
+    .getByRole("button", { name, exact: true }).click();
+}
+
 async function approve(page: Page) {
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByRole("checkbox").last()).toBeEnabled();
@@ -110,15 +115,15 @@ test("a human confirms cash, allocates across pools, confirms a fully paid quota
   await expect(balance.getByText("R$ 30,00", { exact: true })).toHaveCount(2);
 
   await page.goto(`http://127.0.0.1:4182/#/boloes/${poolId}`);
-  await page.getByRole("tab", { name: "Pessoas e cotas" }).click();
-  await page.getByRole("button", { name: "Preparar pagamento", exact: true })
+  await step(page, "Arrecadar");
+  await page.getByRole("button", { name: "Registrar pagamento", exact: true })
     .click();
   await page.getByLabel("Valor informado").fill("60,00");
   await page.getByLabel("Origem e observações").fill(
     "Segunda transferência para dois bolões.",
   );
   await page.getByRole("checkbox", {
-    name: "Conferir recebimento agora, após sincronizar esta proposta.",
+    name: "Conferir o recebimento agora, depois de sincronizar.",
   }).check();
   await page.getByRole("button", { name: "Salvar para revisão" }).click();
   await expect(
@@ -434,7 +439,7 @@ test("editing combinados publishes a new frozen version and pool edits preserve 
   await page.getByLabel("Combinados do grupo").fill(
     "Nova regra da versão 2. Participação integral no prazo, com autorização registrada.",
   );
-  await page.getByRole("button", { name: "Salvar rascunho" }).click();
+  await page.getByRole("button", { name: "Salvar neste aparelho" }).click();
   await page.goto("http://127.0.0.1:4182/#/revisao");
   await page.getByRole("button", { name: "Publicar nova versão", exact: true })
     .click();
@@ -444,17 +449,18 @@ test("editing combinados publishes a new frozen version and pool edits preserve 
     page.getByRole("button", { name: "Registrar aceite", exact: true }),
   ).toBeEnabled();
   await page.goto(`http://127.0.0.1:4182/#/boloes/${poolId}`);
+  await step(page, "Montar");
   await page.getByRole("button", { name: "Editar bolão", exact: true }).click();
   await page.getByLabel("Nome do bolão").fill("Mega financeira revisada");
-  await page.getByRole("button", { name: "Salvar rascunho" }).click();
+  await page.getByRole("button", { name: "Salvar neste aparelho" }).click();
   await expect(
     page.getByRole("heading", {
       name: "Mega financeira revisada",
       exact: true,
     }),
   ).toBeVisible();
-  await page.getByRole("tab", { name: "Pessoas e cotas" }).click();
-  await expect(page.getByRole("cell", { name: "R$ 60,00", exact: true }))
+  await step(page, "Arrecadar");
+  await expect(page.locator(".pool-person-due", { hasText: "R$ 60,00" }))
     .toBeVisible();
 });
 
@@ -464,7 +470,7 @@ test("offline and unconfigured groups keep proposals outside real financial conf
   await page.getByRole("button", { name: "Criar meu grupo", exact: true })
     .click();
   await page.getByLabel("Nome do grupo").fill("Grupo local sem servidor");
-  await page.getByRole("button", { name: "Salvar rascunho" }).click();
+  await page.getByRole("button", { name: "Salvar neste aparelho" }).click();
   await page.goto("/#/revisao");
   await expect(
     page.getByRole("button", { name: "Publicar combinados", exact: true }),
@@ -598,7 +604,7 @@ async function preparePlannerFixture(request: APIRequestContext, ready = true) {
 async function openPlanner(page: Page) {
   await login(page, false);
   await page.goto(`http://127.0.0.1:4182/#/boloes/${poolId}`);
-  await page.getByRole("tab", { name: "Planejador", exact: true }).click();
+  await step(page, "Jogar");
   await expect(
     page.getByRole("button", { name: "Comparar alternativas", exact: true }),
   ).toBeEnabled();
@@ -608,7 +614,7 @@ async function openPlanner(page: Page) {
   await page.getByRole("button", { name: "Comparar alternativas", exact: true })
     .click();
   await expect(
-    page.getByRole("article", { name: "Plano Espalhada", exact: true }),
+    page.getByRole("region", { name: "Plano Espalhada", exact: true }),
   ).toBeVisible();
 }
 
@@ -648,7 +654,7 @@ test("planning preserves fixed bets, applies the budget, locks rights and downlo
   await page.getByLabel("Titular dos bilhetes").selectOption(personId);
   await approvePlan(page);
   await expect(
-    confirmed.getByText("Bolão travado · manifesto versão 1.", { exact: true }),
+    confirmed.getByText("Bolão travado · registro da trava versão 1.", { exact: true }),
   ).toBeVisible();
   const snapshot = await fixturePost(request, "plan_pull", { groupId });
   expect(snapshot.appliedPlans).toHaveLength(1);
@@ -664,7 +670,7 @@ test("planning preserves fixed bets, applies the budget, locks rights and downlo
   ).toHaveLength(1);
   const downloadPromise = page.waitForEvent("download");
   await confirmed.getByRole("button", {
-    name: "Baixar manifesto privado",
+    name: "Baixar registro da trava",
     exact: true,
   }).click();
   const download = await downloadPromise;
@@ -679,16 +685,16 @@ test("planning preserves fixed bets, applies the budget, locks rights and downlo
   });
   const financial = await fixturePost(request, "finance_pull", { groupId });
   expect(financial.movements).toHaveLength(2);
-  await page.getByRole("tab", { name: "Jogos", exact: true }).click();
+  await step(page, "Jogar");
   await expect(page.getByRole("button", { name: "Gerar jogos", exact: true }))
     .toBeDisabled();
   await expect(
     page.getByRole("button", { name: "Adicionar dezenas", exact: true }),
   ).toBeDisabled();
-  await page.getByRole("tab", { name: "Resumo", exact: true }).click();
+  await step(page, "Montar");
   await expect(page.getByRole("button", { name: "Editar bolão", exact: true }))
     .toBeDisabled();
-  await page.getByRole("tab", { name: "Planejador", exact: true }).click();
+  await step(page, "Jogar");
   await page.screenshot({
     path: "test-results/planning-locked-desktop.png",
     fullPage: true,
@@ -806,7 +812,7 @@ test("a revised lock preserves the first financial snapshot and both manifest ve
   const first =
     (await fixturePost(request, "plan_pull", { groupId })).manifests[0];
   await expect(
-    page.getByText("Bolão travado · manifesto versão 1.", { exact: true }),
+    page.getByText("Bolão travado · registro da trava versão 1.", { exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Comparar alternativas", exact: true })
     .click();
@@ -832,7 +838,7 @@ test("a revised lock preserves the first financial snapshot and both manifest ve
     .toBeDisabled();
   await approvePlan(page);
   await expect(
-    confirmed.getByText("Bolão travado · manifesto versão 2.", { exact: true }),
+    confirmed.getByText("Bolão travado · registro da trava versão 2.", { exact: true }),
   ).toBeVisible();
   const last = await fixturePost(request, "plan_pull", { groupId });
   expect(last.appliedPlans).toHaveLength(2);
@@ -910,23 +916,24 @@ test("a funded pool can define its contest and participation mode before its fir
   await preparePlannerFixture(request, false);
   await login(page, false);
   await page.goto(`http://127.0.0.1:4182/#/boloes/${poolId}`);
-  await page.getByRole("tab", { name: "Planejador", exact: true }).click();
+  await step(page, "Jogar");
   await page.getByRole("button", { name: "Completar bolão", exact: true })
     .click();
   await page.getByLabel("Concurso", { exact: false }).fill("1234");
   await page.getByLabel("Forma de participação").selectOption("internal");
-  await page.getByRole("button", { name: "Salvar rascunho", exact: true })
+  await page.getByRole("button", { name: "Salvar neste aparelho", exact: true })
     .click();
   await expect(page.getByRole("dialog")).not.toBeVisible();
+  await step(page, "Montar");
   await expect(page.getByText("Sincronizado", { exact: true })).toBeVisible();
-  await page.getByRole("tab", { name: "Planejador", exact: true }).click();
+  await step(page, "Jogar");
   await expect(
     page.getByRole("button", { name: "Comparar alternativas", exact: true }),
   ).toBeEnabled();
   await page.getByRole("button", { name: "Comparar alternativas", exact: true })
     .click();
   await expect(
-    page.getByRole("article", { name: "Plano Espalhada", exact: true }),
+    page.getByRole("region", { name: "Plano Espalhada", exact: true }),
   ).toBeVisible();
   await page.getByRole("button", {
     name: "Revisar aplicação do plano",
@@ -958,7 +965,7 @@ async function lockRegistrationFixture(
   await page.getByLabel("Titular dos bilhetes").selectOption(personId);
   await approvePlan(page);
   const snapshot = await fixturePost(request, "plan_pull", { groupId });
-  await page.getByRole("tab", { name: "Registro", exact: true }).click();
+  await step(page, "Registrar");
   return snapshot.manifests[0];
 }
 
@@ -1070,7 +1077,7 @@ test("originals persist offline, registration is reviewed separately and the reg
     "Salvo neste aparelho",
   );
   await page.reload();
-  await page.getByRole("tab", { name: "Registro", exact: true }).click();
+  await step(page, "Registrar");
   await expect(page.getByText("comprovante-sintetico.pdf", { exact: true }))
     .toBeVisible();
   await expect(
@@ -1121,14 +1128,14 @@ test("originals persist offline, registration is reviewed separately and the reg
   expect(recorded.reports[0].manifestId).toBe(manifest.id);
   expect((await fixturePost(request, "finance_pull", { groupId })).movements)
     .toHaveLength(2);
-  await page.getByRole("tab", { name: "Planejador", exact: true }).click();
+  await step(page, "Jogar");
   await expect(
     page.locator('[aria-label="Plano confirmado"]').getByRole("button", {
       name: "Revisar nova trava",
       exact: true,
     }),
   ).toBeDisabled();
-  await page.getByRole("tab", { name: "Registro", exact: true }).click();
+  await step(page, "Registrar");
   await page.setViewportSize({ width: 390, height: 844 });
   expect(
     await page.evaluate(() =>
@@ -1187,7 +1194,7 @@ test("an accepted partial registration with a lost response is recovered without
   expect((await fixturePost(request, "finance_pull", { groupId })).movements)
     .toHaveLength(2);
   await page.goto(`http://127.0.0.1:4182/#/boloes/${poolId}`);
-  await page.getByRole("tab", { name: "Planejador", exact: true }).click();
+  await step(page, "Jogar");
   await expect(
     page.locator('[aria-label="Plano confirmado"]').getByRole("button", {
       name: "Revisar nova trava",
@@ -1202,7 +1209,7 @@ test("manual results, official conflicts, failed collection and contest times pr
   await addOriginal(page);
   await fillObserved(page, manifest);
   await approveRecord(page);
-  await page.getByRole("tab", { name: "Resultado", exact: true }).click();
+  await step(page, "Sorteio");
   await page.getByText("Informar resultado manual com fonte", { exact: true })
     .click();
   await page.getByLabel("Data do sorteio em Brasília").fill("2026-10-08");

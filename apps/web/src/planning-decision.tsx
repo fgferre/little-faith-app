@@ -237,7 +237,7 @@ export function PlanningDialog(
         )
       ) {
         throw new Error(
-          "Há rascunhos ou conflitos em jogos, pessoas ou cotas deste bolão. Sincronize e resolva a revisão primeiro.",
+          "Há mudanças salvas só neste aparelho ou conflitos em jogos, pessoas ou cotas deste bolão. Sincronize e resolva a revisão primeiro.",
         );
       }
       assertCurrentPlan(

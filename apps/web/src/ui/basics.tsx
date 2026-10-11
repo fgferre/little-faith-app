@@ -1,5 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
-import { Check, CircleAlert, Clock3 } from "lucide-react";
+import { Check, ChevronDown, CircleAlert, Clock3 } from "lucide-react";
 import { formatBRL } from "@bolao/core";
 import type { LotteryId } from "@bolao/core";
 
@@ -133,30 +133,81 @@ export function initials(name: string) {
   return first.slice(0, 2).toUpperCase() || "?";
 }
 
-/** Iniciais em fila; quem deve tem anel âmbar tracejado, problema anel vermelho, pago fundo menta. */
+/**
+ * Iniciais em fila; quem deve tem anel âmbar tracejado, problema anel vermelho, pago fundo menta.
+ * Quando não cabem, os tranquilos viram "+N" e quem deve continua à vista.
+ */
 export function Avatars(
   { people, max = 5 }: {
     people: { id: string; name: string; status?: AvatarStatus }[];
     max?: number;
   },
 ) {
-  const shown = people.length > max ? people.slice(0, max - 1) : people;
-  const extra = people.length - shown.length;
+  const urgent = people.filter((p) =>
+    p.status === "owe" || p.status === "problem"
+  );
+  const calm = people.filter((p) => !urgent.includes(p));
+  const keep = max - 1 - urgent.length;
+  const [before, after] = people.length <= max
+    ? [people, []]
+    : keep >= 0
+    ? [calm.slice(0, keep), urgent]
+    : [people.slice(0, max - 1), []];
+  const extra = people.length - before.length - after.length;
+  const face = (person: (typeof people)[number]) => (
+    <span
+      key={person.id}
+      className={`ui-av ${person.status ?? "neutral"}`}
+      title={person.name}
+      aria-hidden="true"
+    >
+      {initials(person.name)}
+    </span>
+  );
   return (
     <span className="ui-avatars">
-      {shown.map((person) => (
-        <span
-          key={person.id}
-          className={`ui-av ${person.status ?? "neutral"}`}
-          title={person.name}
-          aria-hidden="true"
-        >
-          {initials(person.name)}
-        </span>
-      ))}
+      {before.map(face)}
       {extra > 0 && (
         <span className="ui-av more" aria-hidden="true">+{extra}</span>
       )}
+      {after.map(face)}
     </span>
+  );
+}
+
+/** Barra de arrecadação: menta chapada no confirmado e âmbar listrado no que está em conferência. */
+export function Bar(
+  { done, pending = 0, label }: {
+    /** Frações de 0 a 1. */
+    done: number;
+    pending?: number;
+    label: string;
+  },
+) {
+  const pct = (value: number) => `${Math.max(0, Math.min(1, value)) * 100}%`;
+  return (
+    <div className="ui-bar" role="img" aria-label={label}>
+      <i style={{ width: pct(done) }} />
+      {pending > 0 && <s style={{ width: pct(Math.min(pending, 1 - done)) }} />}
+    </div>
+  );
+}
+
+/** Algo que fica guardado até a pessoa pedir: "Ver combinados", "Ver cálculo", "Detalhes técnicos". */
+export function Disclosure(
+  { summary, className, children }: {
+    summary: ReactNode;
+    className?: string;
+    children: ReactNode;
+  },
+) {
+  return (
+    <details className={["ui-more", className].filter(Boolean).join(" ")}>
+      <summary>
+        {summary}
+        <ChevronDown aria-hidden="true" />
+      </summary>
+      <div className="ui-more-body">{children}</div>
+    </details>
   );
 }

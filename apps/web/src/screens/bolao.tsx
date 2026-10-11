@@ -1,19 +1,23 @@
 import { lazy, Suspense } from "react";
-import { ArrowUpRight } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
+import { LOTTERIES } from "@bolao/core";
 import type { FinancialView, LocalRecord } from "@bolao/core";
 import type { BolaoDatabase } from "@bolao/local";
-import { LotteryBadge, StateBadge } from "../components";
-import { Planner } from "../planning";
 import type { latestApplied, latestManifest } from "../planning";
 import type { PlanningRequest } from "../planning-decision";
 import type { RecordRequest } from "../record-decision";
-import type { FormKind, Notice, Route, Snapshot, Tab } from "../app-shared";
-import { BolaoJogos } from "./bolao-jogos";
-import { BolaoPessoas } from "./bolao-pessoas";
-import { BolaoResumo } from "./bolao-resumo";
+import { POOL_STEPS } from "../app-shared";
+import type { FormKind, Notice, PoolStep, Route, Snapshot } from "../app-shared";
+import { Card, Chip, Eyebrow, formatWhen, StepStrip } from "../ui";
+import { BolaoArrecadar } from "./bolao-arrecadar";
+import { STEP_LABEL, usePoolViews } from "./bolao-etapas";
+import { BolaoJogar } from "./bolao-jogar";
+import { BolaoMontar } from "./bolao-montar";
 
 const Registration = lazy(() => import("../registration"));
 const Results = lazy(() => import("../results"));
+
+const STEPS = POOL_STEPS.map((key) => ({ key, label: STEP_LABEL[key] }));
 
 export function BolaoScreen(
   {
@@ -24,12 +28,9 @@ export function BolaoScreen(
     pool,
     poolBets,
     poolQuotas,
-    payments,
     financialView,
     manifest,
-    registration,
     appliedPlan,
-    tab,
     route,
     isDemo,
     financeEnabled,
@@ -41,7 +42,6 @@ export function BolaoScreen(
     draftGamesCost,
     proposedCents,
     openForm,
-    setTab,
     setPlanningRequest,
     setRecordRequest,
     setNotice,
@@ -53,12 +53,9 @@ export function BolaoScreen(
     pool: LocalRecord<"pool">;
     poolBets: LocalRecord<"bet">[];
     poolQuotas: LocalRecord<"quota">[];
-    payments: Snapshot["confirmed"];
     financialView: FinancialView | null;
     manifest: ReturnType<typeof latestManifest>;
-    registration: Snapshot["registrations"][number] | undefined;
     appliedPlan: ReturnType<typeof latestApplied>;
-    tab: Tab;
     route: Route;
     isDemo: boolean;
     financeEnabled: boolean;
@@ -70,181 +67,146 @@ export function BolaoScreen(
     draftGamesCost: string;
     proposedCents: string;
     openForm: (kind: FormKind) => void;
-    setTab: (tab: Tab) => void;
     setPlanningRequest: (request: PlanningRequest) => void;
     setRecordRequest: (request: RecordRequest) => void;
     setNotice: (notice: Notice) => void;
   },
 ) {
+  const view = usePoolViews({ db, snapshot, financialView, isDemo }).find((
+    v,
+  ) => v.pool.id === pool.id);
+  const current = view?.step ?? "montar";
+  const step = route.step ?? current;
+  const done = new Set(POOL_STEPS.slice(0, POOL_STEPS.indexOf(current)));
+  const go = (next: PoolStep) => route.navigate("boloes", pool.id, next);
+  const lottery = LOTTERIES[pool.data.lotteryId].label;
+
   return (
-    <>
-      <div className="pool-toolbar">
-        <LotteryBadge lotteryId={pool.data.lotteryId} />
-        <span>
+    <div className="pool">
+      <div className="pool-top">
+        <button
+          type="button"
+          className="pool-back"
+          onClick={() => route.navigate("boloes")}
+        >
+          <ChevronLeft aria-hidden="true" />Bolões
+        </button>
+        {group && <span className="pool-group">{group.data.name}</span>}
+      </div>
+      <h1 className="ui-title pool-title">{pool.data.title}</h1>
+      <p className="pool-meta">
+        <Chip modality={pool.data.lotteryId}>
+          {view?.drawAt
+            ? `${lottery} · ${
+              formatWhen(Date.parse(view.drawAt), Date.now(), timeZone)
+            }`
+            : lottery}
+        </Chip>
+        <span className="ui-sec">
           {pool.data.contestNumber
             ? `Concurso ${pool.data.contestNumber}`
             : "Concurso a definir"}
         </span>
-        <StateBadge state={pool.state} />
-        {manifest && (
-          <span className="simple-pill green">
-            Travado · versão {manifest.version}
-          </span>
-        )}
-        {registration && (
-          <span
-            className={`simple-pill ${
-              registration.comparison.status ===
-                  "complete"
-                ? "green"
-                : "amber"
-            }`}
-          >
-            {registration.comparison.status === "complete"
-              ? "Registro conferido"
-              : registration.comparison.status ===
-                  "partial"
-              ? "Registro parcial"
-              : "Registro com divergências"}
-          </span>
-        )}
-        <button
-          className="text-link back-link"
-          onClick={() => route.navigate("boloes")}
-        >
-          Todos os bolões <ArrowUpRight size={15} />
-        </button>
-      </div>
-      <div
-        className="tabs"
-        role="tablist"
-        aria-label="Seções do bolão"
-      >
-        {([
-          "resumo",
-          "pessoas",
-          "jogos",
-          "planejar",
-          "registro",
-          "resultado",
-        ] as const).map((t) => (
-          <button
-            key={t}
-            role="tab"
-            aria-selected={tab === t}
-            className={tab === t ? "selected" : ""}
-            onClick={() => setTab(t)}
-          >
-            {({
-              resumo: "Resumo",
-              pessoas: "Pessoas e cotas",
-              jogos: "Jogos",
-              planejar: "Planejador",
-              registro: "Registro",
-              resultado: "Resultado",
-            })[t]}
-          </button>
-        ))}
-      </div>
-      {tab === "resumo" && (
-        <BolaoResumo
-          snapshot={snapshot}
-          group={group}
-          pool={pool}
-          poolBets={poolBets}
-          poolQuotas={poolQuotas}
-          manifest={manifest}
-          appliedPlan={appliedPlan}
-          confirmedCents={confirmedCents}
-          expectedCents={expectedCents}
-          gamesCost={gamesCost}
-          proposedCents={proposedCents}
-          openForm={openForm}
-          setTab={setTab}
-        />
-      )}
-      {tab === "pessoas" && (
-        <BolaoPessoas
-          snapshot={snapshot}
-          pool={pool}
-          poolQuotas={poolQuotas}
-          payments={payments}
-          financialView={financialView}
-          isDemo={isDemo}
-          openForm={openForm}
-        />
-      )}
-      {tab === "jogos" && (
-        <BolaoJogos
-          snapshot={snapshot}
-          pool={pool}
-          poolBets={poolBets}
-          draftGamesCost={draftGamesCost}
-          manifest={manifest}
-          appliedPlan={appliedPlan}
-          openForm={openForm}
-        />
-      )}
-      {tab === "planejar" && group && (
-        <Planner
-          key={`${db.name}:${group.id}:${pool.id}`}
-          db={db}
-          group={group}
-          pool={pool}
-          bets={poolBets}
-          quotas={poolQuotas}
-          finances={snapshot.finances}
-          demoPayments={snapshot.confirmed}
-          isDemo={isDemo}
-          enabled={financeEnabled}
-          availability={financeAvailability}
-          open={setPlanningRequest}
-          editPool={() => openForm("edit-pool")}
-          onNotice={setNotice}
-        />
-      )}
-      {tab === "registro" && groupId && (
-        <Suspense
-          fallback={
-            <p className="inline-note">
-              Carregando conferência do registro…
-            </p>
-          }
-        >
-          <Registration
-            key={`${db.name}:${groupId}:${pool.id}`}
-            db={db}
-            groupId={groupId}
+      </p>
+      <StepStrip
+        steps={STEPS}
+        current={step}
+        done={done}
+        modality={pool.data.lotteryId}
+        onSelect={go}
+      />
+      <div className="pool-body">
+        {step === "montar" && (
+          <BolaoMontar
+            group={group}
             pool={pool}
-            manifest={manifest}
-            enabled={financeEnabled}
-            availability={financeAvailability}
-            open={setRecordRequest}
-            onNotice={setNotice}
-            goPlanning={() => setTab("planejar")}
-          />
-        </Suspense>
-      )}
-      {tab === "resultado" && groupId && (
-        <Suspense
-          fallback={
-            <p className="inline-note">
-              Carregando conferência do resultado…
-            </p>
-          }
-        >
-          <Results
-            key={`${db.name}:${groupId}:${pool.id}`}
-            db={db}
-            groupId={groupId}
-            pool={pool}
-            enabled={financeEnabled}
-            availability={financeAvailability}
+            appliedPlan={appliedPlan}
             timeZone={timeZone}
-            open={setRecordRequest}
+            confirmedCents={confirmedCents}
+            expectedCents={expectedCents}
+            gamesCost={gamesCost}
+            proposedCents={proposedCents}
+            openForm={openForm}
           />
-        </Suspense>
-      )}
-    </>
+        )}
+        {step === "arrecadar" && view && (
+          <BolaoArrecadar
+            snapshot={snapshot}
+            view={view}
+            openForm={openForm}
+            openReview={() => route.navigate("revisao")}
+            goPlay={() => go("jogar")}
+            setNotice={setNotice}
+          />
+        )}
+        {step === "jogar" && (
+          <BolaoJogar
+            db={db}
+            snapshot={snapshot}
+            group={group}
+            pool={pool}
+            poolBets={poolBets}
+            poolQuotas={poolQuotas}
+            draftGamesCost={draftGamesCost}
+            manifest={manifest}
+            appliedPlan={appliedPlan}
+            isDemo={isDemo}
+            financeEnabled={financeEnabled}
+            financeAvailability={financeAvailability}
+            openForm={openForm}
+            setPlanningRequest={setPlanningRequest}
+            setNotice={setNotice}
+          />
+        )}
+        {step === "registrar" && groupId && (
+          <Suspense
+            fallback={
+              <p className="inline-note">
+                Carregando conferência do registro…
+              </p>
+            }
+          >
+            <Registration
+              key={`${db.name}:${groupId}:${pool.id}`}
+              db={db}
+              groupId={groupId}
+              pool={pool}
+              manifest={manifest}
+              enabled={financeEnabled}
+              availability={financeAvailability}
+              open={setRecordRequest}
+              onNotice={setNotice}
+              goPlanning={() => go("jogar")}
+            />
+          </Suspense>
+        )}
+        {step === "sorteio" && groupId && (
+          <Suspense
+            fallback={
+              <p className="inline-note">
+                Carregando conferência do resultado…
+              </p>
+            }
+          >
+            <Results
+              key={`${db.name}:${groupId}:${pool.id}`}
+              db={db}
+              groupId={groupId}
+              pool={pool}
+              enabled={financeEnabled}
+              availability={financeAvailability}
+              timeZone={timeZone}
+              open={setRecordRequest}
+            />
+          </Suspense>
+        )}
+        {step === "dividir" && (
+          <Card className="pool-card" label="Dividir">
+            <Eyebrow>Dividir</Eyebrow>
+            <p className="pool-soon">A divisão entra na próxima rodada.</p>
+          </Card>
+        )}
+      </div>
+    </div>
   );
 }

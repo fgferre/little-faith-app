@@ -83,7 +83,7 @@ export function DraftForm(
     "edit-pool": "Editar dados do bolão",
     person: "Mais uma pessoa na turma",
     quota: "Preparar participação",
-    payment: "Preparar pagamento para revisão",
+    payment: "Registrar pagamento a conferir",
     bet: "Os números da turma",
     generate: "Deixe os números com a gente",
   };
@@ -91,8 +91,8 @@ export function DraftForm(
     group:
       "Os dados serão salvos neste aparelho. Cada grupo tem seu próprio caixa.",
     "edit-group":
-      "Alterar o texto salva um rascunho. Publique uma nova versão na revisão para registrar novos aceites.",
-    pool: "Defina os detalhes iniciais. O bolão começa como rascunho.",
+      "A mudança fica salva neste aparelho. Publique uma nova versão na revisão para registrar novos aceites.",
+    pool: "Defina os detalhes iniciais. Tudo fica salvo neste aparelho até sincronizar.",
     "edit-pool":
       "Preço, prazo, modalidade e concurso ficam protegidos quando há participações confirmadas.",
     person:
@@ -102,7 +102,7 @@ export function DraftForm(
     payment: "Informar um valor não confirma recebimento e não altera o caixa.",
     bet: "Jogos preparados ficam locais. O registro é feito externamente.",
     generate:
-      "Geração local, com semente criptográfica e reprodução determinística. Sem promessa de melhorar a chance de um jogo.",
+      "Os jogos são gerados neste aparelho, de forma verificável. Nenhum método melhora a chance de um jogo.",
   };
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -406,8 +406,8 @@ export function DraftForm(
                 )}
               />
               <small>
-                1 cota = 100 unidades. Preparar novamente substitui o rascunho
-                desta pessoa.
+                Cota inteira ou fração, como 1 ou 1,5. Preparar de novo substitui
+                a cota desta pessoa.
               </small>
             </label>
             <div className="inline-note">
@@ -451,7 +451,7 @@ export function DraftForm(
                 disabled={!financeEnabled}
               />
               <span>
-                Conferir recebimento agora, após sincronizar esta proposta.
+                Conferir o recebimento agora, depois de sincronizar.
               </span>
             </label>
           </>
@@ -540,8 +540,8 @@ export function DraftForm(
             <div className="inline-note">
               <Sparkles size={17} />
               <span>
-                A semente de 256 bits será guardada com os jogos. Dezenas
-                existentes são preservadas e duplicatas são evitadas.
+                Os jogos são gerados de forma verificável. Dezenas existentes
+                são preservadas e jogos repetidos são evitados.
               </span>
             </div>
           </>
@@ -571,7 +571,7 @@ export function DraftForm(
               ? "Gerar e salvar jogos"
               : kind === "payment"
               ? "Salvar para revisão"
-              : "Salvar rascunho"}
+              : "Salvar neste aparelho"}
           </button>
         </div>
       </form>

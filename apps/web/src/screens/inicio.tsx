@@ -1,13 +1,8 @@
-import { useMemo } from "react";
-import { useLiveQuery } from "dexie-react-hooks";
 import { ChevronRight, MessageCircle, Plus } from "lucide-react";
-import { createResultView, formatBRL, LOTTERIES, sumCents } from "@bolao/core";
+import { formatBRL, LOTTERIES } from "@bolao/core";
 import type { FinancialView, LocalRecord } from "@bolao/core";
-import { getResultSnapshot } from "@bolao/local";
 import type { BolaoDatabase } from "@bolao/local";
-import { draftQuotaCost } from "../quota-display";
-import { latestManifest } from "../planning";
-import type { FormKind, Route, Snapshot, Tab } from "../app-shared";
+import type { FormKind, Route, Snapshot } from "../app-shared";
 import {
   Avatars,
   Button,
@@ -19,40 +14,8 @@ import {
   formatWhen,
   Money,
 } from "../ui";
-
-type StepKey =
-  | "montar"
-  | "arrecadar"
-  | "jogar"
-  | "registrar"
-  | "sorteio"
-  | "dividir";
-const STEP_LABEL: Record<StepKey, string> = {
-  montar: "Montar",
-  arrecadar: "Arrecadar",
-  jogar: "Jogar",
-  registrar: "Registrar",
-  sorteio: "Sorteio",
-  dividir: "Dividir",
-};
-
-interface PoolView {
-  pool: LocalRecord<"pool">;
-  step: StepKey;
-  drawAt: string | null;
-  collectedCents: string;
-  expectedCents: string | null;
-  hasQuotas: boolean;
-  owing: { id: string; name: string }[];
-}
-
-function joinNames(names: string[]) {
-  if (names.length <= 1) return names[0] ?? "";
-  if (names.length > 3) {
-    return `${names.slice(0, 3).join(", ")} e mais ${names.length - 3}`;
-  }
-  return `${names.slice(0, -1).join(", ")} e ${names.at(-1)}`;
-}
+import { joinNames, STEP_LABEL, usePoolViews } from "./bolao-etapas";
+import type { PoolView } from "./bolao-etapas";
 
 export function InicioScreen(
   {
@@ -66,7 +29,6 @@ export function InicioScreen(
     timeZone,
     openForm,
     setForm,
-    setTab,
   }: {
     db: BolaoDatabase;
     snapshot: Snapshot;
@@ -78,77 +40,9 @@ export function InicioScreen(
     timeZone: string;
     openForm: (kind: FormKind) => void;
     setForm: (kind: FormKind) => void;
-    setTab: (tab: Tab) => void;
   },
 ) {
-  const groupId = group?.id ?? null;
-  const results = useLiveQuery(
-    async () => groupId ? await getResultSnapshot(db, groupId) : null,
-    [db, groupId],
-  );
-  const resultView = useMemo(
-    () => results ? createResultView(results) : null,
-    [results],
-  );
-
-  const views: PoolView[] = snapshot.pools.map((pool) => {
-    const quotas = snapshot.quotas.filter((q) => q.data.poolId === pool.id);
-    const personIds = [...new Set(quotas.map((q) => q.data.personId))];
-    const confirmed = snapshot.confirmed.filter((p) => p.poolId === pool.id);
-    const people = personIds.map((personId) => {
-      const units = quotas.filter((q) => q.data.personId === personId)
-        .reduce((n, q) => n + q.data.units, 0);
-      const due = draftQuotaCost(pool.data.quotaPriceCents, units);
-      const paid = isDemo
-        ? sumCents(
-          confirmed.filter((p) => p.personId === personId).map((p) =>
-            p.amountCents
-          ),
-        )
-        : financialView?.personPoolFunding(pool.id, personId) ?? "0";
-      const person = snapshot.persons.find((p) => p.id === personId);
-      return {
-        id: personId,
-        name: person?.data.nickname || person?.data.name || "Sem nome",
-        due,
-        owes: due === null || BigInt(paid) < BigInt(due),
-      };
-    });
-    const dues = people.map((p) => p.due);
-    const funded = people.length > 0 && people.every((p) => !p.owes);
-    const result = resultView?.currentResult(pool.id).result;
-    const registered = ["registered", "settled"].includes(pool.data.status) ||
-      snapshot.registrations.some((r) => r.poolId === pool.id);
-    const locked = pool.data.status === "locked" ||
-      !!latestManifest(snapshot.planning, pool.id);
-    const calendar = resultView?.currentCalendar(pool.id);
-    return {
-      pool,
-      step: result?.drawnNumbers
-        ? "dividir"
-        : registered
-        ? "sorteio"
-        : locked
-        ? "registrar"
-        : !quotas.length
-        ? "montar"
-        : funded
-        ? "jogar"
-        : "arrecadar",
-      drawAt: pool.data.contestNumber !== null &&
-          calendar?.contestNumber === pool.data.contestNumber
-        ? calendar.expectedDrawAt
-        : null,
-      collectedCents: isDemo
-        ? sumCents(confirmed.map((p) => p.amountCents))
-        : financialView?.finance.pools[pool.id]?.allocatedCents ?? "0",
-      expectedCents: dues.some((due) => due === null)
-        ? null
-        : sumCents(dues as string[]),
-      hasQuotas: quotas.length > 0,
-      owing: people.filter((p) => p.owes),
-    };
-  });
+  const views = usePoolViews({ db, snapshot, financialView, isDemo });
 
   // Alvo da contagem: o próximo sorteio conhecido; senão o prazo de pagamento mais próximo.
   const now = Date.now();
@@ -244,10 +138,8 @@ export function InicioScreen(
                       </div>
                       <Button
                         icon={<MessageCircle aria-hidden="true" />}
-                        onClick={() => {
-                          setTab("pessoas");
-                          route.navigate("boloes", hero.pool.id);
-                        }}
+                        onClick={() =>
+                          route.navigate("boloes", hero.pool.id, "arrecadar")}
                       >
                         Cobrar no WhatsApp
                       </Button>

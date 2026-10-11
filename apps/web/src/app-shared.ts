@@ -18,13 +18,15 @@ export const supportedTimeZones = Array.from(
 ).sort();
 
 export type Screen = "inicio" | "boloes" | "revisao" | "historico" | "dados";
-export type Tab =
-  | "resumo"
-  | "pessoas"
-  | "jogos"
-  | "planejar"
-  | "registro"
-  | "resultado";
+export const POOL_STEPS = [
+  "montar",
+  "arrecadar",
+  "jogar",
+  "registrar",
+  "sorteio",
+  "dividir",
+] as const;
+export type PoolStep = typeof POOL_STEPS[number];
 export type FormKind =
   | "group"
   | "edit-group"
@@ -47,7 +49,8 @@ export interface GenerationRun {
 export interface Route {
   screen: Screen;
   poolId: string | null;
-  navigate: (screen: Screen, poolId?: string) => void;
+  step?: PoolStep | null;
+  navigate: (screen: Screen, poolId?: string, step?: PoolStep) => void;
 }
 export type Notice = { text: string; error?: boolean };
 export type SaveRecord = <K extends EntityKind>(

@@ -32,12 +32,10 @@ plano.
 
 ## ALTA — bloqueia a entrega ou pode perder trabalho
 
-**13. `npm run done` oscila por causa do planejador antigo (11/10).**
-Durante a simulação (0,4 s), a tabela de resultados parciais mostra chances como "0,00000000000000001084%", que
-alargam a grade além da tela e fazem a página pular; o botão "Pausar simulação" não fica estável e o fluxo
-`foundation.spec.ts:296` falha em ~2 de 11 rodadas (antes e depois da separação da tela). Também oscilam, sob
-carga, corridas de sincronização em `financial.spec.ts` (97, 626, 1060, 1144, 1199). Resolver na tela nova do
-planejador (chance como "1 em 834 mil", grade sem transbordar) e trocando esperas por tempo por esperas por estado.
+**13. Fluxos de navegador oscilam por corridas de sincronização (11/10).**
+Sob carga, `financial.spec.ts` abre diálogos antes de a sincronização terminar (linhas ~97/102, 626, 1060, 1144,
+1199) e falha em ~1 de 4 rodadas; sozinho passa. A parte do planejador (página pulando durante a simulação) foi
+resolvida na E5b-1. Resolver trocando esperas por tempo por esperas por estado ("Sincronizado" visível) nesses pontos.
 
 ## MÉDIA — afeta o produto
 

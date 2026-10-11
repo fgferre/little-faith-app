@@ -63,6 +63,7 @@
   font-variant-numeric: tabular-nums;
 }
 .ui-money small {
+  margin-left: .3em;
   font-size: 15px;
   font-weight: 600;
   letter-spacing: 0;
@@ -213,6 +214,20 @@
   color: var(--mod);
   font-weight: 700;
 }
+/* no computador a faixa ocupa a largura toda, sem rolar */
+@media (min-width: 1100px) {
+  .ui-steps ol {
+    gap: 8px;
+    padding: 4px;
+    overflow: visible;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .04);
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .ui-steps li { flex: 1 1 0; }
+  .ui-step { width: 100%; }
+}
 
 /* bolas */
 .ui-ball {
@@ -265,6 +280,11 @@
 .ui-balls { display: flex; flex: none; gap: 5px; }
 .ui-balls.grid { display: grid; grid-template-columns: repeat(var(--cols), auto); }
 .ui-balls.sm { gap: 4px; }
+/* tela estreita: bolas de 28 px */
+@media (max-width: 359px) {
+  .ui-ball { width: 28px; height: 28px; font-size: 12px; }
+  .ui-balls { gap: 4px; }
+}
 /* marca: duas bolas, prata atrás e ouro na frente; 1em = a bola de prata */
 .ui-brandmark {
   position: relative;
@@ -322,6 +342,65 @@
 }
 .ui-av.owe:first-child,
 .ui-av.problem:first-child { margin-left: 0; }
+
+/* barra de arrecadação: menta chapada no confirmado, âmbar listrado no que está em conferência */
+.ui-bar {
+  display: flex;
+  height: 10px;
+  margin: 14px 0 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .16);
+  overflow: hidden;
+}
+.ui-bar i { display: block; background: var(--mint); }
+.ui-bar s {
+  display: block;
+  border-radius: 0 999px 999px 0;
+  background: repeating-linear-gradient(-45deg, var(--amber) 0 5px, rgba(255, 159, 74, .38) 5px 10px);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ui-bar i, .ui-bar s { animation: ui-fill 1.2s cubic-bezier(.2, .8, .2, 1) both .2s; }
+}
+@keyframes ui-fill { from { width: 0; } }
+.ui-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0 0 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.ui-legend span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.ui-legend i { width: 10px; height: 10px; border-radius: 3px; background: var(--mint); }
+.ui-legend i.pend { background: var(--amber); }
+
+/* o que fica guardado até a pessoa pedir */
+.ui-more > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  color: var(--purple-ink);
+  font-size: 13px;
+  font-weight: 700;
+  list-style: none;
+  cursor: pointer;
+}
+.ui-more > summary::-webkit-details-marker { display: none; }
+.ui-more > summary svg { width: 16px; height: 16px; flex: none; transition: transform .2s; }
+.ui-more[open] > summary svg { transform: rotate(180deg); }
+.ui-more > summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 8px; }
+.ui-more-body {
+  min-width: 0;
+  padding-bottom: 6px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.ui-more-body p { margin: 0 0 8px; }
 
 /* contagem */
 .ui-countdown { display: inline-block; }

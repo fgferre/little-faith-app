@@ -63,10 +63,16 @@ import { RevisaoScreen } from "./screens/revisao";
 import {
   browserTimeZone,
   errorMessage,
+  POOL_STEPS,
   readSnapshot,
   supportedTimeZones,
 } from "./app-shared";
-import type { FormKind, GenerationRun, Screen, Tab } from "./app-shared";
+import type {
+  FormKind,
+  GenerationRun,
+  PoolStep,
+  Screen,
+} from "./app-shared";
 
 const RecordDialog = lazy(() =>
   import("./record-decision").then((module) => ({
@@ -91,12 +97,15 @@ function installationId() {
 
 function useRoute() {
   const read = () => {
-    const [, screen = "inicio", poolId] = window.location.hash.split("/");
+    const [, screen = "inicio", poolId, step] = window.location.hash.split(
+      "/",
+    );
     return {
       screen: navigation.some((n) => n.id === screen) || screen === "dados"
         ? screen as Screen
         : "inicio" as Screen,
       poolId: poolId ?? null,
+      step: POOL_STEPS.find((key) => key === step) ?? null,
     };
   };
   const [route, setRoute] = useState(read);
@@ -107,8 +116,10 @@ function useRoute() {
   }, []);
   return {
     ...route,
-    navigate: (screen: Screen, poolId?: string) => {
-      window.location.hash = `/${screen}${poolId ? `/${poolId}` : ""}`;
+    navigate: (screen: Screen, poolId?: string, step?: PoolStep) => {
+      window.location.hash = `/${screen}${poolId ? `/${poolId}` : ""}${
+        poolId && step ? `/${step}` : ""
+      }`;
     },
   };
 }
@@ -139,7 +150,6 @@ export function App() {
       ? saved
       : browserTimeZone;
   });
-  const [tab, setTab] = useState<Tab>("resumo");
   const [notice, setNotice] = useState<
     { text: string; error?: boolean } | null
   >(null);
@@ -706,7 +716,6 @@ export function App() {
                       timeZone={timeZone}
                       openForm={openForm}
                       setForm={setForm}
-                      setTab={setTab}
                     />
                   )}
 
@@ -719,12 +728,9 @@ export function App() {
                       pool={pool}
                       poolBets={poolBets}
                       poolQuotas={poolQuotas}
-                      payments={payments}
                       financialView={financialView}
                       manifest={manifest}
-                      registration={registration}
                       appliedPlan={appliedPlan}
-                      tab={tab}
                       route={route}
                       isDemo={isDemo}
                       financeEnabled={financeEnabled}
@@ -737,7 +743,6 @@ export function App() {
                       proposedCents={proposedCents}
                       primaryAction={primaryAction}
                       openForm={openForm}
-                      setTab={setTab}
                       setPlanningRequest={setPlanningRequest}
                       setRecordRequest={setRecordRequest}
                       setNotice={setNotice}
@@ -849,10 +854,7 @@ export function App() {
               setFinancialRequest({ type: "payment_confirm", proposalId: id })}
             save={save}
             saveGenerated={saveGenerated}
-            onPoolCreated={(id) => {
-              setTab("resumo");
-              route.navigate("boloes", id);
-            }}
+            onPoolCreated={(id) => route.navigate("boloes", id, "montar")}
           />
         )}
         {financialRequest && groupId && (
