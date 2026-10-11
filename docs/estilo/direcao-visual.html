@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Little Faith · direções visuais</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; margin: 0; }
+body { min-height: 100vh; background: #e9e7ee; font-family: Inter, system-ui, sans-serif; color: #222; }
+.switch { position: sticky; top: 0; z-index: 9; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; padding: 12px 16px; background: #fffd; backdrop-filter: blur(8px); border-bottom: 1px solid #0001; }
+.switch button { font: 600 14px Inter, sans-serif; padding: 9px 14px; border-radius: 999px; border: 1px solid #0002; background: #fff; cursor: pointer; }
+.switch button[aria-pressed="true"] { background: #222; color: #fff; }
+.frames { display: flex; flex-wrap: wrap; gap: 32px; justify-content: center; padding: 28px 16px 48px; }
+.frame-label { font: 600 13px Inter, sans-serif; color: #555; text-align: center; margin-bottom: 10px; letter-spacing: .02em; }
+.phone { width: 375px; max-width: 100%; }
+
+/* ---------- Tema: variáveis ---------- */
+.screen {
+  --radius: 18px; --gap: 14px;
+  background: var(--bg); color: var(--ink); font-family: var(--font-body);
+  border-radius: 34px; overflow: hidden; padding: 20px 16px 24px; min-height: 812px;
+  box-shadow: 0 20px 50px #0002; position: relative;
+}
+[data-tema="a"] .screen { --bg: #fff7e6; --surface: #fff; --ink: #1e1b2e; --muted: #6d6680; --line: #1e1b2e; --accent: #ff6b4a; --accent-ink: #fff; --mod: #13a05f; --mod-soft: #d8f5e6; --hit: #ffc83d; --hit-ink: #1e1b2e; --font-display: "Baloo 2", sans-serif; --font-body: Nunito, sans-serif; }
+[data-tema="b"] .screen { --bg: #f5f0e6; --surface: #fffdf8; --ink: #1f1a2e; --muted: #7a7285; --line: #d9d0c1; --accent: #5b43c9; --accent-ink: #fff; --mod: #1d8a57; --mod-soft: #e3efe6; --hit: #e5b443; --hit-ink: #1f1a2e; --font-display: Fraunces, serif; --font-body: Inter, sans-serif; }
+[data-tema="c"] .screen { --bg: radial-gradient(120% 70% at 50% 0%, #2c2170 0%, #120e33 55%, #0a0820 100%); --surface: #ffffff0f; --ink: #f4f1ff; --muted: #a9a3cc; --line: #ffffff1f; --accent: #8b74ff; --accent-ink: #fff; --mod: #3ee6a0; --mod-soft: #3ee6a01f; --hit: #ffcf4a; --hit-ink: #2a1d00; --font-display: Sora, sans-serif; --font-body: Sora, sans-serif; }
+
+/* ---------- Estrutura comum ---------- */
+.top { display: flex; justify-content: space-between; align-items: center; font-size: 14px; color: var(--muted); margin-bottom: 14px; }
+.top .back { font-weight: 600; }
+.chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 5px 10px; border-radius: 999px; background: var(--mod-soft); color: var(--mod); }
+.chip::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--mod); }
+h1 { font-family: var(--font-display); font-size: 32px; line-height: 1.05; margin: 10px 0 6px; letter-spacing: -.01em; }
+.sub { color: var(--muted); font-size: 14px; }
+.steps { display: flex; gap: 4px; margin: 18px 0; padding: 0; }
+.captura .switch { display: none; }
+.steps li { list-style: none; flex: 1; text-align: center; font-size: 11.5px; font-weight: 700; color: var(--muted); }
+.steps li::before { content: ""; display: block; height: 6px; border-radius: 999px; background: var(--line); margin-bottom: 6px; }
+.steps li.done::before { background: var(--mod); }
+.steps li.now { color: var(--ink); }
+.steps li.now::before { background: linear-gradient(90deg, var(--accent) 50%, var(--line) 50%); }
+.card { background: var(--surface); border-radius: var(--radius); padding: 16px; margin-bottom: var(--gap); position: relative; overflow: hidden; }
+.card h2 { font-family: var(--font-display); font-size: 19px; margin-bottom: 4px; }
+.card .hint { color: var(--muted); font-size: 13px; }
+.money { font-family: var(--font-display); font-size: 36px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.money small { font-size: 16px; color: var(--muted); font-weight: 600; }
+.bar { height: 14px; border-radius: 999px; background: var(--line); overflow: hidden; margin: 10px 0 12px; }
+.bar i { display: block; height: 100%; width: var(--p); border-radius: inherit; background: var(--mod); }
+.people { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+.avatars { display: flex; }
+.avatars span { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; font-weight: 800; margin-left: -7px; border: 2px solid var(--surface); background: var(--mod-soft); color: var(--mod); }
+.avatars span:first-child { margin-left: 0; }
+.avatars span.owe { margin-left: 3px; background: transparent; color: var(--muted); border: 2px dashed var(--muted); }
+.btn { display: flex; justify-content: center; align-items: center; gap: 8px; width: 100%; font: 700 15px var(--font-body); padding: 13px 16px; border-radius: 14px; border: 0; background: var(--accent); color: var(--accent-ink); margin-top: 12px; cursor: pointer; }
+.btn.ghost { background: transparent; color: var(--ink); border: 1.5px solid var(--line); }
+.game { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); }
+.game:first-of-type { border-top: 0; }
+.game .who { width: 52px; flex: none; font-size: 12px; font-weight: 700; color: var(--muted); }
+.game.win-row .who { color: var(--ink); }
+.balls { display: flex; gap: 5px; flex-wrap: nowrap; }
+.ball { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font: 700 13px var(--font-body); font-variant-numeric: tabular-nums; background: var(--mod-soft); color: var(--mod); }
+.ball.hit { background: var(--hit); color: var(--hit-ink); }
+.tag { display: inline-block; margin-top: 4px; font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 999px; background: var(--hit); color: var(--hit-ink); }
+.drawn { display: flex; gap: 8px; justify-content: space-between; margin: 12px 0 4px; }
+.drawn .ball { width: 46px; height: 46px; font-size: 17px; }
+.win { text-align: center; padding: 22px 16px; }
+.win .big { font-family: var(--font-display); font-size: 26px; font-weight: 800; }
+.win .money { font-size: 42px; margin: 6px 0 2px; }
+.confetti { position: absolute; inset: 0; pointer-events: none; }
+.confetti i { position: absolute; top: -12px; width: 8px; height: 12px; border-radius: 2px; opacity: 0; }
+
+/* ---------- A · Festa ---------- */
+[data-tema="a"] .card { border: 2px solid var(--line); box-shadow: 4px 4px 0 var(--line); }
+[data-tema="a"] .btn { border: 2px solid var(--line); box-shadow: 3px 3px 0 var(--line); }
+[data-tema="a"] .btn.ghost { background: #fff; }
+[data-tema="a"] h1 { font-weight: 800; }
+[data-tema="a"] .ball { border: 2px solid var(--line); background: #fff; color: var(--ink); }
+[data-tema="a"] .game .ball:nth-child(3n+1) { background: #bfeedd; }
+[data-tema="a"] .game .ball:nth-child(3n+2) { background: #ffd9cc; }
+[data-tema="a"] .game .ball:nth-child(3n) { background: #e3dbff; }
+[data-tema="a"] .game .ball.hit, [data-tema="a"] .drawn .ball { background: var(--hit); }
+[data-tema="a"] .bar { border: 2px solid var(--line); background: #fff; height: 18px; }
+[data-tema="a"] .bar i { background: repeating-linear-gradient(-45deg, var(--mod) 0 10px, #19b56d 10px 20px); }
+[data-tema="a"] .win { background: #fff1c2; }
+
+/* ---------- B · Bilhete ---------- */
+[data-tema="b"] .card { border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 1px 0 #0000000a;
+  -webkit-mask: radial-gradient(circle 9px at 0 64px, #0000 98%, #000) , radial-gradient(circle 9px at 100% 64px, #0000 98%, #000);
+  -webkit-mask-composite: source-in; mask-composite: intersect; }
+[data-tema="b"] .card h2 { font-weight: 600; border-bottom: 1.5px dashed var(--line); padding-bottom: 12px; margin-bottom: 12px; }
+[data-tema="b"] h1 { font-weight: 600; font-size: 34px; }
+[data-tema="b"] .money { font-family: Fraunces, serif; font-weight: 600; }
+[data-tema="b"] .ball { background: transparent; color: var(--ink); border: 1.5px solid var(--ink); font-family: Inter, sans-serif; }
+[data-tema="b"] .ball.hit, [data-tema="b"] .drawn .ball { background: var(--hit); border-color: var(--hit); }
+[data-tema="b"] .chip { background: transparent; border: 1px solid var(--mod); }
+[data-tema="b"] .btn { border-radius: 10px; letter-spacing: .01em; }
+[data-tema="b"] .sub { font-style: italic; font-family: Fraunces, serif; font-size: 15px; }
+
+/* ---------- C · Noite do sorteio ---------- */
+[data-tema="c"] .card { border: 1px solid var(--line); backdrop-filter: blur(14px); }
+[data-tema="c"] h1 { font-weight: 700; font-size: 30px; }
+[data-tema="c"] .ball { background: radial-gradient(circle at 32% 28%, #fff 0 12%, #d9d3ff 35%, #7b68ee 100%); color: #1b1446; box-shadow: inset -3px -4px 8px #0004; }
+[data-tema="c"] .ball.hit, [data-tema="c"] .drawn .ball { background: radial-gradient(circle at 32% 28%, #fff 0 12%, #ffe9a3 35%, #f5a623 100%); color: #2a1d00; box-shadow: inset -3px -4px 8px #0003, 0 0 18px #ffcf4a88; }
+[data-tema="c"] .bar i { background: linear-gradient(90deg, #3ee6a0, #8b74ff); box-shadow: 0 0 14px #3ee6a088; }
+[data-tema="c"] .btn { background: linear-gradient(135deg, #8b74ff, #5d45e6); box-shadow: 0 8px 24px #5d45e666; }
+[data-tema="c"] .btn.ghost { background: transparent; box-shadow: none; }
+[data-tema="c"] .avatars span { border-color: #1b1446; }
+[data-tema="c"] .win { background: radial-gradient(80% 90% at 50% 0%, #ffcf4a33, transparent 70%), var(--surface); }
+[data-tema="c"] .win .money { color: var(--hit); text-shadow: 0 0 24px #ffcf4a66; }
+
+/* ---------- Movimento ---------- */
+.play .bar i { animation: fill 1.4s cubic-bezier(.2,.8,.2,1) both .3s; }
+.play .rise { animation: rise .6s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--d, 0) * 90ms); }
+.play .game .ball { animation: pop .45s cubic-bezier(.3,1.6,.5,1) both; animation-delay: calc(400ms + var(--i) * 45ms); }
+.play .drawn .ball { animation: drop .7s cubic-bezier(.3,1.4,.5,1) both; animation-delay: calc(300ms + var(--i) * 260ms); }
+.play .after .game .ball.hit { animation: pop .45s cubic-bezier(.3,1.6,.5,1) both, glow 1.2s ease-in-out 2.4s 2; }
+.play .tag { animation: rise .5s both 2.3s; }
+.play .win { animation: rise .7s cubic-bezier(.2,.8,.2,1) both 2.2s; }
+@keyframes fill { from { width: 0; } }
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } }
+@keyframes pop { from { opacity: 0; transform: scale(.4); } }
+@keyframes drop { 0% { opacity: 0; transform: translateY(-80px) rotate(-120deg); } 70% { opacity: 1; } 100% { transform: none; } }
+@keyframes glow { 50% { transform: scale(1.15); } }
+@keyframes fall { 0% { opacity: 1; transform: translateY(0) rotate(0); } 100% { opacity: 0; transform: translateY(260px) rotate(540deg); } }
+@media (prefers-reduced-motion: reduce) { .play * { animation: none !important; } }
+</style>
+</head>
+<body data-tema="a">
+<nav class="switch" aria-label="Direção visual">
+  <button data-set="a">A · Festa</button>
+  <button data-set="b">B · Bilhete</button>
+  <button data-set="c">C · Noite do sorteio</button>
+  <button id="replay">↻ Rever o movimento</button>
+</nav>
+
+<main class="frames">
+  <section class="phone before">
+    <p class="frame-label">Antes do sorteio · juntando o dinheiro</p>
+    <div class="screen">
+      <div class="top rise"><span class="back">‹ Bolões</span><span>Turma do trabalho</span></div>
+      <span class="chip rise">Mega-Sena · sábado, 20h</span>
+      <h1 class="rise" style="--d:1">Mega de sábado</h1>
+      <p class="sub rise" style="--d:2">10 pessoas, uma torcida só.</p>
+      <ol class="steps rise" style="--d:3"><li class="done">Montar</li><li class="now">Arrecadar</li><li>Jogar</li><li>Registrar</li><li>Sorteio</li><li>Dividir</li></ol>
+      <div class="card rise" style="--d:4">
+        <h2>Arrecadação</h2>
+        <div class="money">R$ 240 <small>de R$ 300</small></div>
+        <div class="bar" style="--p:80%"><i></i></div>
+        <div class="people"><div class="avatars"><span>AN</span><span>BR</span><span>DI</span><span>EL</span><span>FE</span><span class="owe">CA</span><span class="owe">GU</span></div>Faltam Carla e Gustavo</div>
+        <button class="btn">Cobrar no WhatsApp</button>
+      </div>
+      <div class="card rise" style="--d:5">
+        <h2>Nossos jogos</h2>
+        <p class="hint">4 jogos · R$ 24 · todos de 6 números</p>
+        <div class="games"></div>
+        <button class="btn ghost">Gerar mais jogos</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="phone after">
+    <p class="frame-label">Depois do sorteio · o resultado chegou</p>
+    <div class="screen">
+      <div class="top rise"><span class="back">‹ Bolões</span><span>Turma do trabalho</span></div>
+      <span class="chip rise">Mega-Sena · sorteado</span>
+      <h1 class="rise" style="--d:1">Mega de sábado</h1>
+      <ol class="steps rise" style="--d:2"><li class="done">Montar</li><li class="done">Arrecadar</li><li class="done">Jogar</li><li class="done">Registrar</li><li class="done">Sorteio</li><li class="now">Dividir</li></ol>
+      <div class="card rise" style="--d:3">
+        <h2>Números sorteados</h2>
+        <div class="drawn"></div>
+      </div>
+      <div class="card win">
+        <div class="confetti"></div>
+        <div class="big">Acertamos a quadra!</div>
+        <div class="money" data-count="1287.40">R$ 1.287,40</div>
+        <p class="hint">R$ 128,74 para cada um · 10 pessoas</p>
+        <button class="btn">Dividir o prêmio</button>
+        <button class="btn ghost">Avisar a turma</button>
+      </div>
+      <div class="card rise" style="--d:4">
+        <h2>Nossos jogos</h2>
+        <div class="games"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+const drawn = [4, 17, 23, 35, 41, 58];
+const games = [
+  ["Ana", [4, 11, 17, 29, 35, 52]],
+  ["Bruno", [7, 17, 23, 35, 41, 60]],
+  ["Carla", [2, 13, 26, 38, 47, 55]],
+  ["Diego", [4, 9, 23, 31, 44, 58]],
+];
+const pad = n => String(n).padStart(2, "0");
+function renderGames(el, withHits) {
+  el.innerHTML = games.map(([who, nums], g) => {
+    const hits = nums.filter(n => drawn.includes(n)).length;
+    const balls = nums.map((n, k) => `<span class="ball${withHits && drawn.includes(n) ? " hit" : ""}" style="--i:${g * 6 + k}">${pad(n)}</span>`).join("");
+    const win = withHits && hits >= 4;
+    const tag = win ? `<br><span class="tag">Quadra!</span>` : "";
+    return `<div class="game${win ? " win-row" : ""}"><span class="who">${who}${tag}</span><div class="balls">${balls}</div></div>`;
+  }).join("");
+}
+renderGames(document.querySelector(".before .games"), false);
+renderGames(document.querySelector(".after .games"), true);
+document.querySelector(".after .drawn").innerHTML = drawn.map((n, i) => `<span class="ball" style="--i:${i}">${pad(n)}</span>`).join("");
+
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const brl = v => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+function countUp(el) {
+  const target = Number(el.dataset.count);
+  if (reduce) { el.textContent = brl(target); return; }
+  const start = performance.now() + 2300, dur = 1300;
+  const tick = now => {
+    const t = Math.min(1, Math.max(0, (now - start) / dur));
+    el.textContent = brl(target * (1 - Math.pow(1 - t, 3)));
+    if (t < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+function confetti() {
+  const box = document.querySelector(".confetti");
+  box.innerHTML = "";
+  if (reduce || document.body.dataset.tema !== "a") return;
+  const colors = ["#ff6b4a", "#13a05f", "#ffc83d", "#7c5cff", "#3db8ff"];
+  for (let i = 0; i < 46; i++) {
+    const p = document.createElement("i");
+    p.style.left = Math.random() * 100 + "%";
+    p.style.background = colors[i % colors.length];
+    p.style.animation = `fall ${1.6 + Math.random() * 1.4}s ease-in ${2.3 + Math.random() * .6}s both`;
+    box.appendChild(p);
+  }
+}
+function play() {
+  document.body.classList.remove("play");
+  void document.body.offsetWidth;
+  document.body.classList.add("play");
+  countUp(document.querySelector(".win .money"));
+  confetti();
+}
+function setTema(t) {
+  document.body.dataset.tema = t;
+  document.querySelectorAll("[data-set]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.set === t)));
+  history.replaceState(null, "", "?tema=" + t);
+  play();
+}
+document.querySelectorAll("[data-set]").forEach(b => b.addEventListener("click", () => setTema(b.dataset.set)));
+document.getElementById("replay").addEventListener("click", play);
+const params = new URLSearchParams(location.search);
+if (params.has("captura")) document.body.classList.add("captura");
+setTema(params.get("tema") || "c");
+</script>
+</body>
+</html>

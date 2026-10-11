@@ -8,7 +8,7 @@ Especificação: `docs/ESPECIFICACAO.md` › "Apuração e rateio" e "Ordem de i
 
 ## Etapas
 
-- [ ] E0. Direção visual: duas ou três direções em imagem (as mesmas telas, linguagem simples, movimento); ele escolhe.
+- [x] E0. Direção visual: três direções em imagem; ele escolheu a C, "Noite do sorteio" (10/10).
 - [ ] E1. `npm run done` volta a passar (item 1 de `docs/PENDENCIAS.md`).
 - [ ] E2. Testes próprios de settlement no core: caixa/direitos, centavos, parcial, oficial, compensação, conflito,
   encerramento e reabertura.
@@ -61,6 +61,18 @@ Regras:
 - Prazos de resgate e alertas de 30/15/7/1 dias preparados sem enviar mensagens. A regra geral de 90 dias foi conferida
   nas páginas oficiais das modalidades em 08/10/2026 e admite exceção com fonte e motivo; o link genérico
   `receba-seu-premio.aspx` não informa esse prazo no HTML atual.
+
+Direção visual C, "Noite do sorteio" (escolha dele, 10/10) — referência viva em `docs/estilo/direcao-visual.html?tema=c`
+(abrir pela configuração `estilo` do navegador) e a imagem `docs/estilo/noite-do-sorteio.png`:
+
+- Fundo noturno em gradiente violeta-escuro, cartões de vidro translúcido, letra Sora (empacotada no app, porque ele
+  funciona offline), tamanhos legíveis no celular.
+- Bolas de loteria brilhantes como linguagem: violeta-claro para os jogos, dourado com brilho para números sorteados e
+  acertos; a cor da modalidade no selo e na barra de etapas.
+- O bolão como etapas (montar → arrecadar → jogar → registrar → sorteio → dividir), com a atual em destaque.
+- Movimento: barra de arrecadação enchendo, bolas sorteadas caindo uma a uma, acertos pulsando, prêmio contando até o
+  valor; tudo desligado com movimento reduzido.
+- Linguagem simples do item 9 em toda tela nova.
 
 ## Fora do escopo
 

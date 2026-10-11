@@ -28,7 +28,10 @@ como sistema de auditoria antes de um bolão real; as telas falam a língua do s
 animação no app inteiro, muita letra de 12 px ou menos). Achados nos itens 6 a 12. Decisões dele: o piloto vem antes
 do agente e do backup completo, *sem data fixa*; o estilo é escolhido primeiro, por imagem.
 
-**A próxima rodada:** `PLAN.md` a partir da E0 (direções visuais para ele escolher); depois a etapa 6 enxuta e o piloto.
+**Estilo escolhido (10/10):** entre três direções em imagem, ele disse *"gostei da C, noite do sorteio"*. Referência em
+`docs/estilo/`; telas novas nascem nela, as antigas migram aos poucos.
+
+**A próxima rodada:** `PLAN.md` a partir da E1 (`npm run done` verde); depois a etapa 6 enxuta e o piloto.
 
 ## ALTA — bloqueia a entrega ou pode perder trabalho
 
