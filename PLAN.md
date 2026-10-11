@@ -12,7 +12,7 @@ Especificação: `docs/ESPECIFICACAO.md` › "Apuração e rateio" e "Ordem de i
 - [x] E1. `npm run done` volta a passar (10/10: tipos e lint corrigidos, testes no schema v5, cópia de emergência v5).
 - [x] E2. Testes próprios de settlement no core (10/10: 29 casos; o código já concordava com as regras): caixa/direitos, centavos, parcial, oficial, compensação, conflito,
   encerramento e reabertura.
-- [ ] E3. Sync v5 em `packages/local` (exports públicos feitos em 10/10); repetir os cenários integrados afetados da etapa 5 (o E2E de
+- [x] E3. Sync v5 em `packages/local` (11/10: a sincronização baixa a divisão; a gravação no aparelho nunca tinha rodado e falhava — consertado e testado); repetir os cenários integrados afetados da etapa 5 (o E2E de
   resultados já passou sozinho em 10/10).
 - [x] E4. Backend (10/10: seis ações; encerrar/reabrir ficam rejeitados com aviso): migration, RPCs e família HTTP de settlement, com validação SQL↔core, autorização humana, locks,
   revisão e idempotência.

@@ -48,6 +48,7 @@ async function applySnapshotInTransaction(db: BolaoDatabase, snapshot: Financial
     unchangedRevision: 'A revisão financeira não avançou para os novos fatos.',
   });
 }
+export { applySnapshotInTransaction as applyFinancialSnapshotInTransaction };
 
 export async function applyFinancialSnapshot(db: BolaoDatabase, input: FinancialSnapshot): Promise<void> {
   const snapshot = validateFinancialSnapshot(input);

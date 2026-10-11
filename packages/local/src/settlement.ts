@@ -36,10 +36,14 @@ async function applySnapshotInTransaction(db: BolaoDatabase, snapshot: Settlemen
   await db.settlementSnapshots.update(snapshot.groupId, { sources });
 }
 
-/** Confirmed facts and their coherent source cut are persisted together; calculation is never cash. */
+/**
+ * Confirmed facts and their coherent source cut are persisted together; calculation is never cash.
+ * The scope must be an async function: Dexie only keeps the transaction zone across this deep chain of
+ * native awaits when it sees an async scope; otherwise the transaction auto-commits too early.
+ */
 export async function applySettlementSnapshot(db: BolaoDatabase, input: SettlementSnapshot): Promise<void> {
   const snapshot = validateSettlementSnapshot(input);
-  await db.transaction('rw', settlementTables(db), () => applySnapshotInTransaction(db, snapshot));
+  await db.transaction('rw', settlementTables(db), async () => { await applySnapshotInTransaction(db, snapshot); });
 }
 
 export async function getSettlementSnapshot(db: BolaoDatabase, groupId: string): Promise<SettlementSnapshot | null> {

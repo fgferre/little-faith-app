@@ -22,6 +22,7 @@ async function applySnapshotInTransaction(db: BolaoDatabase, snapshot: ResultSna
     unchangedRevision: 'A revisão de resultados não avançou para as novas versões.',
   });
 }
+export { applySnapshotInTransaction as applyResultSnapshotInTransaction };
 
 /** A malformed response never overwrites a prior valid collection or resolves a conflict. */
 export async function applyResultSnapshot(db: BolaoDatabase, input: ResultSnapshot): Promise<void> {

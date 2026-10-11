@@ -5,7 +5,7 @@ import { canonicalJSON } from '@bolao/core';
 import type { FinancialCommand, LocalRecord, PlanningCommand, PlanningReceipt, PlanningTransport } from '@bolao/core';
 import {
   applyFinancialSnapshot, applyPlanningSnapshot, createLocalStore, executePlanningCommand,
-  exportEmergencySnapshot, getFinancialSnapshot, getPlanningSnapshot, preparePlanningCommand,
+  exportEmergencySnapshot, getFinancialSnapshot, getPlanningSnapshot, getSettlementSnapshot, preparePlanningCommand,
   recoverPlanningCommand, saveDraft, sync,
 } from '../src';
 import type { BolaoDatabase, LocalSyncTransport, PersistentFinancialCommand, QueuedOperation } from '../src';
@@ -13,6 +13,7 @@ import {
   appliedPlan, appliedSnapshot, candidate, emptyPlanningSnapshot, financialSnapshot, GROUP,
   id, LATER, lockedSnapshot, manifest, OTHER_GROUP, PERSON, POOL, PROPOSAL, TIME,
 } from './planning-fixtures';
+import { emptyResultSnapshot } from './result-fixtures';
 
 const stores: Dexie[] = [];
 function store(accountId = 'account-a', installationId: string = crypto.randomUUID()): BolaoDatabase {
@@ -420,6 +421,26 @@ describe('explicit plan application and pool locks', () => {
     expect((await db.planningCommands.get(input.idempotencyKey))?.status).toBe('prepared');
     expect((await getPlanningSnapshot(db, GROUP))?.groupRevision).toBe(5);
     expect(await getFinancialSnapshot(db, GROUP)).toEqual(financialSnapshot());
+  });
+
+  it('pulls settlement after results and stores the snapshot at the group revision', async () => {
+    const db = store();
+    const order: string[] = [];
+    const server = new PlanningServer();
+    const settlement = {
+      groupId: GROUP, groupRevision: 5, financial: financialSnapshot(),
+      registration: { groupId: GROUP, groupRevision: 5, manifests: [], evidence: [], reports: [] },
+      results: emptyResultSnapshot(5), expenses: [], prizes: [], redemptions: [], distributions: [], closures: [],
+    };
+    const transport: LocalSyncTransport = {
+      listGroupIds: () => server.listGroupIds(), push: () => server.push(),
+      pull: async (groupId, cursor) => { order.push('draft'); return server.pull(groupId, cursor); },
+      planningPull: async () => { order.push('planning'); return server.planningPull(); },
+      settlementPull: async () => { order.push('settlement'); return structuredClone(settlement); },
+    };
+    await sync(db, transport);
+    expect(order).toEqual(['draft', 'planning', 'settlement']);
+    expect(await getSettlementSnapshot(db, GROUP)).toEqual(settlement);
   });
 
   it('does not apply a planning pull returned for a different group', async () => {

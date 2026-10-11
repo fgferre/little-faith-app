@@ -1,6 +1,6 @@
 import type {
   DraftOperation, EntityKind, FinancialSnapshot, LocalRecord, PlanningSnapshot, PullResponse, PushReceipt, SyncTransport,
-  RegistrationSnapshot, ResultSnapshot,
+  RegistrationSnapshot, ResultSnapshot, SettlementSnapshot,
 } from '@bolao/core';
 import { nextSequence, trackGroup } from './database';
 import type { BolaoDatabase, QueuedOperation } from './database';
@@ -8,6 +8,7 @@ import { applyFinancialSnapshot } from './finance';
 import { applyPlanningSnapshot } from './planning';
 import { applyRegistrationSnapshot } from './registration';
 import { applyResultSnapshot } from './results';
+import { applySettlementSnapshot } from './settlement';
 
 export interface LocalSyncTransport extends SyncTransport {
   /** Bootstrap a new device with the groups allowed to the authenticated account. */
@@ -22,6 +23,8 @@ export interface LocalSyncTransport extends SyncTransport {
   registrationPull?(groupId: string): Promise<RegistrationSnapshot>;
   /** Read collected versions and human selections; never send manual decisions here. */
   resultsPull?(groupId: string): Promise<ResultSnapshot>;
+  /** Read confirmed settlement facts and their source cut; never send prize decisions here. */
+  settlementPull?(groupId: string): Promise<SettlementSnapshot>;
 }
 
 export interface SyncResult { accepted: number; conflicts: number; rejected: number }
@@ -318,6 +321,11 @@ async function runSync(db: BolaoDatabase, transport: LocalSyncTransport): Promis
       const snapshot = await transport.resultsPull(groupId);
       if (snapshot.groupId !== groupId) throw new Error('A cópia de resultados pertence a outro grupo.');
       await applyResultSnapshot(db, snapshot);
+    }
+    if (transport.settlementPull) {
+      const snapshot = await transport.settlementPull(groupId);
+      if (snapshot.groupId !== groupId) throw new Error('A cópia de liquidação pertence a outro grupo.');
+      await applySettlementSnapshot(db, snapshot);
     }
   }
   await db.metadata.put({ key: 'lastSyncAt', value: new Date().toISOString() });

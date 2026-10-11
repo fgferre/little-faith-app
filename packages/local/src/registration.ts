@@ -46,6 +46,7 @@ async function applySnapshotInTransaction(db: BolaoDatabase, snapshot: Registrat
   for (const evidence of snapshot.evidence) await rememberEvidenceMetadataInTransaction(db, evidence);
   await db.registrationSnapshots.update(snapshot.groupId, { evidenceIds: ids });
 }
+export { applySnapshotInTransaction as applyRegistrationSnapshotInTransaction };
 
 /** Keep a complete immutable registration history without overwriting drafts or planning facts. */
 export async function applyRegistrationSnapshot(db: BolaoDatabase, input: RegistrationSnapshot): Promise<void> {

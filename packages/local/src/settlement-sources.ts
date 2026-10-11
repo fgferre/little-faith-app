@@ -1,9 +1,10 @@
+import { validateFinancialSnapshot, validateRegistrationSnapshot, validateResultSnapshot } from '@bolao/core';
 import type { SettlementSnapshot } from '@bolao/core';
 import type { Table } from 'dexie';
 import type { BolaoDatabase, SettlementSnapshotMetadata, SettlementSourceReferences } from './database';
-import { applyFinancialSnapshot } from './finance';
-import { applyRegistrationSnapshot } from './registration';
-import { applyResultSnapshot } from './results';
+import { applyFinancialSnapshotInTransaction } from './finance';
+import { applyRegistrationSnapshotInTransaction } from './registration';
+import { applyResultSnapshotInTransaction } from './results';
 
 type Sources = Pick<SettlementSnapshot, 'financial' | 'registration' | 'results'>;
 const names = new Set([
@@ -57,11 +58,14 @@ export function assertSettlementSourceHistory(
   }
 }
 
-/** Caller includes every source table in its transaction. These APIs never execute commands. */
+/**
+ * Caller includes every source table in its transaction. These APIs never execute commands.
+ * Uses the in-transaction variants, so no family opens a sub-transaction inside the caller's one.
+ */
 export async function applySettlementSources(db: BolaoDatabase, source: Sources): Promise<void> {
-  await applyFinancialSnapshot(db, source.financial);
-  await applyRegistrationSnapshot(db, source.registration);
-  await applyResultSnapshot(db, source.results);
+  await applyFinancialSnapshotInTransaction(db, validateFinancialSnapshot(source.financial));
+  await applyRegistrationSnapshotInTransaction(db, validateRegistrationSnapshot(source.registration));
+  await applyResultSnapshotInTransaction(db, validateResultSnapshot(source.results));
 }
 
 async function rows<T extends { id: string; groupId: string }>(table: Table<T, string>, ids: string[], groupId: string): Promise<T[]> {
