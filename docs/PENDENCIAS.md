@@ -4,32 +4,38 @@ Lista viva do que está aberto. Leia só a seção O BASTÃO e o item da vez; o 
 Item resolvido sai da lista e vira commit com o número entre parênteses; a história de cada número fica no git (`git log --all --grep="(NNN)"`).
 Número é identidade, não posição: item novo entra no fim da sua seção. **Próximo número livre: 14.**
 
-## O BASTÃO — onde a rodada parou (11/10) — APP INTEIRO NO ESTILO NOVO, ETAPA 6 FEITA, PILOTO PREPARADO; `npm run done` VERDE
+## O BASTÃO — onde a rodada parou (11/10, tarde) — DIA DO PRÊMIO VISÍVEL E CARTÃO DO PARTICIPANTE; `npm run done` VERDE
 
-**Estado:** etapas 1–6 da especificação feitas no núcleo, no aparelho, no servidor e nas telas. Todas as telas estão
-no estilo "Noite do sorteio" afinado (`docs/estilo/DIRECAO.md`): Início com contagem, bolão por etapas (Montar,
-Arrecadar, Jogar com jogos por pessoa e ampliados, Registrar, Sorteio com revelação, vitória e derrota, Dividir com
-dinheiro de verdade), Revisão, Histórico, Dados, Bolões e formulários em gaveta; cartão de imagem para o WhatsApp.
-Encerrar/reabrir o bolão ficam para depois (servidor responde com aviso).
+**Estado:** etapas 1–6 da especificação feitas; app inteiro no estilo "Noite do sorteio" afinado. Itens 6 e 7
+resolvidos nesta rodada: o titular dos bilhetes aparece em Registrar, Sorteio e Dividir, e Dividir avisa que
+imposto e repasse pedem um contador; cada pessoa tem um link pessoal, sem conta e revogável, que abre o cartão
+(`#/p/<token>`): cotas e pagamento, jogos com acertos, registro e quem guarda o bilhete, resultado, prêmio e a parte
+dela. Servidor: tabela `participant_links` (token só por hash SHA-256), 4 RPCs e a rota pública
+`POST /v1/participant_card`; `verify_jwt=false` na função `api` (ela valida a sessão no próprio middleware). O
+organizador cria e cancela o link por pessoa em Arrecadar. Encerrar/reabrir o bolão continuam para depois.
 
-**Verificado em 11/10, nesta sessão, com a máquina quieta:** `npm run done` verde — tipos, lint, 313 testes, SQL no
-PGlite (17 respostas da divisão reconstruídas pelo núcleo), 15 testes da API, build e 34 fluxos no navegador. Fotos da
-rodada em `.tmp/e5/` (apagável).
+**Verificado em 11/10, nesta sessão:** `npm run done` verde — tipos, lint, 313 testes, SQL no PGlite (o cartão é
+conferido contra `computeSettlement` do núcleo), 16 testes da API, build e 36 fluxos no navegador (2 novos do
+participante, com as rotas simuladas; a API real do link só é coberta pelos testes Deno e SQL). Capturas em
+`.tmp/b/` (apagável).
 
-**Decisões dele (10–11/10):** piloto antes do agente e do backup completo, *sem data fixa*; estilo afinado, bolas de
-metal polido; "os dois em paralelo" (piloto preparado + telas restantes); cada pessoa pode ter vários jogos e jogos
-com mais dezenas (feito).
+**Decisões dele (11/10):** frente (b) antes do piloto; primeiro push autorizado. **Decisões tomadas aqui, que ele
+pode virar:** o cartão não mostra a foto do bilhete (spec: imagem original fora de página compartilhada); cancelar o
+link não pede confirmação; um link por pessoa serve a todos os bolões da turma. Ele recebeu a imagem do cartão e
+ainda não deu a palavra sobre o visual.
 
-**Git:** commits só locais em `main`, sem remoto e sem push. **Fora daqui:** sem Supabase real, OAuth Google, cron ou
-deploy (item 5); o passo a passo está em `docs/PILOTO.md` e cada passo com conta ou chave é dele. Nenhum subagente
-ativo. Não há `PLAN.md`: a rodada acabou; o próximo plano nasce do item que ele escolher.
+**Git:** remoto `origin` = github.com/fgferre/little-faith-app, **privado**, criado com o primeiro push em 11/10;
+os commits desta rodada ainda não foram enviados (push pede a palavra dele). GitHub Pages grátis exige repositório
+público (passo 7 do piloto): decisão dele. **Fora daqui:** sem Supabase real, OAuth Google, cron ou deploy
+(item 5). Nenhum subagente ativo. Não há `PLAN.md`.
 
 **Textos pedidos por ele, já aplicados:** marca *"Seu bolão em boa companhia"*; início *"Faça sua fezinha, organize
 suas apostas e boa sorte!"*.
 
-**A próxima rodada — a ordem é dele:** (a) o piloto (`docs/PILOTO.md`, pede a palavra dele a cada passo); (b) o dia do
-prêmio e o participante (itens 6 e 7: quem guarda o bilhete, cartão por pessoa sem conta); (c) repetir bolão com a
-mesma turma (8); (d) a demonstração com um bolão inteiro, com prêmio (11); (e) os fluxos que oscilam sob carga (13).
+**A próxima rodada — a ordem é dele:** (a) o piloto (`docs/PILOTO.md`; cada passo com conta ou chave é dele);
+(c) repetir bolão com a mesma turma (8); (d) a demonstração com um bolão inteiro, com prêmio (11); (e) os fluxos
+que oscilam sob carga (13). Depois do piloto: participante com conta e convites; foto do bilhete no cartão por URL
+temporária; limite de taxa na rota pública (ver BACKLOG).
 
 ## ALTA — bloqueia a entrega ou pode perder trabalho
 
@@ -51,14 +57,6 @@ PGlite. Conectar pede a palavra dele; o passo a passo está em `docs/PILOTO.md` 
 pausa por inatividade: um bolão mensal pode achar o servidor dormindo no dia do prêmio. Risco a conferir no primeiro
 `supabase functions deploy`: a função importa `packages/core` de fora de `supabase/`; se o empacotador recusar, mover
 o núcleo usado pela função para `supabase/functions/_shared` ou mapear no `deno.json`.
-
-**6. O dia do prêmio é a parte mais fraca (revisão de 10/10).**
-O app não registra quem guarda o bilhete original (sem ele não se recebe o prêmio) nem trata o prêmio que cai todo no
-nome de uma pessoa e é repassado aos outros (imposto e repasse pedem um contador). Antes do piloto.
-
-**7. O participante quase não existe (revisão de 10/10).**
-Quem pagou só recebe um link genérico. Falta um cartão por pessoa, sem conta e revogável: minhas cotas, se paguei, os
-jogos, a foto do bilhete, o resultado e a minha parte. (A imagem do bolão para o WhatsApp já existe, 11/10.)
 
 **8. Repetir o bolão com a mesma turma (revisão de 10/10).**
 É a ação mais comum de quem joga toda semana e ficou na entrega B. Uma cópia simples para o próximo concurso basta.

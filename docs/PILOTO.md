@@ -46,6 +46,7 @@ São cinco arquivos em `supabase/migrations/`, **nesta ordem** (a do nome mais n
 - **Colar (terminal, na pasta do projeto):** `git remote add origin https://github.com/<usuario>/<repo>.git` e `git push -u origin main`. **O primeiro envio é decisão sua.** Antes, confira que `git status` não lista `.env`.
 - **Não compartilhar:** nenhuma chave no código. O CI ("Verificar") roda sozinho a cada envio, mas só verifica; **não publica**.
 - **Conferir:** a aba **Actions** mostra a execução "Verificar".
+- **Feito em 11/10:** o repositório `fgferre/little-faith-app` foi criado **privado** e `main` foi enviado. Para o passo 7 (Pages grátis) ele precisa virar público: Settings > General > Danger Zone > Change visibility. Decisão sua.
 
 ## 7. Publicar no GitHub Pages [SUA CONTA]
 - **Fazer:** no repositório, **Settings > Pages > Build and deployment > Source: GitHub Actions**.
