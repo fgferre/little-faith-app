@@ -1,22 +1,33 @@
 import { History } from "lucide-react";
 import { formatBRL } from "@bolao/core";
 import type { LocalRecord } from "@bolao/core";
+import type { BolaoDatabase } from "@bolao/local";
 import { EmptyState, SectionTitle } from "../components";
 import { FinancialHistory } from "../finance";
 import { formatDate } from "../app-shared";
 import type { Snapshot } from "../app-shared";
+import { Card, Disclosure, Eyebrow, Money } from "../ui";
+import { CashFormula, hasSettlementFacts, useSettlement } from "./bolao-dividir";
 
 export function HistoricoScreen(
   {
+    db,
+    groupId,
     snapshot,
     group,
     isDemo,
   }: {
+    db: BolaoDatabase;
+    groupId: string | null;
     snapshot: Snapshot;
     group: LocalRecord<"group"> | undefined;
     isDemo: boolean;
   },
 ) {
+  const settlement = useSettlement(db, isDemo ? null : groupId);
+  const cash = hasSettlementFacts(settlement.snapshot)
+    ? settlement.finance
+    : null;
   return (
     <>
       <div className="page-heading compact">
@@ -30,6 +41,22 @@ export function HistoricoScreen(
           </p>
         </div>
       </div>
+      {cash && (
+        <Card className="pool-card history-cash" label="Caixa conciliado">
+          <Eyebrow>Caixa conciliado</Eyebrow>
+          <Money cents={cash.organizerCashCents} />
+          <Disclosure summary="Ver conta">
+            <CashFormula
+              cash={cash.organizerCashCents}
+              contributed={cash.contributionCashCents}
+              redeemed={cash.organizerRedeemedCents}
+              expenses={cash.confirmedExpenseCents}
+              paid={(BigInt(cash.prizePaidCents) + BigInt(cash.refundedCents))
+                .toString()}
+            />
+          </Disclosure>
+        </Card>
+      )}
       {!isDemo
         ? (
           <FinancialHistory

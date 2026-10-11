@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useState } from "react";
 import { AlertTriangle, CheckCheck, ShieldCheck, Wallet } from "lucide-react";
 import { formatBRL } from "@bolao/core";
 import type { LocalRecord } from "@bolao/core";
@@ -12,6 +12,8 @@ import type { PlanningRequest } from "../planning-decision";
 import type { RecordRequest } from "../record-decision";
 import { errorMessage, formatDate } from "../app-shared";
 import type { Notice, SaveRecord, Snapshot } from "../app-shared";
+import { DivisaoDecisao, DivisaoPendente } from "./bolao-dividir-decisao";
+import type { PedidoDivisao } from "./bolao-dividir-decisao";
 
 const RecordPending = lazy(() =>
   import("../record-decision").then((module) => ({
@@ -30,6 +32,7 @@ export function RevisaoScreen(
     pendingReview,
     financeEnabled,
     financeAvailability,
+    timeZone,
     save,
     setFinancialRequest,
     setPlanningRequest,
@@ -45,6 +48,7 @@ export function RevisaoScreen(
     pendingReview: Snapshot["proposals"];
     financeEnabled: boolean;
     financeAvailability: string;
+    timeZone: string;
     save: SaveRecord;
     setFinancialRequest: (request: FinancialRequest) => void;
     setPlanningRequest: (request: PlanningRequest) => void;
@@ -52,6 +56,7 @@ export function RevisaoScreen(
     setNotice: (notice: Notice) => void;
   },
 ) {
+  const [divisao, setDivisao] = useState<PedidoDivisao | null>(null);
   return (
     <>
       <div className="page-heading compact">
@@ -90,6 +95,27 @@ export function RevisaoScreen(
           db={db}
           groupId={groupId}
           open={setPlanningRequest}
+        />
+      )}
+      {groupId && !isDemo && (
+        <DivisaoPendente
+          key={`divisao:${db.name}:${groupId}`}
+          db={db}
+          groupId={groupId}
+          open={setDivisao}
+        />
+      )}
+      {divisao && groupId && (
+        <DivisaoDecisao
+          key={`divisao:${db.name}:${groupId}`}
+          db={db}
+          groupId={groupId}
+          request={divisao}
+          enabled={financeEnabled}
+          availability={financeAvailability}
+          timeZone={timeZone}
+          onClose={() => setDivisao(null)}
+          onNotice={setNotice}
         />
       )}
       {snapshot.records.filter((r) =>

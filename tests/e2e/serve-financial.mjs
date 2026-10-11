@@ -321,6 +321,17 @@ async function handle(request, response) {
               value.command.action.type,
             )
           ? "result_decide"
+          : [
+              "expense_confirm",
+              "prize_confirm",
+              "redemption_record",
+              "redemption_reverse",
+              "distribution_record",
+              "distribution_reverse",
+              "pool_settle",
+              "pool_reopen",
+            ].includes(value.command.action.type)
+          ? "settlement_decide"
           : "review_decide",
         [value.command],
       );
@@ -347,6 +358,11 @@ async function handle(request, response) {
       break;
     case "result_command_status":
       result = await rpc("result_command_status", [
+        url.searchParams.get("idempotencyKey"),
+      ]);
+      break;
+    case "settlement_command_status":
+      result = await rpc("settlement_command_status", [
         url.searchParams.get("idempotencyKey"),
       ]);
       break;

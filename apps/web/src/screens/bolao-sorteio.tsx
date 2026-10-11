@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
   CalendarClock,
+  Copy,
   Download,
   MessageCircle,
   RefreshCw,
+  Share2,
   ShieldCheck,
+  X,
 } from "lucide-react";
 import {
   assessRegisteredPrizes,
@@ -42,10 +45,15 @@ import {
   Countdown,
   Disclosure,
   Eyebrow,
+  formatWhen,
   Money,
   ProblemBox,
   reais,
+  renderShareCard,
+  shareCardFileName,
+  shareCardImage,
 } from "../ui";
+import type { ShareCardData } from "../ui";
 
 const SHOWN = 6;
 const BRASILIA = "America/Sao_Paulo";
@@ -318,12 +326,23 @@ export function BolaoSorteio(
 
   const firstReveal = useFirstReveal(drawn ? result?.id : undefined);
 
-  async function tell() {
+  // Mensagem de texto para o grupo: antes do sorteio, os jogos; depois, o resultado.
+  function message() {
+    const head = `${pool.data.title} · ${rule.label}${
+      pool.data.contestNumber ? ` · concurso ${pool.data.contestNumber}` : ""
+    }`;
+    if (!drawn) {
+      return [
+        head,
+        drawAt
+          ? `Sorteio: ${drawLine(drawAt, BRASILIA)}`
+          : "Sorteio a definir.",
+        `${games.length} ${games.length === 1 ? "jogo" : "jogos"} no bolão.`,
+      ].join("\n");
+    }
     const lines = [
-      `${pool.data.title} · ${rule.label}${
-        pool.data.contestNumber ? ` · concurso ${pool.data.contestNumber}` : ""
-      }`,
-      `Números sorteados: ${drawn!.map(pad).join(" ")}`,
+      head,
+      `Números sorteados: ${drawn.map(pad).join(" ")}`,
       "",
       ...(winners.length
         ? [
@@ -350,13 +369,81 @@ export function BolaoSorteio(
             : []),
         ]),
     ];
-    const copied = await copiar(lines.join("\n"));
-    setNotice(
-      copied
-        ? { text: "Mensagem copiada. Cole no grupo do WhatsApp." }
-        : { text: "Não deu para copiar a mensagem. Tente de novo.", error: true },
-    );
+    return lines.join("\n");
   }
+
+  // O cartão leva só apelidos e jogos: nada de pagamento. Ele vai para a turma no Brasil, então
+  // datas e horas saem no horário de Brasília (a tela continua mostrando Brasília e o horário daqui).
+  function shareCard(): ShareCardData {
+    const date = drawAt
+      ? new Intl.DateTimeFormat("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        timeZone: BRASILIA,
+      }).format(new Date(drawAt))
+      : /^\d{4}-\d{2}-\d{2}$/.test(result?.drawDate ?? "")
+      ? result!.drawDate!.slice(5).split("-").reverse().join("/")
+      : pool.data.contestNumber
+      ? `concurso ${pool.data.contestNumber}`
+      : null;
+    const count = `${games.length} ${games.length === 1 ? "jogo" : "jogos"}`;
+    return {
+      title: pool.data.title,
+      modality: lotteryId,
+      chip: date ? `${rule.label} · ${date}` : rule.label,
+      drawn,
+      games: ordered.map((game) => {
+        const tier = game.prize ? bestTier(game.prize) : 0;
+        return {
+          name: game.name,
+          numbers: game.numbers,
+          tag: hits && tier > 0 ? winTag(lotteryId, tier) : undefined,
+          hits: hits && tier === 0
+            ? acertos(game.numbers.filter((n) => hits.has(n)).length)
+            : undefined,
+        };
+      }),
+      result: !drawn
+        ? {
+          title: drawAt
+            ? `Sorteio ${formatWhen(Date.parse(drawAt), Date.now(), BRASILIA)}`
+            : "Sorteio a definir",
+          detail: count,
+        }
+        : winners.length
+        ? {
+          title: winTitle(lotteryId, top),
+          value: prizeCents !== null ? formatBRL(prizeCents) : "Valor a confirmar",
+        }
+        : {
+          title: "Não foi dessa vez.",
+          detail: best?.prize
+            ? `Melhor jogo: ${best.name}, ${acertos(best.prize.hits)}`
+            : count,
+        },
+    };
+  }
+  const [share, setShare] = useState<
+    { card: ShareCardData; text: string } | null
+  >(null);
+  const openShare = () => setShare({ card: shareCard(), text: message() });
+  const sheet = share && (
+    <ShareSheet
+      card={share.card}
+      text={share.text}
+      setNotice={setNotice}
+      onClose={() => setShare(null)}
+    />
+  );
+  const tellButton = (
+    <Button
+      variant="ghost"
+      icon={<MessageCircle aria-hidden="true" />}
+      onClick={openShare}
+    >
+      Avisar a turma
+    </Button>
+  );
 
   const gameRow = (game: Game) => {
     const tier = game.prize ? bestTier(game.prize) : 0;
@@ -565,6 +652,7 @@ export function BolaoSorteio(
                 {plan && ` · ${reais(plan.plan.betCostCents)}`}
               </p>
               {gamesList}
+              <div className="pool-actions">{tellButton}</div>
             </>
           )}
           {actions(false)}
@@ -573,6 +661,7 @@ export function BolaoSorteio(
           {extras}
         </Card>
         {manualCard}
+        {sheet}
       </div>
     );
   }
@@ -642,13 +731,7 @@ export function BolaoSorteio(
             {prizeView}
             <div className="pool-actions">
               <Button onClick={() => go("dividir")}>Dividir o prêmio</Button>
-              <Button
-                variant="ghost"
-                icon={<MessageCircle aria-hidden="true" />}
-                onClick={() => void tell()}
-              >
-                Avisar a turma
-              </Button>
+              {tellButton}
             </div>
             <Disclosure summary="Ver cálculo">
               {winners.map((game) => (
@@ -697,13 +780,7 @@ export function BolaoSorteio(
             )}
             <div className="pool-actions">
               <Button onClick={repeat}>Repetir com a mesma turma</Button>
-              <Button
-                variant="ghost"
-                icon={<MessageCircle aria-hidden="true" />}
-                onClick={() => void tell()}
-              >
-                Avisar a turma
-              </Button>
+              {tellButton}
             </div>
           </>
         )}
@@ -820,7 +897,153 @@ export function BolaoSorteio(
         </p>
         {gamesList}
       </Card>
+      {sheet}
     </div>
+  );
+}
+
+/**
+ * "Avisar a turma": gaveta com a prévia do cartão (PNG 4:5) e duas saídas. No celular, a imagem vai
+ * pelo compartilhar do sistema (WhatsApp aparece lá); no computador, ela é baixada.
+ */
+function ShareSheet(
+  { card, text, setNotice, onClose }: {
+    card: ShareCardData;
+    text: string;
+    setNotice: (notice: Notice) => void;
+    onClose: () => void;
+  },
+) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+  const [image, setImage] = useState<{ blob: Blob; url: string } | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    const dialog = ref.current!;
+    const previous = document.activeElement as HTMLElement | null;
+    if (!dialog.open) dialog.showModal();
+    return () => {
+      dialog.close();
+      previous?.focus();
+    };
+  }, []);
+  useEffect(() => {
+    let alive = true;
+    let url = "";
+    renderShareCard(card).then((blob) => {
+      if (!alive) return;
+      url = URL.createObjectURL(blob);
+      setImage({ blob, url });
+    }, () => {
+      if (alive) setFailed(true);
+    });
+    return () => {
+      alive = false;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [card]);
+
+  // Fecha a gaveta antes de copiar ou baixar: o aviso aparece por cima da tela, não atrás da gaveta.
+  const leave = () => {
+    ref.current?.close();
+    onClose();
+  };
+  async function shareImage() {
+    if (!image) return;
+    const outcome = await shareCardImage(
+      image.blob,
+      shareCardFileName(card.title),
+      card.title,
+    );
+    if (outcome === "cancelled") return;
+    leave();
+    if (outcome === "downloaded") {
+      setNotice({ text: "Imagem baixada. Envie no grupo do WhatsApp." });
+    }
+  }
+  async function copyText() {
+    leave();
+    const copied = await copiar(text);
+    setNotice(
+      copied
+        ? { text: "Mensagem copiada. Cole no grupo do WhatsApp." }
+        : { text: "Não deu para copiar a mensagem. Tente de novo.", error: true },
+    );
+  }
+
+  const alt = `Cartão: ${card.title}, ${card.result.title}${
+    card.result.value ? ` ${card.result.value}` : ""
+  }`;
+  return (
+    <dialog
+      ref={ref}
+      className="ui-sheet"
+      aria-labelledby={titleId}
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
+      onClick={(event) => {
+        if (event.target === ref.current) onClose();
+      }}
+    >
+      <div className="ui-sheet-body">
+        <div className="ui-sheet-handle" aria-hidden="true" />
+        <header className="ui-sheet-head">
+          <h2 id={titleId}>Avisar a turma</h2>
+          <button
+            type="button"
+            className="ui-sheet-x"
+            aria-label="Fechar"
+            onClick={onClose}
+          >
+            <X aria-hidden="true" />
+          </button>
+        </header>
+        <p className="ui-sec">Este cartão vai como imagem para o grupo.</p>
+        {image
+          ? (
+            <img
+              className="ui-sheet-card"
+              src={image.url}
+              width={1080}
+              height={1350}
+              alt={alt}
+            />
+          )
+          : (
+            <div className="ui-sheet-card wait" role="status">
+              <span className="ui-hidden">
+                {failed ? "Não deu para montar a imagem." : "Montando a imagem…"}
+              </span>
+            </div>
+          )}
+        {failed && (
+          <p className="ui-sec" role="alert">
+            Não deu para montar a imagem. Copie a mensagem de texto.
+          </p>
+        )}
+        <div className="ui-sheet-actions">
+          <Button
+            icon={<Share2 aria-hidden="true" />}
+            disabled={!image}
+            onClick={() => void shareImage()}
+          >
+            Compartilhar imagem
+          </Button>
+          <Button
+            variant="ghost"
+            icon={<Copy aria-hidden="true" />}
+            onClick={() => void copyText()}
+          >
+            Copiar mensagem
+          </Button>
+        </div>
+        <p className="ui-sec ui-sheet-note">
+          Ninguém vê dados de pagamento na imagem.
+        </p>
+      </div>
+    </dialog>
   );
 }
 

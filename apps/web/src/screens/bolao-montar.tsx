@@ -28,6 +28,7 @@ export function BolaoMontar(
     appliedPlan,
     timeZone,
     confirmedCents,
+    reconciledCents,
     expectedCents,
     gamesCost,
     proposedCents,
@@ -38,6 +39,8 @@ export function BolaoMontar(
     appliedPlan: ReturnType<typeof latestApplied>;
     timeZone: string;
     confirmedCents: string;
+    /** Caixa conciliado do bolão quando a divisão já tem movimentos; senão vale o confirmado. */
+    reconciledCents: string | null;
     expectedCents: string | null;
     gamesCost: string;
     proposedCents: string;
@@ -102,9 +105,11 @@ export function BolaoMontar(
           <Stat
             icon={<Wallet size={19} />}
             color="green"
-            label="Confirmado"
-            value={formatBRL(confirmedCents)}
-            note="Recebimentos no caixa"
+            label={reconciledCents === null ? "Confirmado" : "Caixa conciliado"}
+            value={formatBRL(reconciledCents ?? confirmedCents)}
+            note={reconciledCents === null
+              ? "Recebimentos no caixa"
+              : "Contribuições + resgates − custos − pagamentos"}
           />
           <Stat
             icon={<Users size={19} />}

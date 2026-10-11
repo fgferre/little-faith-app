@@ -232,6 +232,17 @@ export function App() {
     () => snapshot?.finances ? createFinancialView(snapshot.finances) : null,
     [snapshot?.finances],
   );
+  // Pedidos da divisão do prêmio sem resposta também pedem revisão.
+  const settlementPending = useLiveQuery(
+    async () =>
+      groupId
+        ? await db.settlementCommands.where("groupId").equals(groupId)
+          .filter((command) =>
+            ["prepared", "sending", "unknown"].includes(command.status)
+          ).count()
+        : 0,
+    [db, groupId],
+  ) ?? 0;
 
   useEffect(() => {
     if (!snapshot) return;
@@ -365,7 +376,7 @@ export function App() {
   const reviewCount = pendingReview.length +
     (snapshot?.decisions.filter((decision) =>
       ["prepared", "sending", "unknown"].includes(decision.status)
-    ).length ?? 0) + (snapshot?.summary.conflicts ?? 0);
+    ).length ?? 0) + (snapshot?.summary.conflicts ?? 0) + settlementPending;
 
   function switchMode(next: "demo" | "local" | "account") {
     setMode(next);
@@ -762,6 +773,7 @@ export function App() {
                       pendingReview={pendingReview}
                       financeEnabled={financeEnabled}
                       financeAvailability={financeAvailability}
+                      timeZone={timeZone}
                       save={save}
                       setFinancialRequest={setFinancialRequest}
                       setPlanningRequest={setPlanningRequest}
@@ -772,6 +784,8 @@ export function App() {
 
                   {route.screen === "historico" && (
                     <HistoricoScreen
+                      db={db}
+                      groupId={groupId}
                       snapshot={snapshot}
                       group={group}
                       isDemo={isDemo}

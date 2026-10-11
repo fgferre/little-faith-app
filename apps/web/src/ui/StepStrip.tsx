@@ -24,10 +24,19 @@ export function StepStrip<K extends string>(
     const ol = list.current;
     if (!ol) return;
     // Esmaecer só do lado em que ainda há etapas escondidas.
+    // A faixa tem folga de 16 px nas pontas (ui.css): enquanto só a folga está escondida, nenhuma
+    // etapa está cortada e não há esmaecido.
     const fades = () => {
       const max = ol.scrollWidth - ol.clientWidth;
-      ol.style.setProperty("--fl", ol.scrollLeft > 2 ? "44px" : "0px");
-      ol.style.setProperty("--fr", ol.scrollLeft < max - 2 ? "44px" : "0px");
+      const edge = Number.parseFloat(getComputedStyle(ol).paddingLeft) || 0;
+      ol.style.setProperty(
+        "--fl",
+        ol.scrollLeft > edge + 2 ? "44px" : "0px",
+      );
+      ol.style.setProperty(
+        "--fr",
+        ol.scrollLeft < max - edge - 2 ? "44px" : "0px",
+      );
     };
     // A etapa atual fica inteira à vista, com folga para o esmaecido.
     const align = () => {
@@ -43,9 +52,17 @@ export function StepStrip<K extends string>(
     };
     align();
     ol.addEventListener("scroll", fades, { passive: true });
+    // A largura muda quando a tela muda e quando a letra Sora termina de carregar.
     const observer = new ResizeObserver(align);
     observer.observe(ol);
+    const now = ol.querySelector(".now");
+    if (now) observer.observe(now);
+    let alive = true;
+    void document.fonts?.ready.then(() => {
+      if (alive) align();
+    });
     return () => {
+      alive = false;
       ol.removeEventListener("scroll", fades);
       observer.disconnect();
     };

@@ -52,3 +52,23 @@ export async function copiar(text: string) {
     return copied;
   }
 }
+
+/** Data e hora curtas no fuso escolhido: "11/10/2026, 14:02"; "A definir" quando não há data. */
+export function formatInstant(value: string | null, timeZone: string) {
+  return value
+    ? new Intl.DateTimeFormat("pt-BR", {
+      dateStyle: "short",
+      timeStyle: "short",
+      timeZone,
+    }).format(new Date(value))
+    : "A definir";
+}
+
+/** Só o dia: "11/10". */
+export function diaMes(value: string, timeZone: string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone,
+  }).format(new Date(value));
+}

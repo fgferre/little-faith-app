@@ -8,8 +8,13 @@ import type { PlanningRequest } from "../planning-decision";
 import type { RecordRequest } from "../record-decision";
 import { POOL_STEPS } from "../app-shared";
 import type { FormKind, Notice, PoolStep, Route, Snapshot } from "../app-shared";
-import { Card, Chip, Eyebrow, formatWhen, StepStrip } from "../ui";
+import { Chip, formatWhen, StepStrip } from "../ui";
 import { BolaoArrecadar } from "./bolao-arrecadar";
+import {
+  BolaoDividir,
+  hasSettlementFacts,
+  useSettlement,
+} from "./bolao-dividir";
 import { STEP_LABEL, usePoolViews } from "./bolao-etapas";
 import { BolaoJogar } from "./bolao-jogar";
 import { BolaoMontar } from "./bolao-montar";
@@ -80,6 +85,10 @@ export function BolaoScreen(
   const view = usePoolViews({ db, snapshot, financialView, isDemo }).find((
     v,
   ) => v.pool.id === pool.id);
+  const settlement = useSettlement(db, isDemo ? null : groupId);
+  const reconciledCents = hasSettlementFacts(settlement.snapshot, pool.id)
+    ? settlement.finance?.pools[pool.id]?.organizerCashCents ?? null
+    : null;
   const current = view?.step ?? "montar";
   const step = route.step ?? current;
   const done = new Set(POOL_STEPS.slice(0, POOL_STEPS.indexOf(current)));
@@ -128,6 +137,7 @@ export function BolaoScreen(
             appliedPlan={appliedPlan}
             timeZone={timeZone}
             confirmedCents={confirmedCents}
+            reconciledCents={reconciledCents}
             expectedCents={expectedCents}
             gamesCost={gamesCost}
             proposedCents={proposedCents}
@@ -200,11 +210,19 @@ export function BolaoScreen(
             />
           </Suspense>
         )}
-        {step === "dividir" && (
-          <Card className="pool-card" label="Dividir">
-            <Eyebrow>Dividir</Eyebrow>
-            <p className="pool-soon">A divisão entra na próxima rodada.</p>
-          </Card>
+        {step === "dividir" && groupId && (
+          <BolaoDividir
+            key={`${db.name}:${groupId}:${pool.id}`}
+            db={db}
+            groupId={groupId}
+            pool={pool}
+            settlement={settlement}
+            enabled={financeEnabled}
+            availability={financeAvailability}
+            timeZone={timeZone}
+            setNotice={setNotice}
+            go={go}
+          />
         )}
       </div>
     </div>

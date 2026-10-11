@@ -1000,9 +1000,11 @@ function brasiliaCivil(instant: Date) {
   }).formatToParts(instant);
   const part = (type: string) =>
     parts.find((item) => item.type === type)!.value;
+  // The browser drops ":00" seconds from a datetime-local value, and Playwright then reports "Malformed value".
+  const seconds = part("second") === "00" ? "" : `:${part("second")}`;
   return `${part("year")}-${part("month")}-${part("day")}T${part("hour")}:${
     part("minute")
-  }:${part("second")}`;
+  }${seconds}`;
 }
 async function fillObserved(
   page: Page,
@@ -1337,4 +1339,179 @@ test("manual results, official conflicts, failed collection and contest times pr
     resultPanel.getByText("Dois resultados não batem", { exact: true }),
   )
     .toBeVisible();
+});
+
+const brl = (cents: string | bigint) => {
+  const value = BigInt(cents);
+  const whole = (value / 100n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `R$ ${whole},${(value % 100n).toString().padStart(2, "0")}`;
+};
+async function confirmSplit(
+  page: Page,
+  done: string,
+  reason?: string,
+) {
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("checkbox", {
+    name: "comprovante-sintetico.pdf",
+    exact: true,
+  }).check();
+  if (reason) await dialog.getByLabel("Motivo", { exact: true }).fill(reason);
+  const reviewed = dialog.getByRole("checkbox", {
+    name: "Conferi o valor e o comprovante.",
+  });
+  await expect(reviewed).toBeEnabled();
+  await reviewed.check();
+  await dialog.getByRole("button", { name: "Confirmar", exact: true }).click();
+  await expect(dialog.getByText(done, { exact: true })).toBeVisible();
+  await dialog.getByRole("button", { name: "Pronto", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+}
+
+test("the prize split confirms cost and prize, records the redemption, pays, reverses and pays again on the real SQL", async ({ page, request }) => {
+  test.setTimeout(150_000);
+  const manifest = await lockRegistrationFixture(page, request);
+  await addOriginal(page);
+  await fillObserved(page, manifest);
+  await approveRecord(page);
+  await step(page, "Sorteio");
+  await page.getByRole("button", { name: "Informar resultado", exact: true })
+    .click();
+  await page.getByLabel("Data do sorteio em Brasília").fill("2026-10-08");
+  await page.getByLabel("Dezenas sorteadas", { exact: true }).fill(
+    "1 2 3 4 5 6",
+  );
+  await page.getByLabel("Prêmio de 6 acertos (R$)").fill("1000,00");
+  await page.getByLabel("Prêmio de 5 acertos (R$)").fill("100,00");
+  await page.getByLabel("Prêmio de 4 acertos (R$)").fill("10,00");
+  await page.getByLabel("Fonte do resultado", { exact: true }).fill(
+    "Publicação sintética de integração.",
+  );
+  await page.getByLabel("Motivo do resultado manual").fill(
+    "Conferência humana sintética para testar a divisão.",
+  );
+  await page.getByRole("button", {
+    name: "Revisar resultado informado",
+    exact: true,
+  }).click();
+  await approveRecord(page);
+  await step(page, "Dividir");
+
+  const cost = page.locator('[aria-label="Custo das apostas"]');
+  await cost.getByRole("button", { name: /^Confirmar custo R\$/ }).click({
+    timeout: 20_000,
+  });
+  await confirmSplit(page, "Custo confirmado.");
+  await expect(cost.getByText(/^Custo confirmado em/)).toBeVisible();
+
+  const prizeCard = page.locator('[aria-label="Prêmio"]');
+  await expect(prizeCard.getByText("Prêmio calculado", { exact: true }))
+    .toBeVisible();
+  await prizeCard.getByRole("button", { name: "Confirmar prêmio", exact: true })
+    .click();
+  await confirmSplit(page, "Prêmio confirmado.");
+  await expect(prizeCard.getByText(/^Confirmado em/)).toBeVisible();
+
+  const redemption = page.locator('[aria-label="Resgate"]');
+  await redemption.getByRole("button", { name: "Recebi o prêmio", exact: true })
+    .click();
+  await confirmSplit(page, "Resgate registrado.");
+  await expect(redemption.getByText("Prêmio todo resgatado", { exact: true }))
+    .toBeVisible();
+
+  const confirmed = await fixturePost(request, "settlement_pull", { groupId });
+  const prize = BigInt(confirmed.prizes[0].amountCents);
+  const expense = BigInt(confirmed.expenses[0].totalCostCents);
+  expect(prize > 0n).toBe(true);
+  expect(confirmed.redemptions[0].amountCents).toBe(prize.toString());
+
+  const division = page.locator('[aria-label="Como fica a divisão"]');
+  const row = division.locator(".pool-person").filter({
+    hasText: "Pessoa financeira",
+  });
+  await expect(row.getByText("A pagar", { exact: true })).toBeVisible();
+  await row.getByRole("button", { name: "Já paguei", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Valor pago (R$)").fill(
+    brl(prize + 1n).slice(3),
+  );
+  await dialog.getByRole("checkbox", {
+    name: "comprovante-sintetico.pdf",
+    exact: true,
+  }).check();
+  await expect(
+    dialog.getByText(
+      "Pagamento não pode exceder direito e resgate interno disponíveis.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await expect(
+    dialog.getByRole("checkbox", { name: "Conferi o valor e o comprovante." }),
+  ).toBeDisabled();
+  await dialog.getByRole("button", { name: "Cancelar", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+
+  await row.getByRole("button", { name: "Já paguei", exact: true }).click();
+  await confirmSplit(page, "Pagamento registrado.");
+  await expect(row.getByText("Pago", { exact: true })).toBeVisible();
+
+  await row.getByRole("button", { name: "Desfazer", exact: true }).click();
+  await confirmSplit(
+    page,
+    "Pagamento desfeito.",
+    "Pagamento devolvido pela pessoa no teste.",
+  );
+  await expect(row.getByText("A pagar", { exact: true })).toBeVisible();
+
+  await row.getByRole("button", { name: "Já paguei", exact: true }).click();
+  await dialog.getByRole("checkbox", {
+    name: "comprovante-sintetico.pdf",
+    exact: true,
+  }).check();
+  const pushed = await fixturePost(request, "sync_push", {
+    operations: [{
+      apiVersion: "v1",
+      idempotencyKey: randomUUID(),
+      groupId,
+      entityId: randomUUID(),
+      kind: "person",
+      expectedVersion: 0,
+      data: { name: "Pessoa nova", nickname: "", adultDeclared: true },
+      createdAt: new Date().toISOString(),
+    }],
+  });
+  expect(pushed.receipts[0].status).toBe("accepted");
+  await dialog.getByRole("checkbox", {
+    name: "Conferi o valor e o comprovante.",
+  }).check();
+  await dialog.getByRole("button", { name: "Confirmar", exact: true }).click();
+  await expect(
+    dialog.getByText("Alguém mudou o grupo; atualize e confira de novo", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await dialog.getByRole("button", { name: "Atualizar e conferir", exact: true })
+    .click();
+  await confirmSplit(page, "Pagamento registrado.");
+  await expect(row.getByText("Pago", { exact: true })).toBeVisible();
+
+  const totals = division.getByLabel("Totais da divisão");
+  await expect(totals).toContainText(`Já pago${brl(prize)}`);
+  await expect(totals).toContainText("A pagarR$ 0,00");
+  const leftover = page.locator('[aria-label="Sobra e devoluções"]');
+  await leftover.getByText("Ver conta", { exact: true }).click();
+  await expect(leftover.locator(".split-formula")).toHaveText(
+    `Caixa do organizador: ${brl(6000n - expense)} = contribuições ${
+      brl(6000n)
+    } + resgates ${brl(prize)} − custos ${brl(expense)} − pagamentos ${
+      brl(prize)
+    }`,
+  );
+  const settled = await fixturePost(request, "settlement_pull", { groupId });
+  expect(
+    settled.distributions.map((item: { direction: string }) => item.direction),
+  ).toEqual(["paid", "returned", "paid"]);
+  expect(settled.redemptions).toHaveLength(1);
+  expect(settled.prizes).toHaveLength(1);
+  expect(settled.expenses).toHaveLength(1);
 });
