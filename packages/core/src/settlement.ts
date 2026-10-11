@@ -364,7 +364,9 @@ export function validateSettlementSnapshot(input: unknown): SettlementSnapshot {
     // Registration facts predate this approved entity version, independently of tied timestamps.
     const reports = registration.reports.filter((r) => r.poolId !== fact.poolId || (r.poolVersion < fact.poolVersion && r.confirmedAt <= fact.confirmedAt));
     let history: SettlementSnapshot = { ...snapshot, registration: { ...registration, reports } };
-    if ('observedResultIds' in fact) history = { ...history, results: resultHistory(snapshot, fact.poolId, fact.observedResultIds, fact.resultSelectionId) };
+    // Facts without their own context are rebuilt against the results observed by the latest earlier prize (snapshot.prizes holds only earlier ones here).
+    const observed = 'observedResultIds' in fact ? fact : latest(snapshot.prizes, fact.poolId);
+    if (observed) history = { ...history, results: resultHistory(snapshot, fact.poolId, observed.observedResultIds, observed.resultSelectionId) };
     const value = asAction(fact); checkAction(history, value, fact.confirmedAt);
     const expected = buildFact(history, value, { id: fact.id, receiptId: fact.receiptId, confirmedAt: fact.confirmedAt, groupRevision: fact.groupRevision });
     if (canonicalJSON(expected) !== canonicalJSON(fact)) planningInvalid('facts', 'Fato, direito, compensação ou reconciliação diverge da reconstrução independente.');

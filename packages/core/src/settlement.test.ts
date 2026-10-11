@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { OfficialPrizeEntitlement, SettlementAction, SettlementRecord, SettlementSnapshot } from './index';
 import { buildSettlementFact, canonicalManifest, computeSettlement,createRedemptionDeadline, createSettlementView, redemptionAlerts, settlementStatement, sha256Hex, validateRedemptionDeadline, validateSettlementActionContext, validateSettlementCommand, validateSettlementReceipt, validateSettlementSnapshot } from './index';
-import { fixtureId, REG_GROUP, REG_POOL, registrationManifest, registrationSnapshot, resultSnapshot } from './registration.test-fixtures';
+import { fixtureId, manualResult, REG_GROUP, REG_POOL, registrationManifest, registrationSnapshot, resultSnapshot } from './registration.test-fixtures';
 
 type Act<T extends SettlementAction['type']> = Extract<SettlementAction, { type: T }>;
 const A = fixtureId(20), B = fixtureId(21), REPORT = fixtureId(4000), RESULT = fixtureId(5001), EVIDENCE = [fixtureId(3000)], START = 20;
@@ -232,6 +232,14 @@ describe('snapshot integrity (SQL and core parity guard)', () => {
     const receipt = { apiVersion: 'v1', idempotencyKey: fixtureId(7999), receiptId: last.receiptId, groupId: REG_GROUP, status: 'accepted', groupRevision: s.groupRevision, message: null, confirmedAt: last.confirmedAt, snapshot: s };
     expect(validateSettlementReceipt(receipt).receiptId).toBe(last.receiptId);
     expect(() => validateSettlementReceipt({ ...receipt, receiptId: first.receiptId })).toThrow('Aceite deve referenciar exatamente um fato da revisão confirmada.');
+  });
+  it('a conflicting result version arriving after a redemption and a payment does not invalidate the history', () => {
+    let s = withPrize(); s = apply(s, redeem(s, '60000')); s = apply(s, pay(s, A, '30000'));
+    const revision = s.groupRevision + 1, late = manualResult({ lotteryId: 'mega-sena', contestNumber: 3000, drawDate: '2026-10-08', drawnNumbers: [1, 2, 3, 4, 5, 7], payouts: null }, 2);
+    const c: SettlementSnapshot = { ...s, groupRevision: revision, financial: { ...s.financial, groupRevision: revision }, registration: { ...s.registration, groupRevision: revision }, results: { ...s.results, groupRevision: revision, results: [...s.results.results, late] } };
+    expect(validateSettlementSnapshot(c).distributions).toHaveLength(1);
+    expect(pool(c)).toMatchObject({ resultConflict: true, organizerRedeemedCents: '60000', prizePaidCents: '30000' });
+    expect(() => validateSettlementActionContext(c, redeem(c, '1000'), next(c))).toThrow('Resgate exige prêmio atual confirmado e fontes conferidas sem conflito.');
   });
 });
 
