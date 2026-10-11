@@ -44,8 +44,10 @@ já está instalado no web; codec e interface do backup (etapa 8) não foram esc
 **5. Nada foi conferido contra o Supabase real (10/10).**
 Sem projeto conectado, OAuth Google, dois aparelhos, cron do coletor (`results-collector` preparado, nenhum cron
 instalado) nem deploy; as credenciais não estão neste checkout. Os testes usam Auth/Storage simulados e RPCs reais no
-PGlite. Conectar pede a palavra dele. O plano grátis do Supabase pausa por inatividade: um bolão mensal pode achar o
-servidor dormindo no dia do prêmio.
+PGlite. Conectar pede a palavra dele; o passo a passo está em `docs/PILOTO.md` (11/10). O plano grátis do Supabase
+pausa por inatividade: um bolão mensal pode achar o servidor dormindo no dia do prêmio. Risco a conferir no primeiro
+`supabase functions deploy`: a função importa `packages/core` de fora de `supabase/`; se o empacotador recusar, mover
+o núcleo usado pela função para `supabase/functions/_shared` ou mapear no `deno.json`.
 
 **6. O dia do prêmio é a parte mais fraca (revisão de 10/10).**
 O app não registra quem guarda o bilhete original (sem ele não se recebe o prêmio) nem trata o prêmio que cai todo no

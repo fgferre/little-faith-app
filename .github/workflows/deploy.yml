@@ -1,0 +1,52 @@
+name: Publicar no GitHub Pages
+# Publicação manual e explícita: só roda quando alguém aperta "Run workflow".
+# Nenhum push ou pull request publica o app.
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Conferir a configuração pública
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_ANON_KEY" ]; then
+            echo "::error::Cadastre VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY em Settings > Secrets and variables > Actions > Variables (docs/PILOTO.md, passo 7)."
+            exit 1
+          fi
+      - run: npm ci
+      # A URL do projeto e a chave anon são públicas por desenho e entram no app publicado.
+      # Nunca cadastre aqui a chave service_role.
+      - run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: apps/web/dist
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

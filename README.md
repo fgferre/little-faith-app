@@ -61,6 +61,8 @@ pessoa para participantes e conciliação bancária automática.
 
 ## Conectar o Supabase
 
+Passo a passo do primeiro piloto, em português simples: [docs/PILOTO.md](docs/PILOTO.md).
+
 Copie `.env.example` para `.env` e configure a URL e a chave pública do projeto.
 Aplique as migrations em ordem, configure Google OAuth e publique a Edge
 Function conforme [docs/SUPABASE.md](docs/SUPABASE.md). Reinicie o Vite após
