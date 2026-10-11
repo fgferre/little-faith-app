@@ -1,0 +1,208 @@
+.planning-sections {
+  display: grid;
+  gap: 20px;
+}
+.planning-settings {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 24px 0 16px;
+}
+.planning-settings label {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  flex: 1;
+  min-width: 180px;
+}
+.planning-settings input,
+.planning-settings select {
+  width: 100%;
+  min-height: 44px;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  color: var(--text);
+  background: var(--surface);
+  font: inherit;
+}
+.plan-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.plan-card {
+  min-width: 0;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  background: var(--surface);
+}
+.plan-card.selected {
+  border-color: var(--purple);
+  box-shadow: inset 0 0 0 1px var(--purple);
+}
+.plan-card h3 {
+  font-size: 19px;
+  margin: 9px 0;
+}
+.plan-card > p {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.8;
+  margin-bottom: 18px;
+}
+.plan-card > .button {
+  margin-top: auto;
+}
+.plan-values {
+  display: grid;
+  gap: 12px;
+  margin: 8px 0 20px;
+  font-size: 11px;
+}
+.plan-values > div {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+.plan-values dt {
+  color: var(--muted);
+}
+.plan-values dd {
+  font-weight: 650;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.plan-values .plan-total {
+  border-top: 1px solid var(--border);
+  padding-top: 13px;
+  font-size: 14px;
+}
+.plan-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.plan-summary p {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.8;
+  margin-top: 8px;
+}
+.planning-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+.planning-details {
+  margin-top: 20px;
+  font-size: 11px;
+  line-height: 1.8;
+}
+.planning-details summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: var(--purple);
+  font-weight: 650;
+}
+.planning-details p {
+  color: var(--muted);
+  margin: 10px 0;
+}
+.planning-details code,
+.manifest-hash {
+  overflow-wrap: anywhere;
+  font-size: 10px;
+  color: var(--muted);
+}
+.planning-games {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+.planning-game {
+  border-top: 1px solid var(--border);
+  padding: 14px 0;
+}
+.planning-game > small {
+  display: block;
+  color: var(--muted);
+  margin: 8px 0;
+  line-height: 1.8;
+}
+.simulation-progress {
+  display: grid;
+  gap: 12px;
+  padding: 20px 0;
+  font-size: 12px;
+}
+.simulation-progress progress {
+  width: 100%;
+  height: 8px;
+  accent-color: var(--purple);
+}
+.simulation-result {
+  margin-top: 20px;
+}
+.simulation-result p {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.8;
+  margin: 12px 0;
+}
+.planning-review-text {
+  display: grid;
+  gap: 12px;
+  margin: 20px 0;
+  padding: 20px;
+  border-radius: 12px;
+  background: var(--bg);
+  font-size: 12px;
+  line-height: 1.8;
+}
+.planning-review-text > p {
+  overflow-wrap: anywhere;
+}
+.planning-review-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.planning-review-checkbox input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--purple);
+  flex-shrink: 0;
+}
+@media (max-width: 1100px) {
+  .plan-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 480px) {
+  .planning-settings label {
+    min-width: 100%;
+  }
+  .plan-card {
+    padding: 20px;
+  }
+  .planning-actions > .button,
+  .planning-settings > .button {
+    width: 100%;
+  }
+}

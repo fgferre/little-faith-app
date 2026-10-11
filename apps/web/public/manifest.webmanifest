@@ -1,0 +1,13 @@
+{
+  "id": "./",
+  "name": "Little Faith · Bolões",
+  "short_name": "Little Faith",
+  "description": "Um pouco de fé. Seus bolões sob controle.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#faf9f6",
+  "theme_color": "#7055d8",
+  "lang": "pt-BR",
+  "icons": [{ "src": "./clover.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

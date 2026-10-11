@@ -1,0 +1,11 @@
+{
+  "name": "@bolao/local",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@bolao/core": "0.1.0",
+    "dexie": "^4.0.11"
+  }
+}

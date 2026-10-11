@@ -1,0 +1,33 @@
+{
+  "name": "little-faith-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": ["apps/*", "packages/*"],
+  "engines": { "node": ">=22.14" },
+  "scripts": {
+    "dev": "npm run dev --workspace @bolao/web",
+    "build": "npm run build --workspace @bolao/web",
+    "preview": "npm run preview --workspace @bolao/web",
+    "typecheck": "tsc -p packages/core/tsconfig.json --noEmit && tsc -p packages/local/tsconfig.json --noEmit && tsc -p apps/web/tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:db": "node supabase/tests/run-pglite.mjs",
+    "test:api": "deno check --config supabase/functions/api/deno.json supabase/functions/api/index.ts && deno lint supabase/functions/api && deno test --allow-env --config supabase/functions/api/deno.json supabase/functions/api/api_test.ts",
+    "test:e2e": "playwright test",
+    "done": "npm run typecheck && npm run lint && npm run test && npm run test:db && npm run test:api && npm run build && npm run test:e2e"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.56.0",
+    "@types/node": "^24.10.0",
+    "eslint": "^10.12.0",
+    "deno": "2.9.6",
+    "fake-indexeddb": "^6.2.4",
+    "globals": "^16.5.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.71.1",
+    "vitest": "^4.1.11"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "imports": {
+    "hono": "npm:hono@4.13.13",
+    "hono/body-limit": "npm:hono@4.13.13/body-limit",
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.117.2",
+    "../../../packages/core/src/types": "../../../packages/core/src/types.ts",
+    "../../../packages/core/src/lotteries": "../../../packages/core/src/lotteries.ts",
+    "../../../packages/core/src/money": "../../../packages/core/src/money.ts",
+    "../../../packages/core/src/generation": "../../../packages/core/src/generation.ts",
+    "../../../packages/core/src/validation": "../../../packages/core/src/validation.ts",
+    "../../../packages/core/src/financial-types": "../../../packages/core/src/financial-types.ts",
+    "../../../packages/core/src/financial": "../../../packages/core/src/financial.ts",
+    "../../../packages/core/src/planning-types": "../../../packages/core/src/planning-types.ts",
+    "../../../packages/core/src/planning-catalog": "../../../packages/core/src/planning-catalog.ts",
+    "../../../packages/core/src/prepared-plans": "../../../packages/core/src/prepared-plans.ts",
+    "../../../packages/core/src/canonical": "../../../packages/core/src/canonical.ts",
+    "../../../packages/core/src/registration-types": "../../../packages/core/src/registration-types.ts",
+    "../../../packages/core/src/result-types": "../../../packages/core/src/result-types.ts",
+    "../../../packages/core/src/evidence": "../../../packages/core/src/evidence.ts",
+    "../../../packages/core/src/source-validation": "../../../packages/core/src/source-validation.ts",
+    "../../../packages/core/src/caixa-results": "../../../packages/core/src/caixa-results.ts",
+    "../../../packages/core/src/lossless-json": "../../../packages/core/src/lossless-json.ts",
+    "../../../packages/core/src/results": "../../../packages/core/src/results.ts",
+    "../../../packages/core/src/registration": "../../../packages/core/src/registration.ts",
+    "../../../packages/core/src/planning": "../../../packages/core/src/planning.ts"
+  },
+  "compilerOptions": { "strict": true, "noUncheckedIndexedAccess": true },
+  "tasks": { "check": "deno check index.ts", "test": "deno test --allow-env api_test.ts" }
+}
