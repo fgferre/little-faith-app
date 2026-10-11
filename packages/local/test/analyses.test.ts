@@ -216,7 +216,7 @@ describe('deterministic local candidates and Worker checkpoint persistence', () 
     const checkpoint = runSimulationBatch(initial.input, initial.checkpoint, 200);
     const paused = await saveAnalysisProgress(db, initial.id, { checkpoint, status: 'paused', expectedProgressVersion: 0 });
     const exported = JSON.parse(await exportEmergencySnapshot(db));
-    expect(exported.format).toBe('bolao-emergency-v4');
+    expect(exported.format).toBe('bolao-emergency-v5');
     expect(exported.planningCandidates).toHaveLength(1);
     expect(exported.planningAnalyses).toEqual([paused]);
     expect(exported.simulationCheckpoints[0]).toMatchObject({ analysisId: paused.id, checkpoint: paused.checkpoint, progressVersion: paused.progressVersion });

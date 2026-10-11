@@ -245,7 +245,7 @@ describe('emergency originals', () => {
     const uploaded = await prepareEvidenceUpload(db, { groupId: GROUP, poolId: POOL, original: original() });
     await uploadEvidence(db, server, uploaded.id);
     const snapshot = JSON.parse(await exportEmergencySnapshot(db));
-    expect(snapshot).toMatchObject({ format: 'bolao-emergency-v4', encrypted: false, accountId: ACCOUNT });
+    expect(snapshot).toMatchObject({ format: 'bolao-emergency-v5', encrypted: false, accountId: ACCOUNT });
     expect(snapshot.warning).toContain('base64');
     const encoded = snapshot.evidenceUploads.find((row: { id: string }) => row.id === pending.id);
     expect(encoded.status).toBe('prepared');

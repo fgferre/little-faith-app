@@ -4,44 +4,32 @@ Lista viva do que está aberto. Leia só a seção O BASTÃO e o item da vez; o 
 Item resolvido sai da lista e vira commit com o número entre parênteses; a história de cada número fica no git (`git log --all --grep="(NNN)"`).
 Número é identidade, não posição: item novo entra no fim da sua seção. **Próximo número livre: 13.**
 
-## O BASTÃO — onde a rodada parou (10/10) — ETAPA 6 PELA METADE; `npm run done` NÃO PASSA; PRIMEIRO COMMIT FEITO
+## O BASTÃO — onde a rodada parou (10/10) — `npm run done` VERDE; ESTILO ESCOLHIDO; PRÓXIMO: ETAPA 6 ENXUTA
 
-**Estado:** etapas 1–4 feitas e verificadas antes; etapa 5 (registro e resultado) com código integrado no núcleo, na
-persistência, no frontend e no backend, faltando a rodada completa de validação; etapa 6 (apuração e rateio) pela
-metade, fora do app e do backend. A rodada segue `PLAN.md`, a partir da E1.
+**Estado:** etapas 1–5 com código integrado e verificado. Etapa 6 (divisão do prêmio): núcleo e persistência escritos,
+sem testes próprios; telas escritas, fora do app; o transporte do app já chama `settlement_pull`,
+`settlement_command_status` e `review_decide`, que o backend ainda não tem; não há migration nem RPC. A cópia de
+emergência passou a `bolao-emergency-v5` e inclui a fila da divisão.
 
-**Verificado em 10/10:** `npm run test:db` e `npm run test:api` passaram; `npm run test` com 4 falhas, typecheck e lint
-falhando (item 1); o E2E de resultados passou sozinho
-(`npx playwright test tests/e2e/financial.spec.ts -g 'manual results' --workers=1`). O sucesso de `npm run done`
-escrito no README e em `docs/IMPLEMENTATION.md` é antigo.
+**Verificado em 10/10, nesta sessão:** `npm run done` verde — tipos, lint, 282 testes, SQL no PGlite, 13 testes da
+API, build e 33 fluxos no navegador.
 
-**Git:** primeiro commit em `main` a pedido dele (10/10); só local, sem remoto e sem push.
+**Decisões dele (10/10):** pediu a revisão do produto e da interface (achados nos itens 6 a 12); o piloto vem antes do
+agente e do backup completo, *sem data fixa*; estilo: *"gostei da C, noite do sorteio"* — referência em `docs/estilo/`,
+descrita no `PLAN.md`; telas novas nascem nela, as antigas migram aos poucos.
 
-**Fora daqui:** sem Supabase real, OAuth Google, cron ou deploy (item 5); nenhum subagente ativo.
-A nota de passagem anterior e a cópia original da especificação estão em `~/Github/_arquivo/little-faith-docs-2026-10-10/`.
+**Git:** commits só locais em `main`, sem remoto e sem push. **Fora daqui:** sem Supabase real, OAuth Google, cron ou
+deploy (item 5); nenhum subagente ativo. A nota de passagem anterior e a cópia original da especificação estão em
+`~/Github/_arquivo/little-faith-docs-2026-10-10/`.
 
 **Textos pedidos por ele, já aplicados:** marca *"Seu bolão em boa companhia"*; início *"Faça sua fezinha, organize
 suas apostas e boa sorte!"*.
 
-**Revisão do produto e da interface (10/10, pedida por ele):** a base técnica está sólida, mas o produto foi feito
-como sistema de auditoria antes de um bolão real; as telas falam a língua do sistema; o visual é limpo e parado (uma
-animação no app inteiro, muita letra de 12 px ou menos). Achados nos itens 6 a 12. Decisões dele: o piloto vem antes
-do agente e do backup completo, *sem data fixa*; o estilo é escolhido primeiro, por imagem.
-
-**Estilo escolhido (10/10):** entre três direções em imagem, ele disse *"gostei da C, noite do sorteio"*. Referência em
-`docs/estilo/`; telas novas nascem nela, as antigas migram aos poucos.
-
-**A próxima rodada:** `PLAN.md` a partir da E1 (`npm run done` verde); depois a etapa 6 enxuta e o piloto.
+**A próxima rodada:** `PLAN.md` a partir da E2 (testes do núcleo da divisão) e da E4 (backend), que podem andar em
+paralelo com arquivos separados; depois a E5, já no estilo novo. Começar numa conversa nova, lendo só este bastão e o
+plano.
 
 ## ALTA — bloqueia a entrega ou pode perder trabalho
-
-**1. `npm run done` não passa (10/10).**
-Typecheck para em `packages/core/src/settlement.ts` (inferência de união em `latest(list, poolId)` dentro de
-`buildFact`); depois da primeira correção, conferir os erros seguintes em `packages/local` e nas telas de settlement.
-Lint: `sourceReport` sem uso em core/settlement; non-null assertion sobre optional chain em web/settlement-decision.
-Testes: `finance.test.ts`, `planning.test.ts` e `stage5-migration.test.ts` esperam `db.verno === 4`, mas o schema já é
-5 — atualizar sem enfraquecer a preservação de dados; `settlement-migration.test.ts` chama `getSettlementSnapshot` pelo
-index público, que ainda não o exporta (a implementação está em `src/settlement.ts`).
 
 ## MÉDIA — afeta o produto
 
@@ -52,7 +40,7 @@ anterior à etapa 5) contam um estado antigo. Atualizar com os números que pass
 ainda valer de `docs/IMPLEMENTATION.md` vai para o README, e ele sai.
 
 **4. A exportação de emergência não é backup (10/10).**
-O export atual é `bolao-emergency-v4`, sem criptografia; não apresentar como backup completo. `@zip.js/zip.js@2.23.0`
+O export atual é `bolao-emergency-v5`, sem criptografia; não apresentar como backup completo. `@zip.js/zip.js@2.23.0`
 já está instalado no web; codec e interface do backup (etapa 8) não foram escritos.
 
 **5. Nada foi conferido contra o Supabase real (10/10).**

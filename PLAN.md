@@ -9,10 +9,10 @@ Especificação: `docs/ESPECIFICACAO.md` › "Apuração e rateio" e "Ordem de i
 ## Etapas
 
 - [x] E0. Direção visual: três direções em imagem; ele escolheu a C, "Noite do sorteio" (10/10).
-- [ ] E1. `npm run done` volta a passar (item 1 de `docs/PENDENCIAS.md`).
+- [x] E1. `npm run done` volta a passar (10/10: tipos e lint corrigidos, testes no schema v5, cópia de emergência v5).
 - [ ] E2. Testes próprios de settlement no core: caixa/direitos, centavos, parcial, oficial, compensação, conflito,
   encerramento e reabertura.
-- [ ] E3. Exports públicos e sync v5 em `packages/local`; repetir os cenários integrados afetados da etapa 5 (o E2E de
+- [ ] E3. Sync v5 em `packages/local` (exports públicos feitos em 10/10); repetir os cenários integrados afetados da etapa 5 (o E2E de
   resultados já passou sozinho em 10/10).
 - [ ] E4. Backend: migration, RPCs e família HTTP de settlement, com validação SQL↔core, autorização humana, locks,
   revisão e idempotência.

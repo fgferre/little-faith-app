@@ -422,7 +422,7 @@ describe('pulls, finance and emergency recovery', () => {
       format: string; encrypted: boolean; warning: string; records: LocalRecord[];
       operations: DraftOperation[]; cursors: { groupId: string; cursor: number }[];
     };
-    expect(exported.format).toBe('bolao-emergency-v4');
+    expect(exported.format).toBe('bolao-emergency-v5');
     expect(exported.encrypted).toBe(false);
     expect(exported.warning).toContain('não está criptografada');
     expect(exported.records).toHaveLength(1);

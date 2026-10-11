@@ -573,7 +573,7 @@ function SettlementForm(
   const expense = newest(snapshot.expenses, pool.id);
   const prize = newest(snapshot.prizes, pool.id);
   const closure = newest(snapshot.closures, pool.id);
-  const balance = useMemo(() => computeSettlement(snapshot).pools[pool.id], [
+  const balance = useMemo(() => computeSettlement(snapshot).pools[pool.id]!, [
     snapshot,
     pool.id,
   ]);

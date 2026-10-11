@@ -127,7 +127,7 @@ describe('v3 migration and immutable planning facts', () => {
     expect(await db.metadata.get('outboxSequence')).toEqual({ key: 'outboxSequence', value: 1 });
     expect(await db.planningCommands.count()).toBe(0);
     expect(await db.planningAnalyses.count()).toBe(0);
-    expect(db.verno).toBe(4);
+    expect(db.verno).toBe(5);
   });
 
   it('stores applied plans and hashed manifests independently of drafts and finance', async () => {
@@ -440,7 +440,7 @@ describe('explicit plan application and pool locks', () => {
     await expect(executePlanningCommand(db, server, input.idempotencyKey)).rejects.toThrow();
     await applyPlanningSnapshot(db, lockedSnapshot());
     const exported = JSON.parse(await exportEmergencySnapshot(db));
-    expect(exported).toMatchObject({ format: 'bolao-emergency-v4', encrypted: false, accountId: db.accountId });
+    expect(exported).toMatchObject({ format: 'bolao-emergency-v5', encrypted: false, accountId: db.accountId });
     expect(exported.appliedPlans).toHaveLength(1);
     expect(exported.poolManifests).toHaveLength(1);
     expect(exported.planningCommands[0]).toMatchObject({ command: input, status: 'unknown' });

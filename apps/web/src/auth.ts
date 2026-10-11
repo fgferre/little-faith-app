@@ -22,6 +22,10 @@ import type {
   ResultReceipt,
   ResultSnapshot,
   ResultTransport,
+  SettlementCommand,
+  SettlementReceipt,
+  SettlementSnapshot,
+  SettlementTransport,
 } from "@bolao/core";
 import type { LocalSyncTransport } from "@bolao/local";
 
@@ -142,6 +146,7 @@ export function createAccountTransport(
   & PlanningTransport
   & RegistrationTransport
   & ResultTransport
+  & SettlementTransport
   & EvidenceTransport {
   return {
     registrationPull(groupId: string) {
@@ -269,6 +274,25 @@ export function createAccountTransport(
         return await api<PlanningReceipt>(
           accountId,
           `plan_command_status?idempotencyKey=${
+            encodeURIComponent(idempotencyKey)
+          }`,
+        );
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 404) return null;
+        throw error;
+      }
+    },
+    settlementPull(groupId: string) {
+      return api<SettlementSnapshot>(accountId, "settlement_pull", { groupId });
+    },
+    settlementDecide(command: SettlementCommand) {
+      return api<SettlementReceipt>(accountId, "review_decide", { command });
+    },
+    async settlementCommandStatus(idempotencyKey: string) {
+      try {
+        return await api<SettlementReceipt>(
+          accountId,
+          `settlement_command_status?idempotencyKey=${
             encodeURIComponent(idempotencyKey)
           }`,
         );

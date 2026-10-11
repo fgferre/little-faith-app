@@ -38,3 +38,7 @@ export {
   applyResultSnapshot, collectResults, executeResultCommand, getResultSnapshot, prepareResultCommand,
   recoverResultCommand, recoveryResultCommand,
 } from './results';
+export {
+  applySettlementSnapshot, executeSettlementCommand, getSettlementSnapshot, prepareSettlementCommand,
+  recoverSettlementCommand, recoverySettlementCommand,
+} from './settlement';

@@ -117,11 +117,6 @@ function manifest(snapshot: SettlementSnapshot, poolId: string): PoolManifest {
   if (!value) return planningInvalid('poolId', 'Apuração exige manifesto confirmado.');
   return value;
 }
-function sourceReport(snapshot: SettlementSnapshot, poolId: string, id: string): RegistrationReport {
-  const report = snapshot.registration.reports.find((r) => r.id === id && r.poolId === poolId);
-  if (!report || report.manifestId !== manifest(snapshot, poolId).id) return planningInvalid('registrationReportId', 'Relatório não corresponde ao manifesto selado.');
-  return report;
-}
 function poolRights(prize: PrizeConfirmation | null): Map<string, bigint> {
   const byPerson = new Map<string, bigint>();
   for (const right of prize?.rights ?? []) byPerson.set(right.personId, (byPerson.get(right.personId) ?? 0n) + BigInt(right.amountCents));
@@ -247,7 +242,7 @@ function reviewContext(snapshot: SettlementSnapshot, poolId: string): { observed
 }
 function buildFact(snapshot: SettlementSnapshot, value: SettlementAction, stamp: SettlementFactStamp): SettlementRecord {
   const frozen = manifest(snapshot, value.poolId), report = latest(snapshot.registration.reports, value.poolId)!;
-  const list = value.type === 'expense_confirm' ? snapshot.expenses : value.type === 'prize_confirm' ? snapshot.prizes : value.type.startsWith('redemption_') ? snapshot.redemptions : value.type.startsWith('distribution_') ? snapshot.distributions : snapshot.closures;
+  const list: Array<{ poolId: string; version: number }> = value.type === 'expense_confirm' ? snapshot.expenses : value.type === 'prize_confirm' ? snapshot.prizes : value.type.startsWith('redemption_') ? snapshot.redemptions : value.type.startsWith('distribution_') ? snapshot.distributions : snapshot.closures;
   const base: SettlementFact = { id: stamp.id, receiptId: stamp.receiptId, confirmedAt: stamp.confirmedAt, groupRevision: stamp.groupRevision, groupId: snapshot.groupId, poolId: value.poolId, poolVersion: value.poolVersion, version: (latest(list, value.poolId)?.version ?? 0) + 1 };
   if (value.type === 'expense_confirm') return { ...base, manifestId: frozen.id, registrationReportId: value.registrationReportId, supersedesId: value.supersedesId, betCostCents: value.betCostCents, feeCents: value.feeCents, totalCostCents: (BigInt(value.betCostCents) + BigInt(value.feeCents)).toString(), evidenceIds: value.evidenceIds, sourceReference: value.sourceReference, reason: value.reason };
   if (value.type === 'prize_confirm') return { ...base, manifestId: frozen.id, registrationReportId: value.registrationReportId, resultId: value.resultId, ...reviewContext(snapshot, value.poolId), supersedesId: value.supersedesId, calculatedPrizeCents: assessRegisteredPrizes(report, currentResult(snapshot.results, value.poolId)).calculatedPrizeCents, amountCents: value.amountCents, officialEntitlements: value.officialEntitlements, rights: confirmedRights(frozen, report, value.amountCents, value.officialEntitlements), evidenceIds: value.evidenceIds, sourceReference: value.sourceReference, reason: value.reason, redemptionDeadline: value.redemptionDeadline };

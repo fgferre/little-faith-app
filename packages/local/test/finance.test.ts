@@ -164,7 +164,7 @@ describe('v2 migration and immutable financial snapshots', () => {
     expect(await db.confirmedPayments.count()).toBe(1);
     expect(await db.receivedPayments.count()).toBe(0);
     expect(await db.financialCommands.count()).toBe(0);
-    expect(db.verno).toBe(4);
+    expect(db.verno).toBe(5);
   });
 
   it('stores the complete immutable ledger including quota revocations and preserves drafts', async () => {
@@ -471,7 +471,7 @@ describe('financial replication and emergency export', () => {
     server.loseBeforeAccepting = true;
     await expect(executeFinancialCommand(db, server, input.idempotencyKey)).rejects.toThrow();
     const json = JSON.parse(await exportEmergencySnapshot(db)) as { format: string; financialCommands: PersistentFinancialCommand[]; receivedPayments: unknown[]; financialSnapshots: unknown[]; financialReceipts: unknown[] };
-    expect(json.format).toBe('bolao-emergency-v4');
+    expect(json.format).toBe('bolao-emergency-v5');
     expect(json.financialCommands[0]).toMatchObject({ idempotencyKey: input.idempotencyKey, status: 'unknown', command: input });
     expect(json.receivedPayments).toEqual([]);
     expect(json.financialSnapshots).toEqual([]);

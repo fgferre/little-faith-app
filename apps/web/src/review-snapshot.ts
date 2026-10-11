@@ -16,6 +16,7 @@ export async function readReviewSnapshot(
       db.planningCommands,
       db.registrationCommands,
       db.resultCommands,
+      db.settlementCommands,
     ],
     async () => {
       const [
@@ -26,6 +27,7 @@ export async function readReviewSnapshot(
         planningCommands,
         registrationCommands,
         resultCommands,
+        settlementCommands,
       ] = await Promise.all([
         db.cursors.get(groupId),
         db.serverRecords.where("groupId").equals(groupId).toArray(),
@@ -34,6 +36,7 @@ export async function readReviewSnapshot(
         db.planningCommands.where("groupId").equals(groupId).toArray(),
         db.registrationCommands.where("groupId").equals(groupId).toArray(),
         db.resultCommands.where("groupId").equals(groupId).toArray(),
+        db.settlementCommands.where("groupId").equals(groupId).toArray(),
       ]);
       if (expectedRevision !== null && cursor?.cursor !== expectedRevision) {
         throw new Error(
@@ -47,6 +50,7 @@ export async function readReviewSnapshot(
         planningCommands,
         registrationCommands,
         resultCommands,
+        settlementCommands,
       };
     },
   );

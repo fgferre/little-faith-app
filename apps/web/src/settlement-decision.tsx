@@ -108,9 +108,9 @@ function reviewSummary(
         `${
           personName(item.personId)
         } · ${item.officialQuotas} cotas oficiais na cartela ${
-          manifest?.content.plan.tickets.findIndex((ticket) =>
+          (manifest?.content.plan.tickets.findIndex((ticket) =>
             ticket.key === item.plannedTicketKey
-          )! + 1
+          ) ?? NaN) + 1
         }: direito observado ${money(item.amountCents)}.`
       ),
     );
@@ -274,7 +274,7 @@ export function SettlementPending(
           : ["conflict", "rejected"].includes(saved.status)
           ? (
             <p className="inline-note" key={saved.idempotencyKey}>
-              {saved.lastError ??
+              {saved.receipt?.message ??
                 "O movimento precisa ser revisado e preparado novamente."}
             </p>
           )

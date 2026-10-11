@@ -29,7 +29,7 @@ export async function exportEmergencySnapshot(db: BolaoDatabase): Promise<string
     snapshot.evidenceUploads = serialized;
   }
   return JSON.stringify({
-    format: 'bolao-emergency-v4',
+    format: 'bolao-emergency-v5',
     encrypted: false,
     warning: 'Esta cópia local não está criptografada e contém dados privados, incluindo os originais de evidências locais em base64. Guarde-a em local protegido. Ela não substitui o backup completo do grupo, não baixa arquivos ausentes do servidor e não autoriza reenviar ou confirmar pendências.',
     createdAt,
