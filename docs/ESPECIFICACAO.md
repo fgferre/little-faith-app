@@ -663,6 +663,8 @@ O painel mostrará último backup automático, última exportação e último te
 | 9. Administração ampliada | Funcionalidades especificadas da entrega B |
 | 10. Expansão | Modalidades e recursos da entrega C, ativados individualmente |
 
+**Decisão de 10/10/2026 (dele):** o primeiro bolão real vem antes do agente e do backup completo. Depois da etapa 6, enxuta, o Supabase é ligado de verdade e o piloto roda; as etapas 7 e 8 vêm em seguida, sem data fixa. Telas novas nascem numa direção visual escolhida por ele por imagem.
+
 MCP e CLI fazem parte da entrega A. A implantação inicial não será considerada completa sem esse acesso e sem o fluxo manual.
 
 ### Testes necessários

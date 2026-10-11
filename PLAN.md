@@ -1,11 +1,14 @@
-# PLAN — fechar a validação da etapa 5 e terminar a etapa 6 (apuração e rateio) · 10/10/2026
+# PLAN — direção visual, etapa 6 enxuta e o primeiro bolão real · 10/10/2026
 
 Pedido dele (10/10): seguir as etapas da entrega A sem parar a cada fase; trabalho em paralelo autorizado, com núcleo,
 persistência e backend divididos por arquivos e contratos, e a integração no frontend coordenada pela sessão principal.
+Decisões dele depois da revisão de 10/10: o piloto vem antes do agente e do backup completo, sem data fixa; o estilo
+das telas é escolhido primeiro, por imagem, e as telas novas já nascem nele.
 Especificação: `docs/ESPECIFICACAO.md` › "Apuração e rateio" e "Ordem de implementação". Invariantes: `docs/ARCHITECTURE.md`.
 
 ## Etapas
 
+- [ ] E0. Direção visual: duas ou três direções em imagem (as mesmas telas, linguagem simples, movimento); ele escolhe.
 - [ ] E1. `npm run done` volta a passar (item 1 de `docs/PENDENCIAS.md`).
 - [ ] E2. Testes próprios de settlement no core: caixa/direitos, centavos, parcial, oficial, compensação, conflito,
   encerramento e reabertura.
@@ -13,9 +16,13 @@ Especificação: `docs/ESPECIFICACAO.md` › "Apuração e rateio" e "Ordem de i
   resultados já passou sozinho em 10/10).
 - [ ] E4. Backend: migration, RPCs e família HTTP de settlement, com validação SQL↔core, autorização humana, locks,
   revisão e idempotência.
-- [ ] E5. Frontend: tela, transporte, pendências e histórico; a fila de settlement entra na proteção de revisão de
-  **todas** as famílias de comandos; o caixa exibido passa a ser a projeção conciliada.
+- [ ] E5. Frontend, já na direção escolhida: tela, transporte, pendências e histórico; a fila de settlement entra na
+  proteção de revisão de **todas** as famílias de comandos; o caixa exibido passa a ser a projeção conciliada.
 - [ ] E6. E2E completo da etapa 6 e `npm run done`; documentação com os números que passarem de verdade (item 3).
+- [ ] E7. Piloto: Supabase real, Google, publicação e um bolão real do começo ao fim (cada passo pede a palavra dele).
+
+Etapa 6 enxuta para o piloto: na tela, prêmio confirmado, resgate, a parte de cada pessoa e "já paguei"; despesas,
+compensações, encerramento e reabertura ficam no núcleo e no backend, sem tela própria até o piloto pedir.
 
 ## Arquivos
 
@@ -57,5 +64,6 @@ Regras:
 
 ## Fora do escopo
 
-Etapa 7 (OAuth do agente, MCP/CLI, importação do WhatsApp), etapa 8 (backup criptografado, restauração, piloto),
-Supabase real, OAuth Google, cron do coletor, deploy e qualquer mensagem enviada para fora.
+Etapa 7 (OAuth do agente, MCP/CLI, importação do WhatsApp), etapa 8 (backup criptografado e restauração), cron do
+coletor e qualquer mensagem enviada para fora. Os achados da revisão de 10/10 (itens 6 a 12) entram só quando uma
+etapa acima tocar na mesma tela.
