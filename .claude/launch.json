@@ -13,7 +13,7 @@
       "runtimeExecutable": "python3",
       "runtimeArgs": ["-m", "http.server", "4300", "--bind", "127.0.0.1", "--directory", "docs/estilo"],
       "port": 4300,
-      "url": "http://127.0.0.1:4300/direcao-visual.html?tema=c"
+      "url": "http://127.0.0.1:4300/direcao-visual.html"
     }
   ]
 }

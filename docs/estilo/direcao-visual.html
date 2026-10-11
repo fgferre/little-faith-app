@@ -3,220 +3,733 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Little Faith · direções visuais</title>
+<title>Little Faith · Noite afinada (C2)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-:root { color-scheme: light; }
+:root { color-scheme: dark; }
 * { box-sizing: border-box; margin: 0; }
-body { min-height: 100vh; background: #e9e7ee; font-family: Inter, system-ui, sans-serif; color: #222; }
-.switch { position: sticky; top: 0; z-index: 9; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; padding: 12px 16px; background: #fffd; backdrop-filter: blur(8px); border-bottom: 1px solid #0001; }
-.switch button { font: 600 14px Inter, sans-serif; padding: 9px 14px; border-radius: 999px; border: 1px solid #0002; background: #fff; cursor: pointer; }
-.switch button[aria-pressed="true"] { background: #222; color: #fff; }
-.frames { display: flex; flex-wrap: wrap; gap: 32px; justify-content: center; padding: 28px 16px 48px; }
-.frame-label { font: 600 13px Inter, sans-serif; color: #555; text-align: center; margin-bottom: 10px; letter-spacing: .02em; }
-.phone { width: 375px; max-width: 100%; }
+[hidden] { display: none !important; }
+body { min-height: 100vh; background: #e4e1ec; font-family: Sora, system-ui, sans-serif; }
+.frames { display: flex; flex-wrap: wrap; gap: 36px 32px; justify-content: center; align-items: flex-start; padding: 28px 16px 48px; }
+.frame-label { font: 600 14px/1.3 Sora, sans-serif; color: #3a3550; text-align: center; margin-bottom: 10px; }
+.phone { width: 390px; flex: none; container: tela / inline-size; }
+.pair { display: flex; flex-wrap: wrap; gap: 32px; justify-content: center; width: 100%; }
+.m28 .balls { gap: 4px; }
+.m28 .ball { width: 28px; height: 28px; }
+body.so-desk { background: #0a0820; }
+body.so-desk .frames { padding: 0; gap: 0; }
+body.so-desk .frame-label { display: none; }
 
-/* ---------- Tema: variáveis ---------- */
+/* ---------- Tela (tema C refinado) ---------- */
 .screen {
-  --radius: 18px; --gap: 14px;
-  background: var(--bg); color: var(--ink); font-family: var(--font-body);
-  border-radius: 34px; overflow: hidden; padding: 20px 16px 24px; min-height: 812px;
-  box-shadow: 0 20px 50px #0002; position: relative;
+  --ink: #f4f1ff; --muted: #a9a3cc; --surface: rgba(255,255,255,.06); --card-line: rgba(255,255,255,.10); --line: rgba(255,255,255,.10);
+  --primary: #5b43d6; --ghost-line: #7a74a8; --gold: #ffcf4a; --gold-ink: #2a1d00; --mint: #3ee6a0;
+  --amber: #ff9f4a; --red: #ff8a97; --red-soft: rgba(255,93,115,.16); --focus: #c4b8ff; --mod: #3ee6a0;
+  position: relative; overflow: hidden; border-radius: 34px; padding: 12px 16px 24px;
+  background: radial-gradient(120% 70% at 50% 0%, #2c2170 0%, #120e33 55%, #0a0820 100%);
+  color: var(--ink); font: 500 15px/1.45 Sora, sans-serif; box-shadow: 0 20px 50px rgba(20,10,60,.25);
 }
-[data-tema="a"] .screen { --bg: #fff7e6; --surface: #fff; --ink: #1e1b2e; --muted: #6d6680; --line: #1e1b2e; --accent: #ff6b4a; --accent-ink: #fff; --mod: #13a05f; --mod-soft: #d8f5e6; --hit: #ffc83d; --hit-ink: #1e1b2e; --font-display: "Baloo 2", sans-serif; --font-body: Nunito, sans-serif; }
-[data-tema="b"] .screen { --bg: #f5f0e6; --surface: #fffdf8; --ink: #1f1a2e; --muted: #7a7285; --line: #d9d0c1; --accent: #5b43c9; --accent-ink: #fff; --mod: #1d8a57; --mod-soft: #e3efe6; --hit: #e5b443; --hit-ink: #1f1a2e; --font-display: Fraunces, serif; --font-body: Inter, sans-serif; }
-[data-tema="c"] .screen { --bg: radial-gradient(120% 70% at 50% 0%, #2c2170 0%, #120e33 55%, #0a0820 100%); --surface: #ffffff0f; --ink: #f4f1ff; --muted: #a9a3cc; --line: #ffffff1f; --accent: #8b74ff; --accent-ink: #fff; --mod: #3ee6a0; --mod-soft: #3ee6a01f; --hit: #ffcf4a; --hit-ink: #2a1d00; --font-display: Sora, sans-serif; --font-body: Sora, sans-serif; }
+.phone .screen { min-height: 844px; }
+.screen.mini { min-height: 0; padding: 16px; border-radius: 24px; }
+.mod-loto { --mod: #f07cf5; }
+.mod-quina { --mod: #5cc8ff; }
 
-/* ---------- Estrutura comum ---------- */
-.top { display: flex; justify-content: space-between; align-items: center; font-size: 14px; color: var(--muted); margin-bottom: 14px; }
-.top .back { font-weight: 600; }
-.chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 5px 10px; border-radius: 999px; background: var(--mod-soft); color: var(--mod); }
+.top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 -2px 4px -10px; }
+.back { display: inline-flex; align-items: center; gap: 2px; min-height: 44px; padding: 0 12px 0 6px; border: 0; border-radius: 12px; background: transparent; color: var(--ink); font: 600 15px/1 Sora, sans-serif; cursor: pointer; }
+.back svg { width: 20px; height: 20px; }
+.ctx { font-size: 13px; font-weight: 600; color: var(--muted); text-align: right; }
+.chip { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; line-height: 1.2; padding: 5px 10px; border-radius: 999px; background: color-mix(in srgb, var(--mod) 16%, transparent); color: var(--mod); white-space: nowrap; }
 .chip::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--mod); }
-h1 { font-family: var(--font-display); font-size: 32px; line-height: 1.05; margin: 10px 0 6px; letter-spacing: -.01em; }
-.sub { color: var(--muted); font-size: 14px; }
-.steps { display: flex; gap: 4px; margin: 18px 0; padding: 0; }
-.captura .switch { display: none; }
-.steps li { list-style: none; flex: 1; text-align: center; font-size: 11.5px; font-weight: 700; color: var(--muted); }
-.steps li::before { content: ""; display: block; height: 6px; border-radius: 999px; background: var(--line); margin-bottom: 6px; }
-.steps li.done::before { background: var(--mod); }
-.steps li.now { color: var(--ink); }
-.steps li.now::before { background: linear-gradient(90deg, var(--accent) 50%, var(--line) 50%); }
-.card { background: var(--surface); border-radius: var(--radius); padding: 16px; margin-bottom: var(--gap); position: relative; overflow: hidden; }
-.card h2 { font-family: var(--font-display); font-size: 19px; margin-bottom: 4px; }
-.card .hint { color: var(--muted); font-size: 13px; }
-.money { font-family: var(--font-display); font-size: 36px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
-.money small { font-size: 16px; color: var(--muted); font-weight: 600; }
-.bar { height: 14px; border-radius: 999px; background: var(--line); overflow: hidden; margin: 10px 0 12px; }
-.bar i { display: block; height: 100%; width: var(--p); border-radius: inherit; background: var(--mod); }
-.people { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
-.avatars { display: flex; }
-.avatars span { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; font-weight: 800; margin-left: -7px; border: 2px solid var(--surface); background: var(--mod-soft); color: var(--mod); }
-.avatars span:first-child { margin-left: 0; }
-.avatars span.owe { margin-left: 3px; background: transparent; color: var(--muted); border: 2px dashed var(--muted); }
-.btn { display: flex; justify-content: center; align-items: center; gap: 8px; width: 100%; font: 700 15px var(--font-body); padding: 13px 16px; border-radius: 14px; border: 0; background: var(--accent); color: var(--accent-ink); margin-top: 12px; cursor: pointer; }
-.btn.ghost { background: transparent; color: var(--ink); border: 1.5px solid var(--line); }
-.game { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); }
-.game:first-of-type { border-top: 0; }
-.game .who { width: 52px; flex: none; font-size: 12px; font-weight: 700; color: var(--muted); }
-.game.win-row .who { color: var(--ink); }
-.balls { display: flex; gap: 5px; flex-wrap: nowrap; }
-.ball { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font: 700 13px var(--font-body); font-variant-numeric: tabular-nums; background: var(--mod-soft); color: var(--mod); }
-.ball.hit { background: var(--hit); color: var(--hit-ink); }
-.tag { display: inline-block; margin-top: 4px; font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 999px; background: var(--hit); color: var(--hit-ink); }
-.drawn { display: flex; gap: 8px; justify-content: space-between; margin: 12px 0 4px; }
-.drawn .ball { width: 46px; height: 46px; font-size: 17px; }
-.win { text-align: center; padding: 22px 16px; }
-.win .big { font-family: var(--font-display); font-size: 26px; font-weight: 800; }
-.win .money { font-size: 42px; margin: 6px 0 2px; }
-.confetti { position: absolute; inset: 0; pointer-events: none; }
-.confetti i { position: absolute; top: -12px; width: 8px; height: 12px; border-radius: 2px; opacity: 0; }
+h1 { font-size: 28px; font-weight: 700; line-height: 1.15; letter-spacing: -.01em; margin: 10px 0 2px; }
+.sec { font-size: 13px; font-weight: 600; color: var(--muted); }
+.eyebrow { display: block; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; line-height: 1.3; color: var(--muted); margin-bottom: 8px; }
+.eyebrow + .sec { margin: -4px 0 10px; }
+.card { position: relative; background: var(--surface); border: 1px solid var(--card-line); border-radius: 18px; padding: 16px; margin-bottom: 14px; }
+.amber { color: var(--amber); font-weight: 700; }
+.nb { white-space: nowrap; }
 
-/* ---------- A · Festa ---------- */
-[data-tema="a"] .card { border: 2px solid var(--line); box-shadow: 4px 4px 0 var(--line); }
-[data-tema="a"] .btn { border: 2px solid var(--line); box-shadow: 3px 3px 0 var(--line); }
-[data-tema="a"] .btn.ghost { background: #fff; }
-[data-tema="a"] h1 { font-weight: 800; }
-[data-tema="a"] .ball { border: 2px solid var(--line); background: #fff; color: var(--ink); }
-[data-tema="a"] .game .ball:nth-child(3n+1) { background: #bfeedd; }
-[data-tema="a"] .game .ball:nth-child(3n+2) { background: #ffd9cc; }
-[data-tema="a"] .game .ball:nth-child(3n) { background: #e3dbff; }
-[data-tema="a"] .game .ball.hit, [data-tema="a"] .drawn .ball { background: var(--hit); }
-[data-tema="a"] .bar { border: 2px solid var(--line); background: #fff; height: 18px; }
-[data-tema="a"] .bar i { background: repeating-linear-gradient(-45deg, var(--mod) 0 10px, #19b56d 10px 20px); }
-[data-tema="a"] .win { background: #fff1c2; }
+/* etapas: faixa de chips tocáveis; esmaece nas bordas para onde ainda dá para rolar (--fl / --fr ligados pelo script) */
+.steps { margin: 14px -16px 18px; }
+.steps ol { --fl: 0px; --fr: 44px; position: relative; display: flex; gap: 4px; list-style: none; margin: 0; padding: 0 0 0 16px; overflow-x: auto; scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, rgba(0,0,0,.35) calc(var(--fl) * .45), #000 var(--fl), #000 calc(100% - var(--fr)), rgba(0,0,0,.35) calc(100% - var(--fr) * .45), transparent 100%);
+          mask-image: linear-gradient(90deg, transparent 0, rgba(0,0,0,.35) calc(var(--fl) * .45), #000 var(--fl), #000 calc(100% - var(--fr)), rgba(0,0,0,.35) calc(100% - var(--fr) * .45), transparent 100%); }
+.steps ol::-webkit-scrollbar { display: none; }
+.steps ol::after { content: ""; flex: 0 0 12px; }
+.steps li { flex: none; }
+.step { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 44px; padding: 0 12px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font: 600 13px/1 Sora, sans-serif; white-space: nowrap; cursor: pointer; }
+.step svg { width: 14px; height: 14px; flex: none; }
+.step.now { background: color-mix(in srgb, var(--mod) 20%, transparent); color: var(--mod); font-weight: 700; }
+.step.mini { height: 32px; cursor: default; }
+.step:focus-visible, .btn:focus-visible, .back:focus-visible, .x:focus-visible, .mod-btn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 
-/* ---------- B · Bilhete ---------- */
-[data-tema="b"] .card { border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 1px 0 #0000000a;
-  -webkit-mask: radial-gradient(circle 9px at 0 64px, #0000 98%, #000) , radial-gradient(circle 9px at 100% 64px, #0000 98%, #000);
-  -webkit-mask-composite: source-in; mask-composite: intersect; }
-[data-tema="b"] .card h2 { font-weight: 600; border-bottom: 1.5px dashed var(--line); padding-bottom: 12px; margin-bottom: 12px; }
-[data-tema="b"] h1 { font-weight: 600; font-size: 34px; }
-[data-tema="b"] .money { font-family: Fraunces, serif; font-weight: 600; }
-[data-tema="b"] .ball { background: transparent; color: var(--ink); border: 1.5px solid var(--ink); font-family: Inter, sans-serif; }
-[data-tema="b"] .ball.hit, [data-tema="b"] .drawn .ball { background: var(--hit); border-color: var(--hit); }
-[data-tema="b"] .chip { background: transparent; border: 1px solid var(--mod); }
-[data-tema="b"] .btn { border-radius: 10px; letter-spacing: .01em; }
-[data-tema="b"] .sub { font-style: italic; font-family: Fraunces, serif; font-size: 15px; }
+/* dinheiro, barra, gente */
+.money { font-size: 44px; font-weight: 700; line-height: 1.1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.money small { font-size: 15px; font-weight: 600; letter-spacing: 0; color: var(--muted); }
+.bar { display: flex; height: 10px; border-radius: 999px; background: rgba(255,255,255,.16); overflow: hidden; margin: 14px 0 10px; }
+.bar i { display: block; width: var(--p); background: #3ee6a0; }
+.bar s { display: block; width: var(--p); border-radius: 0 999px 999px 0; background: repeating-linear-gradient(-45deg, #ff9f4a 0 5px, rgba(255,159,74,.38) 5px 10px); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 14px; font-variant-numeric: tabular-nums; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.legend i { width: 10px; height: 10px; border-radius: 3px; background: var(--mint); }
+.legend i.pend { background: var(--amber); }
+.avatars { display: flex; align-items: center; }
+.av { width: 32px; height: 32px; flex: none; border-radius: 50%; display: grid; place-items: center; margin-left: -6px; border: 2px solid #191341; background: #3b3274; color: var(--ink); font-size: 12px; font-weight: 700; }
+.av:first-child { margin-left: 0; }
+.av.more { background: #2a2360; }
+.av.owe { margin-left: 6px; border: 2px dashed var(--amber); background: transparent; color: var(--amber); }
+.av.owe:first-child { margin-left: 0; }
+.av.owe + .av.owe { margin-left: 4px; }
+.av.prob { border: 2px solid var(--red); background: var(--red-soft); color: var(--red); }
+.owe-line { margin-top: 10px; }
 
-/* ---------- C · Noite do sorteio ---------- */
-[data-tema="c"] .card { border: 1px solid var(--line); backdrop-filter: blur(14px); }
-[data-tema="c"] h1 { font-weight: 700; font-size: 30px; }
-[data-tema="c"] .ball { background: radial-gradient(circle at 32% 28%, #fff 0 12%, #d9d3ff 35%, #7b68ee 100%); color: #1b1446; box-shadow: inset -3px -4px 8px #0004; }
-[data-tema="c"] .ball.hit, [data-tema="c"] .drawn .ball { background: radial-gradient(circle at 32% 28%, #fff 0 12%, #ffe9a3 35%, #f5a623 100%); color: #2a1d00; box-shadow: inset -3px -4px 8px #0003, 0 0 18px #ffcf4a88; }
-[data-tema="c"] .bar i { background: linear-gradient(90deg, #3ee6a0, #8b74ff); box-shadow: 0 0 14px #3ee6a088; }
-[data-tema="c"] .btn { background: linear-gradient(135deg, #8b74ff, #5d45e6); box-shadow: 0 8px 24px #5d45e666; }
-[data-tema="c"] .btn.ghost { background: transparent; box-shadow: none; }
-[data-tema="c"] .avatars span { border-color: #1b1446; }
-[data-tema="c"] .win { background: radial-gradient(80% 90% at 50% 0%, #ffcf4a33, transparent 70%), var(--surface); }
-[data-tema="c"] .win .money { color: var(--hit); text-shadow: 0 0 24px #ffcf4a66; }
+/* estados */
+.state { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; line-height: 1.2; white-space: nowrap; }
+.state svg { width: 15px; height: 15px; flex: none; }
+.state.pend { color: var(--amber); border: 1.5px dashed var(--amber); border-radius: 999px; padding: 5px 10px; }
+.state.ok { color: var(--mint); }
+.pays { list-style: none; padding: 0; margin: 14px 0 0; }
+.pays li { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 6px 12px; padding: 12px 0; border-top: 1px solid var(--line); }
+.pays li.pb { display: block; }
+.pays .pname { font-weight: 600; }
+.pays .pval { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pays .state { grid-column: 1 / -1; justify-self: start; }
+.prob-box { display: flex; gap: 10px; align-items: flex-start; padding: 12px; border-radius: 12px; background: var(--red-soft); border: 1px solid rgba(255,138,151,.4); }
+.prob-box svg { width: 20px; height: 20px; flex: none; color: var(--red); margin-top: 1px; }
+.prob-box strong { display: block; font-size: 15px; font-weight: 700; line-height: 1.3; color: var(--red); }
+.prob-box p { margin-top: 4px; font-size: 13px; font-weight: 600; color: var(--ink); }
+
+/* botões */
+.btn { display: flex; justify-content: center; align-items: center; gap: 8px; width: 100%; min-height: 48px; padding: 12px 16px; margin-top: 12px; border: 0; border-radius: 14px; background: var(--primary); color: #fff; font: 700 15px/1.2 Sora, sans-serif; cursor: pointer; text-decoration: none; }
+.btn.ghost { background: transparent; color: var(--ink); border: 1.5px solid var(--ghost-line); }
+.btn.sm { width: auto; min-height: 44px; padding: 8px 14px; margin: 10px 0 0 auto; }
+.btn svg { width: 20px; height: 20px; flex: none; }
+.btns { margin-top: 16px; }
+.btns .btn:first-child { margin-top: 0; }
+
+/* jogos */
+.game { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+.game:first-child { border-top: 0; }
+.who { flex: 1 1 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.who b { font-size: 15px; font-weight: 600; }
+.game.loto { align-items: flex-start; }
+.balls { display: flex; gap: 5px; flex: none; }
+.balls.grid5 { display: grid; grid-template-columns: repeat(5, 32px); gap: 5px; }
+.tag { display: inline-block; font-size: 13px; font-weight: 800; line-height: 1.3; padding: 2px 8px; border-radius: 999px; background: var(--gold); color: var(--gold-ink); white-space: nowrap; }
+.hits { font-size: 13px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+
+/* bolas de metal: PRATA = números dos jogadores; OURO = sorteados, acertos de jogo premiado (e o brilho do prêmio).
+   Todo o sombreado é feito em % (gradientes), então a mesma bola serve de 16 px a 52 px.
+   Três acabamentos para comparar; o padrão (Polido, em :root, escolha dele em 11/10) vale para todas as telas. */
+:root, .m-polido {
+  --ag:
+    radial-gradient(8% 8% at 30% 22%, #fff 45%, rgba(255,255,255,0) 100%),
+    linear-gradient(128deg, rgba(255,255,255,0) 19%, rgba(255,255,255,.9) 30%, rgba(255,255,255,.25) 37%, rgba(255,255,255,0) 45%),
+    radial-gradient(70% 42% at 50% 104%, rgba(168,146,255,.42), rgba(168,146,255,0) 100%),
+    radial-gradient(circle closest-side, rgba(27,20,70,0) 70%, rgba(27,20,70,.38) 100%),
+    linear-gradient(172deg, #f6f6fb 0%, #e8e8f0 34%, #b4b4c7 58%, #8e8ea3 84%, #9f9bbd 100%);
+  --au:
+    radial-gradient(8% 8% at 30% 22%, #fff 45%, rgba(255,255,255,0) 100%),
+    linear-gradient(128deg, rgba(255,248,222,0) 19%, rgba(255,248,222,.9) 30%, rgba(255,248,222,.25) 37%, rgba(255,248,222,0) 45%),
+    radial-gradient(70% 42% at 50% 104%, rgba(255,214,120,.55), rgba(255,214,120,0) 100%),
+    radial-gradient(circle closest-side, rgba(96,54,0,0) 70%, rgba(96,54,0,.42) 100%),
+    linear-gradient(172deg, #fff3c6 0%, #ffe08a 34%, #e6b03a 58%, #b8860b 84%, #c99a2a 100%);
+  --au-ring: conic-gradient(from 200deg, #fff2bd, #d9a12a 18%, #ffe08a 38%, #9a6a05 60%, #ffd66e 80%, #fff2bd);
+}
+.m-escovado {
+  --ag:
+    repeating-linear-gradient(180deg, rgba(255,255,255,.18) 0 1px, rgba(40,34,90,.07) 1px 2px),
+    repeating-linear-gradient(180deg, rgba(40,34,90,0) 0 2px, rgba(40,34,90,.08) 2px 3px, rgba(40,34,90,0) 3px 5px),
+    radial-gradient(42% 62% at 44% 34%, rgba(255,255,255,.55), rgba(255,255,255,0) 100%),
+    radial-gradient(circle closest-side, rgba(27,20,70,0) 60%, rgba(27,20,70,.3) 100%),
+    linear-gradient(180deg, #ececf3 0%, #d6d6e2 50%, #a7a7bc 100%);
+  --au:
+    repeating-linear-gradient(180deg, rgba(255,250,228,.2) 0 1px, rgba(110,70,0,.08) 1px 2px),
+    repeating-linear-gradient(180deg, rgba(110,70,0,0) 0 2px, rgba(110,70,0,.09) 2px 3px, rgba(110,70,0,0) 3px 5px),
+    radial-gradient(42% 62% at 44% 34%, rgba(255,250,228,.55), rgba(255,250,228,0) 100%),
+    radial-gradient(circle closest-side, rgba(96,54,0,0) 60%, rgba(96,54,0,.32) 100%),
+    linear-gradient(180deg, #ffe7a3 0%, #f2c55c 50%, #c4921c 100%);
+  --au-ring: conic-gradient(from 200deg, #ffe7a3, #d4a03a 25%, #f2c55c 50%, #b07e14 75%, #ffe7a3);
+}
+.m-cromo {
+  --ag:
+    radial-gradient(11% 7% at 35% 19%, #fff 40%, rgba(255,255,255,0) 100%),
+    radial-gradient(circle closest-side, rgba(20,14,60,0) 76%, rgba(20,14,60,.5) 100%),
+    radial-gradient(64% 26% at 50% 100%, rgba(180,160,255,.55), rgba(180,160,255,0) 100%),
+    radial-gradient(200% 150% at 50% -60%, #b9b9d8 40%, #e9e9f5 68%, #fff 78.4%, #a6a6be 79%, #9292ac 86%, #6a6a8a 95%, #5e5c80 100%);
+  --au:
+    radial-gradient(11% 7% at 35% 19%, #fff 40%, rgba(255,255,255,0) 100%),
+    radial-gradient(circle closest-side, rgba(70,40,0,0) 76%, rgba(70,40,0,.5) 100%),
+    radial-gradient(64% 26% at 50% 100%, rgba(255,214,120,.5), rgba(255,214,120,0) 100%),
+    radial-gradient(200% 150% at 50% -60%, #edc768 40%, #fff0c2 68%, #fffbea 78.4%, #d8a737 79%, #c18b1b 86%, #8f6000 95%, #7a5000 100%);
+  --au-ring: conic-gradient(from 200deg, #fffbea, #c18b1b 20%, #fff0c2 42%, #7a5000 62%, #edc768 82%, #fffbea);
+}
+.ball { position: relative; width: 32px; height: 32px; flex: none; border-radius: 50%; display: grid; place-items: center; font: 700 13px/1 Sora, sans-serif; font-variant-numeric: tabular-nums;
+  color: #1b1446; background: var(--ag); box-shadow: 0 1px 2px rgba(0,0,0,.35); text-shadow: 0 1px 0 rgba(255,255,255,.4); }
+.ball.gold { color: #2a1d00; background: var(--au); box-shadow: 0 1px 2px rgba(0,0,0,.3), 0 0 12px rgba(255,207,74,.45); text-shadow: 0 1px 0 rgba(255,246,214,.45); }
+/* acerto em jogo não premiado: bola prata com um anel fino de ouro */
+.ball.ring::after { content: ""; position: absolute; inset: -2px; border-radius: 50%; padding: 1.5px; background: var(--au-ring);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude; }
+.drawn { display: flex; justify-content: space-between; gap: 6px; }
+.drawn .ball { width: 42px; height: 42px; font-size: 16px; }
+.drawn.d15 { display: grid; grid-template-columns: repeat(5, 40px); gap: 8px; justify-content: space-between; }
+.drawn.d15 .ball { width: 40px; height: 40px; font-size: 15px; }
+
+/* resultado */
+.result { text-align: center; padding: 22px 16px; }
+.result .eyebrow { margin-bottom: 6px; }
+.result-title { font-size: 28px; font-weight: 700; line-height: 1.15; letter-spacing: -.01em; }
+.prize { margin: 8px 0 4px; font-size: min(48px, calc((100cqi - 66px) / 6.2)); font-weight: 800; line-height: 1.1; letter-spacing: -.02em; color: var(--gold); text-shadow: 0 0 24px rgba(255,207,74,.4); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.best { margin-top: 6px; }
+.result .drawn { margin: 16px 0 12px; }
+
+/* telas estreitas (menos de 360) */
+@container tela (max-width: 359px) {
+  .game .ball { width: 28px; height: 28px; }
+  .balls { gap: 4px; }
+  .balls.grid5 { grid-template-columns: repeat(5, 28px); gap: 4px; }
+  .drawn .ball, .drawn.d15 .ball { width: 36px; height: 36px; font-size: 15px; }
+  .drawn.d15 { grid-template-columns: repeat(5, 36px); }
+}
+/* abaixo de 380: em linhas com acertos, o nome (e o selo) sobe para cima das bolas, igual em todas as linhas */
+@container tela (max-width: 379px) {
+  .game:has(.who .tag, .who .hits) .who { flex-basis: 100%; }
+}
+
+/* início */
+.screen.home { padding-bottom: 104px; }
+.grp { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 8px; border: 0; border-radius: 12px; background: transparent; color: var(--ink); font: 600 15px/1 Sora, sans-serif; cursor: pointer; }
+.grp .g-av { width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; background: #3b3274; color: var(--ink); font-size: 12px; font-weight: 800; }
+.grp svg { width: 18px; height: 18px; color: var(--muted); }
+.logo-mini { margin-right: 4px; }
+/* marca: duas bolas em diagonal (prata atrás, ouro na frente), sem trilho, para não ler como interruptor */
+.mark { position: relative; display: inline-block; flex: none; width: 38px; height: 36px; }
+.mark .ball { position: absolute; font-size: 0; }
+.mark .ball:first-child { width: 20px; height: 20px; left: 0; top: 1px; box-shadow: 0 1px 2px rgba(0,0,0,.35); }
+.mark .ball.gold { width: 25px; height: 25px; left: 13px; top: 10px; box-shadow: 0 0 0 1.5px rgba(10,8,32,.6), 0 2px 4px rgba(0,0,0,.4); }
+.hero { margin-top: 10px; padding: 18px 16px; }
+.hero .money { margin: 2px 0 4px; }
+.due { display: flex; align-items: center; gap: 10px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.sect { margin: 22px 0 10px 4px; }
+.card.pool { --card-line: rgba(255,255,255,.14); }
+.pool { display: flex; align-items: center; gap: 12px; padding: 14px 10px 14px 16px; margin-bottom: 10px; color: inherit; text-decoration: none; }
+.pool-main { flex: 1; min-width: 0; }
+.pool-main b { display: block; font-size: 15px; font-weight: 700; }
+.pool-main .sec { margin-top: 2px; }
+.pool-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+.pool > svg { width: 20px; height: 20px; flex: none; color: var(--muted); }
+.tabbar { position: absolute; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(4, 1fr); padding: 6px 4px 20px; background: #0d0a26; border-top: 1px solid rgba(255,255,255,.10); }
+.tabbar a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 56px; color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 600; }
+.tabbar .ti { position: relative; display: grid; place-items: center; width: 56px; height: 30px; border-radius: 999px; }
+.tabbar svg { width: 22px; height: 22px; }
+.tabbar a.on { color: var(--ink); }
+.tabbar a.on .ti { background: rgba(139,116,255,.28); }
+.badge { display: grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: var(--amber); color: #2a1400; font-size: 13px; font-weight: 800; line-height: 1; }
+.tabbar .badge { position: absolute; top: -6px; right: 2px; }
+
+/* cartão do WhatsApp: desenho fixo 340 x 425 (4:5, como a imagem 1080 x 1350); em tela estreita o cartão inteiro encolhe, não se rearruma */
+.share-wrap { --k: min(1, tan(atan2(100cqi - 32px, 340px))); width: calc(340px * var(--k)); height: calc(425px * var(--k)); margin: 18px auto 4px; }
+.share { width: 340px; height: 425px; transform: scale(var(--k)); transform-origin: 0 0; overflow: hidden; padding: 16px 14px 12px; display: flex; flex-direction: column;
+  border-radius: 20px; border: 1px solid rgba(255,255,255,.14); background: radial-gradient(120% 80% at 50% 0%, #2c2170 0%, #160f3d 60%, #0d0a26 100%); box-shadow: 0 14px 34px rgba(0,0,0,.4); }
+.share .sh-name { font-size: 28px; font-weight: 700; line-height: 1.15; letter-spacing: -.01em; margin-bottom: 4px; }
+.share .chip { align-self: flex-start; }
+.share .eyebrow { margin: 10px 0 6px; }
+.share .drawn .ball { width: 34px; height: 34px; font-size: 15px; }
+.share .game { flex-wrap: nowrap; gap: 6px; padding: 3px 0; border: 0; }
+.share .who { flex: 0 0 46px; }
+.share .who b { font-size: 13px; font-weight: 700; }
+.share .game .ball { width: 26px; height: 26px; font-size: 13px; }
+.share .balls { gap: 4px; }
+.share .res { margin-left: 4px; }
+.sh-res { margin-top: auto; padding-top: 6px; text-align: center; }
+.sh-res span { display: block; font-size: 15px; font-weight: 700; }
+.sh-res b { display: block; font-size: 40px; font-weight: 800; line-height: 1.15; letter-spacing: -.02em; color: var(--gold); text-shadow: 0 0 20px rgba(255,207,74,.4); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sh-mark { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 6px; font-size: 13px; font-weight: 700; color: var(--muted); }
+.sh-mark .mark { zoom: .62; }
+.center { text-align: center; }
+
+/* formulário em folha */
+.sheet-wrap { position: absolute; inset: 0; background: rgba(6,4,26,.8); display: flex; align-items: flex-end; }
+.sheet { width: 100%; background: linear-gradient(180deg, #1f1852 0%, #151038 60%); border-top: 1px solid rgba(255,255,255,.18); border-radius: 28px 28px 0 0; padding: 10px 18px 24px; box-shadow: 0 -24px 60px rgba(0,0,0,.6); }
+.sheet .handle { width: 40px; height: 5px; border-radius: 999px; background: rgba(255,255,255,.25); margin: 0 auto 8px; }
+.sheet header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.sheet h2 { font-size: 28px; font-weight: 700; line-height: 1.15; letter-spacing: -.01em; padding-top: 4px; }
+.x { flex: none; width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid var(--ghost-line); background: transparent; color: var(--ink); font: 600 16px Sora, sans-serif; display: grid; place-items: center; cursor: pointer; }
+.field { margin-top: 16px; }
+.field label, .field .lab { display: block; font-size: 15px; font-weight: 600; margin-bottom: 8px; color: var(--ink); }
+.input { display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 0 14px; border-radius: 14px; background: rgba(255,255,255,.04); border: 1.5px solid var(--ghost-line); color: var(--muted); }
+.input input { flex: 1; min-width: 0; min-height: 48px; background: transparent; border: 0; outline: 0; font: 500 16px Sora, sans-serif; color: var(--ink); font-variant-numeric: tabular-nums; }
+.input:focus-within, .input.is-focus { border-color: var(--focus); box-shadow: 0 0 0 3px rgba(139,116,255,.6); }
+.input .pre { font-weight: 700; color: var(--ink); }
+.input svg { width: 18px; height: 18px; flex: none; }
+.help { font-size: 13px; font-weight: 600; color: var(--muted); margin-top: 6px; }
+.mods { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.mod-btn { position: relative; min-height: 76px; border-radius: 16px; border: 1.5px solid var(--ghost-line); background: rgba(255,255,255,.03); color: var(--ink); display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 3px; padding: 10px; font: 700 15px/1.2 Sora, sans-serif; text-align: left; cursor: pointer; }
+.mod-btn .dot { width: 16px; height: 16px; border-radius: 50%; background: var(--c); box-shadow: inset -2px -2px 3px rgba(0,0,0,.3), inset 1.5px 1.5px 0 rgba(255,255,255,.5); margin-bottom: 4px; }
+.mod-btn small { font-weight: 600; font-size: 13px; color: var(--muted); }
+.mod-btn[aria-checked="true"] { border: 2px solid var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); }
+.mod-btn[aria-checked="true"]::after { content: "✓"; position: absolute; top: 8px; right: 10px; font-size: 15px; color: var(--c); }
+@container tela (max-width: 379px) {
+  .mods { grid-template-columns: 1fr; }
+  .mod-btn { min-height: 52px; flex-direction: row; align-items: center; justify-content: flex-start; gap: 10px; padding: 10px 14px; }
+  .mod-btn .dot { margin: 0; }
+  .mod-btn[aria-checked="true"]::after { top: 50%; transform: translateY(-50%); right: 14px; }
+}
+
+/* computador */
+.desk-frame { width: 1440px; flex: none; }
+.screen.desk { width: 1440px; height: 900px; min-height: 0; padding: 0; border-radius: 0; display: grid; grid-template-columns: 264px 1fr; box-shadow: none;
+  background: radial-gradient(70% 80% at 55% 0%, #2c2170 0%, #120e33 60%, #0a0820 100%); }
+.side { padding: 22px 16px; border-right: 1px solid var(--line); background: rgba(255,255,255,.025); display: flex; flex-direction: column; gap: 4px; }
+.logo { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 700; padding: 4px 8px 18px; }
+.group { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 56px; padding: 10px 8px 10px 10px; margin-bottom: 14px; border-radius: 14px; background: var(--surface); border: 1.5px solid var(--ghost-line); color: var(--ink); font: 500 13px/1.3 Sora, sans-serif; text-align: left; cursor: pointer; }
+.group .g-av { width: 32px; height: 32px; flex: none; border-radius: 10px; display: grid; place-items: center; background: #3b3274; color: var(--ink); font-weight: 800; font-size: 12px; }
+.group b { display: block; font-size: 15px; font-weight: 600; white-space: nowrap; }
+.group small { font-size: 13px; font-weight: 600; color: var(--muted); }
+.group svg { margin-left: auto; width: 16px; height: 16px; flex: none; color: var(--muted); }
+.nav { display: grid; gap: 4px; }
+.nav a { display: flex; align-items: center; gap: 12px; min-height: 46px; padding: 0 12px; border-radius: 12px; color: var(--muted); font-weight: 600; font-size: 15px; text-decoration: none; }
+.nav a svg { width: 20px; height: 20px; flex: none; }
+.nav a.on { background: rgba(139,116,255,.18); color: var(--ink); box-shadow: inset 3px 0 0 #a996ff; }
+.nav .badge { margin-left: auto; }
+.side-foot { margin-top: auto; }
+.dmain { padding: 16px 28px 24px; overflow: hidden; }
+.dwrap { max-width: 1120px; height: 100%; margin: 0 auto; display: flex; flex-direction: column; }
+.dtop { display: flex; align-items: center; justify-content: space-between; margin-left: -6px; }
+.dhead { display: flex; align-items: center; gap: 14px; margin: 2px 0 14px; }
+.dhead h1 { margin: 0; }
+.desk .steps { margin: 0 0 18px; }
+.desk .steps ol { padding: 4px; gap: 8px; overflow: visible; border-radius: 999px; background: rgba(255,255,255,.04); -webkit-mask-image: none; mask-image: none; }
+.desk .steps ol::after { display: none; }
+.desk .steps li { flex: 1 1 0; }
+.desk .step { width: 100%; }
+.cols { flex: 1; min-height: 0; display: grid; grid-template-columns: 1.25fr 1fr; gap: 20px; }
+.col { display: flex; flex-direction: column; gap: 16px; min-height: 0; }
+.desk .card { margin: 0; padding: 20px; }
+.desk .result { display: grid; grid-template-columns: 1fr 220px; align-items: center; gap: 8px 24px; text-align: left; padding: 22px 24px; }
+.desk .result .btns { margin: 0; }
+.desk .drawn { justify-content: flex-start; gap: 14px; }
+.desk .drawn .ball { width: 52px; height: 52px; font-size: 19px; }
+.desk .game { flex-wrap: nowrap; gap: 14px; padding: 12px 0; }
+.desk .who { flex: 0 0 96px; }
+.desk .game .ball { width: 40px; height: 40px; font-size: 15px; }
+.desk .balls { gap: 7px; }
+.desk .res { margin-left: 2px; }
+.split-card { flex: 1; display: flex; flex-direction: column; }
+.split-card .btn { margin-top: auto; }
+.split { list-style: none; padding: 0; margin: 4px 0 0; }
+.split li { display: grid; grid-template-columns: 1fr 64px 172px 100px; align-items: center; gap: 12px; min-height: 48px; padding: 4px 0; border-top: 1px solid var(--line); }
+.split li:first-child { border-top: 0; }
+.split .n { font-weight: 600; }
+.split .c { font-size: 13px; font-weight: 600; color: var(--muted); }
+.split .v { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.split .state { justify-self: start; }
+.split .state.pend { padding: 3px 9px; }
+.split li.tot { border-top: 1px solid rgba(255,255,255,.22); }
+.split li.tot .n { font-weight: 700; }
 
 /* ---------- Movimento ---------- */
-.play .bar i { animation: fill 1.4s cubic-bezier(.2,.8,.2,1) both .3s; }
-.play .rise { animation: rise .6s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--d, 0) * 90ms); }
-.play .game .ball { animation: pop .45s cubic-bezier(.3,1.6,.5,1) both; animation-delay: calc(400ms + var(--i) * 45ms); }
-.play .drawn .ball { animation: drop .7s cubic-bezier(.3,1.4,.5,1) both; animation-delay: calc(300ms + var(--i) * 260ms); }
-.play .after .game .ball.hit { animation: pop .45s cubic-bezier(.3,1.6,.5,1) both, glow 1.2s ease-in-out 2.4s 2; }
-.play .tag { animation: rise .5s both 2.3s; }
-.play .win { animation: rise .7s cubic-bezier(.2,.8,.2,1) both 2.2s; }
+.play .bar i, .play .bar s { animation: fill 1.4s cubic-bezier(.2,.8,.2,1) both .3s; }
+.play .game .ball { animation: pop .45s cubic-bezier(.3,1.6,.5,1) both; animation-delay: calc(300ms + var(--i, 0) * 30ms); }
+.play .drawn .ball { animation: drop .7s cubic-bezier(.3,1.4,.5,1) both; animation-delay: calc(200ms + var(--i, 0) * 200ms); }
+.play .game.win .ball.gold { animation: pop .45s cubic-bezier(.3,1.6,.5,1) both, glow 1.1s ease-in-out 2.2s 2; animation-delay: calc(300ms + var(--i, 0) * 30ms), 2.2s; }
+.play .tag { animation: rise .5s both 2s; }
+.play .prize, .play .sh-res b { animation: rise .7s cubic-bezier(.2,.8,.2,1) both 1.6s; }
 @keyframes fill { from { width: 0; } }
 @keyframes rise { from { opacity: 0; transform: translateY(14px); } }
 @keyframes pop { from { opacity: 0; transform: scale(.4); } }
 @keyframes drop { 0% { opacity: 0; transform: translateY(-80px) rotate(-120deg); } 70% { opacity: 1; } 100% { transform: none; } }
 @keyframes glow { 50% { transform: scale(1.15); } }
-@keyframes fall { 0% { opacity: 1; transform: translateY(0) rotate(0); } 100% { opacity: 0; transform: translateY(260px) rotate(540deg); } }
 @media (prefers-reduced-motion: reduce) { .play * { animation: none !important; } }
 </style>
 </head>
-<body data-tema="a">
-<nav class="switch" aria-label="Direção visual">
-  <button data-set="a">A · Festa</button>
-  <button data-set="b">B · Bilhete</button>
-  <button data-set="c">C · Noite do sorteio</button>
-  <button id="replay">↻ Rever o movimento</button>
-</nav>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-back" viewBox="0 0 20 20"><path d="M12.5 4.5L7 10l5.5 5.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-next" viewBox="0 0 20 20"><path d="M7.5 4.5L13 10l-5.5 5.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-down" viewBox="0 0 20 20"><path d="M5 8l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-check" viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 4.6V8l2.4 1.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7.5" fill="currentColor"/><path d="M8 4v5" stroke="#1a0710" stroke-width="2" stroke-linecap="round"/><circle cx="8" cy="11.8" r="1.1" fill="#1a0710"/></symbol>
+  <symbol id="i-home" viewBox="0 0 20 20"><path d="M3 9l7-6 7 6v8H3z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+  <symbol id="i-pools" viewBox="0 0 20 20"><circle cx="7" cy="10" r="4.5" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="13.5" cy="10" r="4.5" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+  <symbol id="i-review" viewBox="0 0 20 20"><path d="M4 10.5l4 4 8-9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-hist" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M10 6v4l3 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-share" viewBox="0 0 20 20"><path d="M10 2.6a7.4 7.4 0 0 0-6.4 11.1l-1.1 3.8 3.9-1a7.4 7.4 0 1 0 3.6-13.9z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M7.4 7.2c.2 2.6 2.6 5 5.4 5.4l1-1.3-1.7-.9-.8.7c-.9-.4-1.8-1.3-2.2-2.2l.7-.8-.9-1.7z" fill="currentColor"/></symbol>
+</svg>
 
 <main class="frames">
-  <section class="phone before">
-    <p class="frame-label">Antes do sorteio · juntando o dinheiro</p>
-    <div class="screen">
-      <div class="top rise"><span class="back">‹ Bolões</span><span>Turma do trabalho</span></div>
-      <span class="chip rise">Mega-Sena · sábado, 20h</span>
-      <h1 class="rise" style="--d:1">Mega de sábado</h1>
-      <p class="sub rise" style="--d:2">10 pessoas, uma torcida só.</p>
-      <ol class="steps rise" style="--d:3"><li class="done">Montar</li><li class="now">Arrecadar</li><li>Jogar</li><li>Registrar</li><li>Sorteio</li><li>Dividir</li></ol>
-      <div class="card rise" style="--d:4">
-        <h2>Arrecadação</h2>
-        <div class="money">R$ 240 <small>de R$ 300</small></div>
-        <div class="bar" style="--p:80%"><i></i></div>
-        <div class="people"><div class="avatars"><span>AN</span><span>BR</span><span>DI</span><span>EL</span><span>FE</span><span class="owe">CA</span><span class="owe">GU</span></div>Faltam Carla e Gustavo</div>
-        <button class="btn">Cobrar no WhatsApp</button>
+
+  <!-- ===== Início ===== -->
+  <section class="phone" data-grupo="inicio">
+    <p class="frame-label">Início</p>
+    <div class="screen home">
+      <div class="top" style="margin-left:-8px">
+        <button class="grp" type="button"><span class="g-av">TT</span>Turma do trabalho<svg aria-hidden="true"><use href="#i-down"/></svg></button>
+        <span class="logo-mini mark" role="img" aria-label="Little Faith"><span class="ball"></span><span class="ball gold"></span></span>
       </div>
-      <div class="card rise" style="--d:5">
-        <h2>Nossos jogos</h2>
-        <p class="hint">4 jogos · R$ 24 · todos de 6 números</p>
-        <div class="games"></div>
-        <button class="btn ghost">Gerar mais jogos</button>
+      <section class="card hero">
+        <span class="eyebrow">Sorteio em</span>
+        <div class="money">2 dias 4 h</div>
+        <p class="sec">Mega de sábado · sábado, 20h</p>
+        <div class="due">
+          <div class="avatars"><span class="av owe">CA</span><span class="av owe">GU</span></div>
+          <p><span class="amber">Falta pagar:</span> Carla e Gustavo</p>
+        </div>
+        <button class="btn" type="button"><svg aria-hidden="true"><use href="#i-share"/></svg>Cobrar no WhatsApp</button>
+      </section>
+      <span class="eyebrow sect">Seus bolões</span>
+      <a class="card pool" href="#">
+        <div class="pool-main"><b>Mega de sábado</b><p class="sec">R$ 240 de R$ 300 · sábado, 20h</p>
+          <div class="pool-chips"><span class="chip">Mega-Sena</span><span class="step now mini">Arrecadar</span></div></div>
+        <svg aria-hidden="true"><use href="#i-next"/></svg>
+      </a>
+      <a class="card pool mod-loto" href="#">
+        <div class="pool-main"><b>Lotofácil da firma</b><p class="sec">2 jogos premiados · R$ 59,00</p>
+          <div class="pool-chips"><span class="chip">Lotofácil</span><span class="step now mini">Dividir</span></div></div>
+        <svg aria-hidden="true"><use href="#i-next"/></svg>
+      </a>
+      <a class="card pool mod-quina" href="#">
+        <div class="pool-main"><b>Quina de quarta</b><p class="sec">Jogos prontos · quarta, 20h</p>
+          <div class="pool-chips"><span class="chip">Quina</span><span class="step now mini">Jogar</span></div></div>
+        <svg aria-hidden="true"><use href="#i-next"/></svg>
+      </a>
+      <nav class="tabbar" aria-label="Principal">
+        <a href="#" class="on" aria-current="page"><span class="ti"><svg aria-hidden="true"><use href="#i-home"/></svg></span>Início</a>
+        <a href="#"><span class="ti"><svg aria-hidden="true"><use href="#i-pools"/></svg></span>Bolões</a>
+        <a href="#"><span class="ti"><svg aria-hidden="true"><use href="#i-review"/></svg><span class="badge" aria-label="2 pendências">2</span></span>Revisão</a>
+        <a href="#"><span class="ti"><svg aria-hidden="true"><use href="#i-hist"/></svg></span>Histórico</a>
+      </nav>
+    </div>
+  </section>
+
+  <!-- ===== Bolão antes do sorteio ===== -->
+  <section class="phone" data-grupo="antes">
+    <p class="frame-label">Bolão antes · arrecadando, pendência e problema</p>
+    <div class="screen">
+      <div class="top"><button class="back" type="button"><svg aria-hidden="true"><use href="#i-back"/></svg>Bolões</button><span class="ctx">Turma do trabalho</span></div>
+      <span class="chip">Mega-Sena · sábado, 20h</span>
+      <h1>Mega de sábado</h1>
+      <p class="sec">10 pessoas · cota de R$ 30</p>
+      <nav class="steps" data-now="2" aria-label="Etapas do bolão"></nav>
+      <section class="card">
+        <span class="eyebrow">Arrecadação</span>
+        <div class="money">R$ 210 <small>de R$ 300</small></div>
+        <div class="bar"><i style="--p:70%"></i><s style="--p:10%"></s></div>
+        <p class="legend"><span><i></i>R$ 210 confirmados</span><span><i class="pend"></i>R$ 30 em conferência</span></p>
+        <div class="avatars"><span class="av">AN</span><span class="av">BR</span><span class="av">DI</span><span class="av">EL</span><span class="av more">+3</span><span class="av owe">ED</span><span class="av owe prob">FE</span><span class="av owe">GU</span></div>
+        <p class="owe-line"><span class="amber">Faltam 3:</span> Eduardo, Felipe e Gustavo</p>
+        <ul class="pays">
+          <li><span class="pname">Eduardo</span><span class="pval">R$ 30,00</span><span class="state pend"><svg aria-hidden="true"><use href="#i-clock"/></svg>Pagamento em conferência</span></li>
+          <li class="pb"><div class="prob-box"><svg aria-hidden="true"><use href="#i-alert"/></svg><div><strong>Comprovante não bate com o valor</strong><p>Felipe enviou <span class="nb">R$ 20,00</span> · a cota é <span class="nb">R$ 30,00</span></p></div></div><button class="btn ghost sm" type="button">Ver comprovante</button></li>
+          <li><span class="pname">Gustavo</span><span class="pval">R$ 30,00</span><span class="state pend"><svg aria-hidden="true"><use href="#i-clock"/></svg>Ainda não pagou</span></li>
+        </ul>
+        <button class="btn" type="button"><svg aria-hidden="true"><use href="#i-share"/></svg>Cobrar no WhatsApp</button>
+      </section>
+      <section class="card">
+        <span class="eyebrow">Nossos jogos</span>
+        <p class="sec">4 jogos · R$ 24 · todos de 6 números</p>
+        <div class="games" data-jogos="mega" data-modo="plain"></div>
+        <button class="btn ghost" type="button">Gerar mais jogos</button>
+      </section>
+    </div>
+  </section>
+
+  <!-- ===== Depois do sorteio · vitória ===== -->
+  <section class="phone" data-grupo="fosca">
+    <p class="frame-label">Depois do sorteio, vitória</p>
+    <div class="screen">
+      <div class="top"><button class="back" type="button"><svg aria-hidden="true"><use href="#i-back"/></svg>Bolões</button><span class="ctx">Turma do trabalho</span></div>
+      <span class="chip">Mega-Sena · sorteado</span>
+      <h1>Mega de sábado</h1>
+      <nav class="steps" data-now="6" aria-label="Etapas do bolão"></nav>
+      <section class="card"><span class="eyebrow">Números sorteados</span><div class="drawn" data-sorteio="mega"></div></section>
+      <section class="card result">
+        <span class="eyebrow">Resultado</span>
+        <div class="result-title">Acertamos a quadra!</div>
+        <div class="prize" data-count="1287.40">R$ 1.287,40</div>
+        <p class="sec">R$ 128,74 para cada um · 10 pessoas</p>
+        <div class="btns"><button class="btn" type="button">Dividir o prêmio</button><button class="btn ghost" type="button">Avisar a turma</button></div>
+      </section>
+      <section class="card"><span class="eyebrow">Nossos jogos</span><p class="sec">4 jogos · 1 premiado</p><div class="games" data-jogos="mega"></div></section>
+    </div>
+  </section>
+
+  <!-- ===== Depois do sorteio · sem prêmio ===== -->
+  <section class="phone" data-grupo="semp">
+    <p class="frame-label">Depois do sorteio · sem prêmio</p>
+    <div class="screen">
+      <div class="top"><button class="back" type="button"><svg aria-hidden="true"><use href="#i-back"/></svg>Bolões</button><span class="ctx">Turma do trabalho</span></div>
+      <span class="chip">Mega-Sena · sorteado</span>
+      <h1>Mega de sábado</h1>
+      <nav class="steps" data-now="5" aria-label="Etapas do bolão"></nav>
+      <section class="card result">
+        <span class="eyebrow">Resultado</span>
+        <div class="result-title">Não foi dessa vez.</div>
+        <p class="best">Melhor jogo: <b>Ana</b>, 3 acertos</p>
+        <div class="drawn" data-sorteio="megaNada"></div>
+        <p class="sec">Próximo sorteio: quarta, 20h</p>
+        <div class="btns"><button class="btn" type="button">Repetir com a mesma turma</button><button class="btn ghost" type="button">Avisar a turma</button></div>
+      </section>
+      <section class="card"><span class="eyebrow">Nossos jogos</span><p class="sec">4 jogos · nenhum premiado</p><div class="games" data-jogos="megaNada"></div></section>
+    </div>
+  </section>
+
+  <!-- ===== Lotofácil depois ===== -->
+  <section class="phone" data-grupo="loto">
+    <p class="frame-label">Lotofácil depois do sorteio</p>
+    <div class="screen mod-loto">
+      <div class="top"><button class="back" type="button"><svg aria-hidden="true"><use href="#i-back"/></svg>Bolões</button><span class="ctx">Turma do trabalho</span></div>
+      <span class="chip">Lotofácil · sorteado</span>
+      <h1>Lotofácil da firma</h1>
+      <nav class="steps" data-now="6" aria-label="Etapas do bolão"></nav>
+      <section class="card"><span class="eyebrow">Números sorteados</span><p class="sec">15 de 25 · ganha quem acerta 11 ou mais</p><div class="drawn d15" data-sorteio="loto"></div></section>
+      <section class="card"><span class="eyebrow">Nossos jogos</span><p class="sec">3 jogos · 2 premiados</p><div class="games" data-jogos="loto"></div></section>
+    </div>
+  </section>
+
+  <!-- ===== Quina depois ===== -->
+  <section class="phone" data-grupo="quina">
+    <p class="frame-label">Quina depois do sorteio</p>
+    <div class="screen mod-quina">
+      <div class="top"><button class="back" type="button"><svg aria-hidden="true"><use href="#i-back"/></svg>Bolões</button><span class="ctx">Turma do trabalho</span></div>
+      <span class="chip">Quina · sorteado</span>
+      <h1>Quina de quarta</h1>
+      <nav class="steps" data-now="6" aria-label="Etapas do bolão"></nav>
+      <section class="card"><span class="eyebrow">Números sorteados</span><div class="drawn" data-sorteio="quina"></div></section>
+      <section class="card"><span class="eyebrow">Nossos jogos</span><p class="sec">4 jogos · 3 premiados</p><div class="games" data-jogos="quina"></div></section>
+    </div>
+  </section>
+
+  <!-- ===== Cartão do WhatsApp ===== -->
+  <section class="phone" data-grupo="zap">
+    <p class="frame-label">Cartão para o WhatsApp</p>
+    <div class="screen">
+      <div class="top"><button class="back" type="button"><svg aria-hidden="true"><use href="#i-back"/></svg>Mega de sábado</button></div>
+      <h1>Avisar a turma</h1>
+      <p class="sec">Este cartão vai como imagem para o grupo.</p>
+      <div class="share-wrap"><div class="share" role="img" aria-label="Cartão: Mega de sábado, acertamos a quadra, R$ 1.287,40">
+        <div class="sh-name">Mega de sábado</div>
+        <span class="chip">Mega-Sena · 11/10</span>
+        <span class="eyebrow">Números sorteados</span>
+        <div class="drawn" data-sorteio="mega"></div>
+        <span class="eyebrow">Nossos jogos</span>
+        <div class="games" data-jogos="mega" data-modo="after"></div>
+        <div class="sh-res"><span>Acertamos a quadra!</span><b>R$ 1.287,40</b></div>
+        <div class="sh-mark"><span class="mark" aria-hidden="true"><span class="ball"></span><span class="ball gold"></span></span>Little Faith</div>
+      </div></div>
+      <button class="btn" type="button"><svg aria-hidden="true"><use href="#i-share"/></svg>Compartilhar no WhatsApp</button>
+      <p class="sec center" style="margin-top:10px">Ninguém vê dados de pagamento na imagem.</p>
+    </div>
+  </section>
+
+  <!-- ===== Formulário ===== -->
+  <section class="phone" data-grupo="form">
+    <p class="frame-label">Formulário · preparar um novo bolão</p>
+    <div class="screen">
+      <div class="top"><button class="back" type="button"><svg aria-hidden="true"><use href="#i-back"/></svg>Início</button><span class="ctx">Turma do trabalho</span></div>
+      <h1>Bolões</h1>
+      <div class="card" style="margin-top:12px"><span class="eyebrow">Mega de sábado</span><p class="sec">Arrecadando · R$ 210 de R$ 300</p></div>
+      <div class="sheet-wrap">
+        <form class="sheet" role="dialog" aria-modal="true" aria-labelledby="novo-t" onsubmit="return false">
+          <div class="handle"></div>
+          <header><h2 id="novo-t">Preparar um novo bolão</h2><button type="button" class="x" aria-label="Fechar">✕</button></header>
+          <div class="field"><label for="f-nome">Nome do bolão</label><div class="input is-focus"><input id="f-nome" value="Mega da virada"></div></div>
+          <div class="field"><span class="lab" id="f-mod">Modalidade</span>
+            <div class="mods" role="radiogroup" aria-labelledby="f-mod">
+              <button type="button" role="radio" aria-checked="true" class="mod-btn" style="--c:#3ee6a0"><i class="dot"></i>Mega-Sena<small>6 de 60</small></button>
+              <button type="button" role="radio" aria-checked="false" class="mod-btn" style="--c:#f07cf5"><i class="dot"></i>Lotofácil<small>15 de 25</small></button>
+              <button type="button" role="radio" aria-checked="false" class="mod-btn" style="--c:#5cc8ff"><i class="dot"></i>Quina<small>5 de 80</small></button>
+            </div></div>
+          <div class="field"><label for="f-preco">Preço de cada cota</label><div class="input"><span class="pre">R$</span><input id="f-preco" inputmode="decimal" value="25,00"></div><p class="help">Uma pessoa pode ficar com mais de uma cota.</p></div>
+          <div class="field"><label for="f-prazo">Pagar até</label><div class="input"><svg aria-hidden="true"><use href="#i-cal"/></svg><input id="f-prazo" value="sexta, 26/12 · 18h"></div><p class="help">Depois disso, a cobrança para.</p></div>
+          <button type="submit" class="btn">Criar bolão</button>
+          <button type="button" class="btn ghost">Cancelar</button>
+        </form>
       </div>
     </div>
   </section>
 
-  <section class="phone after">
-    <p class="frame-label">Depois do sorteio · o resultado chegou</p>
-    <div class="screen">
-      <div class="top rise"><span class="back">‹ Bolões</span><span>Turma do trabalho</span></div>
-      <span class="chip rise">Mega-Sena · sorteado</span>
-      <h1 class="rise" style="--d:1">Mega de sábado</h1>
-      <ol class="steps rise" style="--d:2"><li class="done">Montar</li><li class="done">Arrecadar</li><li class="done">Jogar</li><li class="done">Registrar</li><li class="done">Sorteio</li><li class="now">Dividir</li></ol>
-      <div class="card rise" style="--d:3">
-        <h2>Números sorteados</h2>
-        <div class="drawn"></div>
+  <!-- ===== Bolas de metal: três acabamentos lado a lado ===== -->
+  <section class="pair" data-grupo="metais">
+    <div class="phone" data-metal="polido">
+      <p class="frame-label">1 · Polido (padrão nas telas)</p>
+      <div class="screen mini m-polido">
+        <section class="card"><span class="eyebrow">Números sorteados</span><div class="drawn" data-sorteio="mega"></div></section>
+        <section class="card"><span class="eyebrow">Nossos jogos</span><p class="sec">4 jogos · 1 premiado</p><div class="games" data-jogos="mega"></div></section>
+        <section class="card m28" style="margin:0"><span class="eyebrow">Tela estreita · bolas de 28 px</span><div class="balls"><span class="ball">07</span><span class="ball">09</span><span class="ball ring">23</span><span class="ball">31</span><span class="ball gold">35</span><span class="ball gold">41</span><span class="ball ring">58</span></div></section>
       </div>
-      <div class="card win">
-        <div class="confetti"></div>
-        <div class="big">Acertamos a quadra!</div>
-        <div class="money" data-count="1287.40">R$ 1.287,40</div>
-        <p class="hint">R$ 128,74 para cada um · 10 pessoas</p>
-        <button class="btn">Dividir o prêmio</button>
-        <button class="btn ghost">Avisar a turma</button>
+    </div>
+    <div class="phone" data-metal="escovado">
+      <p class="frame-label">2 · Escovado</p>
+      <div class="screen mini m-escovado">
+        <section class="card"><span class="eyebrow">Números sorteados</span><div class="drawn" data-sorteio="mega"></div></section>
+        <section class="card"><span class="eyebrow">Nossos jogos</span><p class="sec">4 jogos · 1 premiado</p><div class="games" data-jogos="mega"></div></section>
+        <section class="card m28" style="margin:0"><span class="eyebrow">Tela estreita · bolas de 28 px</span><div class="balls"><span class="ball">07</span><span class="ball">09</span><span class="ball ring">23</span><span class="ball">31</span><span class="ball gold">35</span><span class="ball gold">41</span><span class="ball ring">58</span></div></section>
       </div>
-      <div class="card rise" style="--d:4">
-        <h2>Nossos jogos</h2>
-        <div class="games"></div>
+    </div>
+    <div class="phone" data-metal="cromo">
+      <p class="frame-label">3 · Cromo</p>
+      <div class="screen mini m-cromo">
+        <section class="card"><span class="eyebrow">Números sorteados</span><div class="drawn" data-sorteio="mega"></div></section>
+        <section class="card"><span class="eyebrow">Nossos jogos</span><p class="sec">4 jogos · 1 premiado</p><div class="games" data-jogos="mega"></div></section>
+        <section class="card m28" style="margin:0"><span class="eyebrow">Tela estreita · bolas de 28 px</span><div class="balls"><span class="ball">07</span><span class="ball">09</span><span class="ball ring">23</span><span class="ball">31</span><span class="ball gold">35</span><span class="ball gold">41</span><span class="ball ring">58</span></div></section>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Computador ===== -->
+  <section class="desk-frame" data-grupo="desk">
+    <p class="frame-label">Computador · 1440 × 900</p>
+    <div class="screen desk">
+      <aside class="side">
+        <div class="logo"><span class="mark" aria-hidden="true"><span class="ball"></span><span class="ball gold"></span></span>Little Faith</div>
+        <button class="group" type="button"><span class="g-av">TT</span><span><b>Turma do trabalho</b><small>10 pessoas</small></span><svg aria-hidden="true"><use href="#i-down"/></svg></button>
+        <nav class="nav" aria-label="Principal">
+          <a href="#"><svg aria-hidden="true"><use href="#i-home"/></svg>Início</a>
+          <a href="#" class="on" aria-current="page"><svg aria-hidden="true"><use href="#i-pools"/></svg>Bolões</a>
+          <a href="#"><svg aria-hidden="true"><use href="#i-review"/></svg>Revisão<span class="badge" aria-label="2 pendências">2</span></a>
+          <a href="#"><svg aria-hidden="true"><use href="#i-hist"/></svg>Histórico</a>
+        </nav>
+        <div class="side-foot"><button class="btn ghost" type="button">+ Preparar bolão</button></div>
+      </aside>
+      <div class="dmain">
+        <div class="dwrap">
+          <div class="dtop"><button class="back" type="button"><svg aria-hidden="true"><use href="#i-back"/></svg>Bolões</button><span class="ctx">Sorteio de sábado, 11/10</span></div>
+          <div class="dhead"><h1>Mega de sábado</h1><span class="chip">Mega-Sena · sorteado</span></div>
+          <nav class="steps" data-now="6" aria-label="Etapas do bolão"></nav>
+          <div class="cols">
+            <div class="col">
+              <section class="card result">
+                <div>
+                  <span class="eyebrow">Resultado</span>
+                  <div class="result-title">Acertamos a quadra!</div>
+                  <div class="prize" data-count="1287.40">R$ 1.287,40</div>
+                  <p class="sec">R$ 128,74 para cada um · 10 pessoas</p>
+                </div>
+                <div class="btns"><button class="btn" type="button">Dividir o prêmio</button><button class="btn ghost" type="button">Avisar a turma</button></div>
+              </section>
+              <section class="card"><span class="eyebrow">Números sorteados</span><div class="drawn" data-sorteio="mega"></div></section>
+              <section class="card"><span class="eyebrow">Nossos jogos</span><p class="sec">4 jogos · R$ 24 · 1 premiado</p><div class="games" data-jogos="mega" data-modo="after"></div></section>
+            </div>
+            <div class="col">
+              <section class="card split-card">
+                <span class="eyebrow">Como fica a divisão</span>
+                <p class="sec">2 pessoas ainda precisam mandar a chave Pix.</p>
+                <ul class="split">
+                  <li><span class="n">Ana</span><span class="c">1 cota</span><span class="state ok"><svg aria-hidden="true"><use href="#i-check"/></svg>Chave Pix ok</span><span class="v">R$ 128,74</span></li>
+                  <li><span class="n">Bruno</span><span class="c">1 cota</span><span class="state ok"><svg aria-hidden="true"><use href="#i-check"/></svg>Chave Pix ok</span><span class="v">R$ 128,74</span></li>
+                  <li><span class="n">Carla</span><span class="c">1 cota</span><span class="state pend"><svg aria-hidden="true"><use href="#i-clock"/></svg>Falta a chave Pix</span><span class="v">R$ 128,74</span></li>
+                  <li><span class="n">Diego</span><span class="c">1 cota</span><span class="state ok"><svg aria-hidden="true"><use href="#i-check"/></svg>Chave Pix ok</span><span class="v">R$ 128,74</span></li>
+                  <li><span class="n">Eduardo</span><span class="c">1 cota</span><span class="state ok"><svg aria-hidden="true"><use href="#i-check"/></svg>Chave Pix ok</span><span class="v">R$ 128,74</span></li>
+                  <li><span class="n">Elisa</span><span class="c">1 cota</span><span class="state ok"><svg aria-hidden="true"><use href="#i-check"/></svg>Chave Pix ok</span><span class="v">R$ 128,74</span></li>
+                  <li><span class="n">Felipe</span><span class="c">1 cota</span><span class="state ok"><svg aria-hidden="true"><use href="#i-check"/></svg>Chave Pix ok</span><span class="v">R$ 128,74</span></li>
+                  <li><span class="n">Gustavo</span><span class="c">1 cota</span><span class="state pend"><svg aria-hidden="true"><use href="#i-clock"/></svg>Falta a chave Pix</span><span class="v">R$ 128,74</span></li>
+                  <li><span class="n">Helena</span><span class="c">1 cota</span><span class="state ok"><svg aria-hidden="true"><use href="#i-check"/></svg>Chave Pix ok</span><span class="v">R$ 128,74</span></li>
+                  <li><span class="n">Igor</span><span class="c">1 cota</span><span class="state ok"><svg aria-hidden="true"><use href="#i-check"/></svg>Chave Pix ok</span><span class="v">R$ 128,74</span></li>
+                  <li class="tot"><span class="n">Total</span><span class="c">10 cotas</span><span></span><span class="v">R$ 1.287,40</span></li>
+                </ul>
+                <button class="btn ghost" type="button"><svg aria-hidden="true"><use href="#i-share"/></svg>Pedir a chave Pix de Carla e Gustavo</button>
+              </section>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </section>
 </main>
 
 <script>
-const drawn = [4, 17, 23, 35, 41, 58];
-const games = [
+const pad = n => String(n).padStart(2, "0");
+const STEPS = ["Montar", "Arrecadar", "Jogar", "Registrar", "Sorteio", "Dividir"];
+const icon = id => `<svg aria-hidden="true"><use href="#${id}"/></svg>`;
+const megaGames = [
   ["Ana", [4, 11, 17, 29, 35, 52]],
   ["Bruno", [7, 17, 23, 35, 41, 60]],
   ["Carla", [2, 13, 26, 38, 47, 55]],
   ["Diego", [4, 9, 23, 31, 44, 58]],
 ];
-const pad = n => String(n).padStart(2, "0");
-function renderGames(el, withHits) {
-  el.innerHTML = games.map(([who, nums], g) => {
-    const hits = nums.filter(n => drawn.includes(n)).length;
-    const balls = nums.map((n, k) => `<span class="ball${withHits && drawn.includes(n) ? " hit" : ""}" style="--i:${g * 6 + k}">${pad(n)}</span>`).join("");
-    const win = withHits && hits >= 4;
-    const tag = win ? `<br><span class="tag">Quadra!</span>` : "";
-    return `<div class="game${win ? " win-row" : ""}"><span class="who">${who}${tag}</span><div class="balls">${balls}</div></div>`;
+const nomeMega = h => ({ 4: "Quadra!", 5: "Quina!", 6: "Sena!" })[h];
+const SETS = {
+  mega: { kind: "mega", drawn: [4, 17, 23, 35, 41, 58], games: megaGames, winAt: 4, label: nomeMega },
+  megaNada: { kind: "mega", drawn: [4, 17, 30, 35, 49, 57], games: megaGames, winAt: 4, label: nomeMega },
+  loto: { kind: "loto", winAt: 11, label: h => `${h} acertos!`,
+    drawn: [1, 2, 4, 5, 7, 9, 10, 12, 13, 15, 18, 20, 21, 23, 25],
+    games: [
+      ["Ana", [1, 2, 3, 4, 5, 7, 8, 9, 10, 12, 13, 15, 16, 18, 22]],
+      ["Bruno", [4, 5, 6, 7, 9, 10, 12, 13, 15, 18, 19, 20, 21, 23, 25]],
+      ["Gustavo", [1, 3, 4, 6, 7, 8, 10, 11, 13, 14, 17, 18, 21, 23, 25]],
+    ] },
+  quina: { kind: "quina", winAt: 2, label: h => ({ 2: "Duque!", 3: "Terno!", 4: "Quadra!", 5: "Quina!" })[h],
+    drawn: [8, 23, 41, 57, 76],
+    games: [
+      ["Ana", [8, 15, 23, 60, 76]],
+      ["Bruno", [2, 23, 39, 57, 80]],
+      ["Carla", [11, 30, 41, 68, 79]],
+      ["Gustavo", [8, 19, 41, 57, 76]],
+    ] },
+};
+
+// etapas
+document.querySelectorAll(".steps[data-now]").forEach(nav => {
+  const now = Number(nav.dataset.now);
+  nav.innerHTML = `<ol>${STEPS.map((s, i) => {
+    const k = i + 1, cls = k < now ? "done" : k === now ? "now" : "todo";
+    return `<li><button type="button" class="step ${cls}"${k === now ? ' aria-current="step"' : ""}>${k < now ? icon("i-check") : ""}${s}</button></li>`;
+  }).join("")}</ol>`;
+});
+function alignSteps() {
+  document.querySelectorAll(".steps ol").forEach(ol => {
+    const li = ol.querySelector(".now")?.parentElement;
+    if (!li) return;
+    const want = li.offsetLeft + li.offsetWidth + 52 - ol.clientWidth;
+    ol.scrollLeft = Math.max(0, Math.min(want, ol.scrollWidth - ol.clientWidth));
+    fades(ol);
+  });
+}
+// esmaecer só do lado em que ainda há etapas escondidas
+function fades(ol) {
+  const max = ol.scrollWidth - ol.clientWidth;
+  ol.style.setProperty("--fl", ol.scrollLeft > 2 ? "44px" : "0px");
+  ol.style.setProperty("--fr", ol.scrollLeft < max - 2 ? "44px" : "0px");
+}
+document.querySelectorAll(".steps ol").forEach(ol => ol.addEventListener("scroll", () => fades(ol), { passive: true }));
+const ro = new ResizeObserver(alignSteps);
+document.querySelectorAll(".steps ol, .steps .now").forEach(el => ro.observe(el));
+document.fonts.ready.then(alignSteps);
+
+// jogos: premiado = bolas douradas + selo; não premiado = anel dourado + contagem apagada
+function renderGames(el) {
+  const set = SETS[el.dataset.jogos], modo = el.dataset.modo || "hits";
+  const plain = modo === "plain", after = modo === "after";
+  let i = 0;
+  el.innerHTML = set.games.map(([who, nums]) => {
+    const n = plain ? 0 : nums.filter(x => set.drawn.includes(x)).length;
+    const win = !plain && n >= set.winAt;
+    const balls = nums.map(x => {
+      const hit = !plain && set.drawn.includes(x);
+      return `<span class="ball${hit ? (win ? " gold" : " ring") : ""}" style="--i:${i++}">${pad(x)}</span>`;
+    }).join("");
+    const info = plain ? "" : win ? `<span class="tag">${set.label(n)}</span>` : `<span class="hits">${n} acerto${n === 1 ? "" : "s"}</span>`;
+    return `<div class="game ${set.kind}${win ? " win" : ""}"><div class="who"><b>${who}</b>${after ? "" : info}</div>`
+      + `<div class="balls${set.kind === "loto" ? " grid5" : ""}">${balls}</div>${after && info ? `<span class="res">${info}</span>` : ""}</div>`;
   }).join("");
 }
-renderGames(document.querySelector(".before .games"), false);
-renderGames(document.querySelector(".after .games"), true);
-document.querySelector(".after .drawn").innerHTML = drawn.map((n, i) => `<span class="ball" style="--i:${i}">${pad(n)}</span>`).join("");
+document.querySelectorAll("[data-jogos]").forEach(renderGames);
+document.querySelectorAll("[data-sorteio]").forEach(el => {
+  el.innerHTML = SETS[el.dataset.sorteio].drawn.map((x, k) => `<span class="ball gold" style="--i:${k}">${pad(x)}</span>`).join("");
+});
 
+// movimento: enche, pula, cai, conta o prêmio; nada fica rodando parado
 const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const brl = v => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 function countUp(el) {
   const target = Number(el.dataset.count);
   if (reduce) { el.textContent = brl(target); return; }
-  const start = performance.now() + 2300, dur = 1300;
+  const start = performance.now() + 1600, dur = 1200;
   const tick = now => {
     const t = Math.min(1, Math.max(0, (now - start) / dur));
     el.textContent = brl(target * (1 - Math.pow(1 - t, 3)));
@@ -224,37 +737,17 @@ function countUp(el) {
   };
   requestAnimationFrame(tick);
 }
-function confetti() {
-  const box = document.querySelector(".confetti");
-  box.innerHTML = "";
-  if (reduce || document.body.dataset.tema !== "a") return;
-  const colors = ["#ff6b4a", "#13a05f", "#ffc83d", "#7c5cff", "#3db8ff"];
-  for (let i = 0; i < 46; i++) {
-    const p = document.createElement("i");
-    p.style.left = Math.random() * 100 + "%";
-    p.style.background = colors[i % colors.length];
-    p.style.animation = `fall ${1.6 + Math.random() * 1.4}s ease-in ${2.3 + Math.random() * .6}s both`;
-    box.appendChild(p);
-  }
-}
-function play() {
-  document.body.classList.remove("play");
-  void document.body.offsetWidth;
-  document.body.classList.add("play");
-  countUp(document.querySelector(".win .money"));
-  confetti();
-}
-function setTema(t) {
-  document.body.dataset.tema = t;
-  document.querySelectorAll("[data-set]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.set === t)));
-  history.replaceState(null, "", "?tema=" + t);
-  play();
-}
-document.querySelectorAll("[data-set]").forEach(b => b.addEventListener("click", () => setTema(b.dataset.set)));
-document.getElementById("replay").addEventListener("click", play);
+document.body.classList.add("play");
+document.querySelectorAll(".prize[data-count]").forEach(countUp);
+
 const params = new URLSearchParams(location.search);
-if (params.has("captura")) document.body.classList.add("captura");
-setTema(params.get("tema") || "c");
+const so = params.get("so");
+if (so) {
+  const keep = so.split(",");
+  document.querySelectorAll("[data-grupo]").forEach(s => { s.hidden = !keep.includes(s.dataset.grupo); });
+  if (so === "desk") document.body.classList.add("so-desk");
+}
+requestAnimationFrame(alignSteps);
 </script>
 </body>
 </html>

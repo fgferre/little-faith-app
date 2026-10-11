@@ -14,8 +14,9 @@ emergência passou a `bolao-emergency-v5` e inclui a fila da divisão.
 **Verificado em 10/10, nesta sessão:** `npm run done` verde — tipos, lint, 282 testes, SQL no PGlite, 13 testes da
 API, build e 33 fluxos no navegador.
 
-**Decisões dele (10/10):** pediu a revisão do produto e da interface (achados nos itens 6 a 12); o piloto vem antes do
-agente e do backup completo, *sem data fixa*; estilo: *"gostei da C, noite do sorteio"* — referência em `docs/estilo/`,
+**Decisões dele (10–11/10):** pediu a revisão do produto e da interface (achados nos itens 6 a 12); o piloto vem antes
+do agente e do backup completo, *sem data fixa*; estilo: *"gostei da C, noite do sorteio"*, depois a versão afinada
+("Sim, adotar a afinada"), bolas que *"deveriam lembrar metais"*, acabamento polido — referência em `docs/estilo/`,
 descrita no `PLAN.md`; telas novas nascem nela, as antigas migram aos poucos.
 
 **Git:** commits só locais em `main`, sem remoto e sem push. **Fora daqui:** sem Supabase real, OAuth Google, cron ou
