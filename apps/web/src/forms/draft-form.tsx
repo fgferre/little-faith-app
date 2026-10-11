@@ -38,6 +38,7 @@ export function DraftForm(
     kind,
     group,
     pool,
+    repeatOf,
     persons,
     quotas,
     bets,
@@ -51,6 +52,8 @@ export function DraftForm(
     kind: FormKind;
     group: LocalRecord<"group"> | undefined;
     pool: LocalRecord<"pool"> | undefined;
+    /** "Repetir com a mesma turma": o novo bolão começa com nome, modalidade e preço deste. */
+    repeatOf?: LocalRecord<"pool"> | undefined;
     persons: LocalRecord<"person">[];
     quotas: LocalRecord<"quota">[];
     bets: LocalRecord<"bet">[];
@@ -65,7 +68,7 @@ export function DraftForm(
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [lotteryId, setLotteryId] = useState<LotteryId>(
-    pool?.data.lotteryId ?? "mega-sena",
+    repeatOf?.data.lotteryId ?? pool?.data.lotteryId ?? "mega-sena",
   );
   const [selected, setSelected] = useState<number[]>([]);
   const [personId, setPersonId] = useState(persons[0]?.id ?? "");
@@ -75,6 +78,7 @@ export function DraftForm(
     ? "pool"
     : kind;
   const editing = kind === "edit-group" || kind === "edit-pool";
+  const priceFrom = editing ? pool : repeatOf;
   const rule = LOTTERIES[lotteryId];
   const titles = {
     group: "Um grupo para chamar de nosso",
@@ -267,6 +271,8 @@ export function DraftForm(
                 ? entityFormKind === "group"
                   ? group?.data.name
                   : pool?.data.title
+                : kind === "pool"
+                ? repeatOf?.data.title ?? ""
                 : ""}
               placeholder={entityFormKind === "group"
                 ? "Ex.: Amigos de longa data"
@@ -336,9 +342,11 @@ export function DraftForm(
                   name="price"
                   required
                   inputMode="decimal"
-                  defaultValue={editing && pool
-                    ? formatBRL(pool.data.quotaPriceCents).replace("R$", "")
-                      .trim()
+                  defaultValue={priceFrom
+                    ? formatBRL(priceFrom.data.quotaPriceCents).replace(
+                      "R$",
+                      "",
+                    ).trim()
                     : "30,00"}
                 />
               </label>

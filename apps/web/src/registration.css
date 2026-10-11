@@ -1,12 +1,9 @@
-.registration-form,
-.result-form,
-.result-conflict {
+/* formulários dentro das etapas Registrar e Sorteio (e o fuso em Seus dados) */
+.pool-form {
   display: grid;
-  gap: 18px;
+  gap: 16px;
 }
-.registration-form label:not(.planning-review-checkbox),
-.result-form label,
-.result-conflict label,
+.pool-form label:not(.planning-review-checkbox):not(.pool-choice),
 .timezone-setting {
   display: grid;
   gap: 8px;
@@ -14,120 +11,43 @@
   font-size: 14px;
   font-weight: 600;
 }
-.registration-form input:not([type=checkbox]),
-.registration-form select,
-.registration-form textarea,
-.result-form input,
-.result-form textarea,
-.result-conflict select,
-.result-conflict textarea,
+.pool-form input:not([type=checkbox]):not([type=radio]),
+.pool-form select,
+.pool-form textarea,
 .timezone-setting select {
   width: 100%;
   min-width: 0;
   min-height: 44px;
   background: var(--surface);
   color: var(--text);
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--ghost-line);
   padding: 10px 12px;
   border-radius: 10px;
+  font: inherit;
 }
-.registration-form textarea,
-.result-form textarea,
-.result-conflict textarea {
+.pool-form textarea {
   resize: vertical;
 }
-.evidence-picker {
-  display: grid;
-  gap: 10px;
-  font-weight: 600;
-  margin-top: 20px;
+.pool-form > .ui-btn {
+  justify-self: stretch;
 }
-.evidence-picker input {
-  min-width: 0;
-  max-width: 100%;
-}
-.evidence-picker input::file-selector-button {
-  min-height: 44px;
-  background: var(--lavender);
-  border: 0;
-  border-radius: 10px;
-  padding: 10px;
-  color: var(--purple-ink);
-  cursor: pointer;
-  margin-right: 12px;
-}
-.evidence-list {
-  display: grid;
-  gap: 14px;
-  margin-top: 20px;
-}
-.evidence-file {
-  padding: 16px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  display: grid;
-  gap: 12px;
-  min-width: 0;
-}
-.evidence-file strong,
-.evidence-file small {
-  display: block;
-  overflow-wrap: anywhere;
-}
-.evidence-file small {
-  margin-top: 6px;
-  color: var(--muted);
-}
+.pool-fieldset,
 .evidence-choices {
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 15px;
+  padding: 12px 15px;
   min-width: 0;
 }
+.pool-fieldset legend,
 .evidence-choices legend {
   font-size: 14px;
+  font-weight: 600;
   padding: 0 5px;
 }
-.receipt-planned {
-  padding: 16px;
-  background: var(--lavender);
-  border-radius: 12px;
+.pool-planned {
   display: grid;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
-}
-.receipt-planned small {
-  color: var(--muted);
-}
-.receipt-planned .number-row {
-  flex-wrap: wrap;
-}
-.registered-games,
-.manual-payouts {
-  display: grid;
-  gap: 12px;
-}
-.result-version {
-  display: grid;
-  gap: 12px;
-  padding: 18px 0;
-  border-bottom: 1px solid var(--border);
-}
-.result-version code {
-  overflow-wrap: anywhere;
-  word-break: break-all;
-}
-.result-version .button {
-  justify-self: start;
-}
-.result-form {
-  margin-top: 20px;
-}
-.result-form[open] summary {
-  margin-bottom: 8px;
-}
-.result-conflict {
-  margin: 24px 0;
 }
 .timezone-setting {
   margin-top: 20px;
@@ -137,18 +57,8 @@
   color: var(--muted);
   line-height: 1.6;
 }
-.tabs {
-  overflow-x: auto;
-}
 @media (max-width: 600px) {
-  .registration-form .form-columns,
-  .result-form .form-columns {
+  .pool-form .form-columns {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .receipt-planned {
-    padding: 12px;
-  }
-  .evidence-file .planning-actions .button {
-    flex: 1 1 auto;
   }
 }

@@ -4,7 +4,6 @@ import {
   ArrowRight,
   ArrowUpRight,
   Check,
-  ChevronRight,
   Clock3,
   CloudOff,
   Ticket,
@@ -225,32 +224,6 @@ export function Stat(
       <small>{note}</small>
     </section>
   );
-}
-
-export function Step(
-  { n, title, description, done, action }: {
-    n: string;
-    title: string;
-    description: string;
-    done: boolean;
-    action?: () => void;
-  },
-) {
-  const content = (
-    <>
-      <span className={`step-number ${done ? "done" : ""}`}>
-        {done ? <Check size={15} /> : n}
-      </span>
-      <span>
-        <strong>{title}</strong>
-        <small>{description}</small>
-      </span>
-      {action && <ChevronRight size={16} />}
-    </>
-  );
-  return action
-    ? <button className="step" onClick={action}>{content}</button>
-    : <div className="step">{content}</div>;
 }
 
 export function PoolCard(

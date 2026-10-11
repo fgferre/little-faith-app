@@ -20,7 +20,7 @@ Especificação: `docs/ESPECIFICACAO.md` › "Apuração e rateio" e "Ordem de i
   - [ ] E5a. Kit do estilo em `apps/web/src/ui/` (bolas, faixa de etapas, botões, cartões, selos, estados, contagem),
     Sora embutida, tema noite aplicado ao app inteiro (as telas antigas ficam coerentes, não refeitas), Início refeito
     com a contagem para o sorteio e quem falta pagar; `scripts/visual/medir.mjs` e `foto.mjs` para conferir as telas.
-  - [~] E5b. Tela do bolão sobre o kit (11/10: casca, Montar, Arrecadar e Jogar feitos; faltam Registrar e Sorteio): a faixa de etapas substitui as abas; antes/depois do sorteio, vitória e "não foi
+  - [x] E5b. Tela do bolão sobre o kit (11/10, duas metades): a faixa de etapas substitui as abas; antes/depois do sorteio, vitória e "não foi
     dessa vez", Lotofácil em 5×3; o planejador em linguagem simples ("1 em 834 mil"), o que também resolve o item 13;
     os fluxos de navegador seguem a tela nova.
   - [ ] E5c. Etapa "Dividir": prêmio confirmado, resgate, a parte de cada pessoa e "já paguei", ligados ao transporte e

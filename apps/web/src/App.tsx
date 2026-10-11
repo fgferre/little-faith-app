@@ -135,6 +135,7 @@ export function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [groupId, setGroupId] = useState<string | null>(null);
   const [form, setForm] = useState<FormKind | null>(null);
+  const [repeatPool, setRepeatPool] = useState(false);
   const [financialRequest, setFinancialRequest] = useState<
     FinancialRequest | null
   >(null);
@@ -383,7 +384,8 @@ export function App() {
     setRecordRequest(null);
   }, [db, groupId]);
 
-  function openForm(kind: FormKind) {
+  function openForm(kind: FormKind, repeat = false) {
+    setRepeatPool(repeat && kind === "pool");
     if (!group && kind !== "group") {
       setForm("group");
       return;
@@ -691,8 +693,8 @@ export function App() {
           )}
           {!online && (
             <div className="offline-banner">
-              <WifiOff size={16} />Você pode preparar jogos e rascunhos.
-              Confirmações precisam de conexão.
+              <WifiOff size={16} />Você pode preparar jogos, que ficam salvos
+              neste aparelho. Confirmações precisam de conexão.
             </div>
           )}
           <main id="main-content" className="content">
@@ -845,10 +847,14 @@ export function App() {
             kind={form}
             group={group}
             pool={pool}
+            repeatOf={form === "pool" && repeatPool ? pool : undefined}
             persons={snapshot?.persons ?? []}
             quotas={poolQuotas}
             bets={poolBets}
-            onClose={() => setForm(null)}
+            onClose={() => {
+              setForm(null);
+              setRepeatPool(false);
+            }}
             financeEnabled={financeEnabled}
             onReviewPayment={(id) =>
               setFinancialRequest({ type: "payment_confirm", proposalId: id })}

@@ -14,8 +14,12 @@ import { STEP_LABEL, usePoolViews } from "./bolao-etapas";
 import { BolaoJogar } from "./bolao-jogar";
 import { BolaoMontar } from "./bolao-montar";
 
-const Registration = lazy(() => import("../registration"));
-const Results = lazy(() => import("../results"));
+const BolaoRegistrar = lazy(() =>
+  import("./bolao-registrar").then((m) => ({ default: m.BolaoRegistrar }))
+);
+const BolaoSorteio = lazy(() =>
+  import("./bolao-sorteio").then((m) => ({ default: m.BolaoSorteio }))
+);
 
 const STEPS = POOL_STEPS.map((key) => ({ key, label: STEP_LABEL[key] }));
 
@@ -66,7 +70,8 @@ export function BolaoScreen(
     gamesCost: string;
     draftGamesCost: string;
     proposedCents: string;
-    openForm: (kind: FormKind) => void;
+    /** `repeat` abre o novo bolão com nome, modalidade e preço deste. */
+    openForm: (kind: FormKind, repeat?: boolean) => void;
     setPlanningRequest: (request: PlanningRequest) => void;
     setRecordRequest: (request: RecordRequest) => void;
     setNotice: (notice: Notice) => void;
@@ -159,14 +164,8 @@ export function BolaoScreen(
           />
         )}
         {step === "registrar" && groupId && (
-          <Suspense
-            fallback={
-              <p className="inline-note">
-                Carregando conferência do registro…
-              </p>
-            }
-          >
-            <Registration
+          <Suspense fallback={<p className="ui-sec">Abrindo o registro…</p>}>
+            <BolaoRegistrar
               key={`${db.name}:${groupId}:${pool.id}`}
               db={db}
               groupId={groupId}
@@ -176,27 +175,28 @@ export function BolaoScreen(
               availability={financeAvailability}
               open={setRecordRequest}
               onNotice={setNotice}
-              goPlanning={() => go("jogar")}
+              goPlay={() => go("jogar")}
+              goDraw={() => go("sorteio")}
             />
           </Suspense>
         )}
         {step === "sorteio" && groupId && (
-          <Suspense
-            fallback={
-              <p className="inline-note">
-                Carregando conferência do resultado…
-              </p>
-            }
-          >
-            <Results
+          <Suspense fallback={<p className="ui-sec">Abrindo o sorteio…</p>}>
+            <BolaoSorteio
               key={`${db.name}:${groupId}:${pool.id}`}
               db={db}
               groupId={groupId}
+              snapshot={snapshot}
               pool={pool}
+              poolBets={poolBets}
+              manifest={manifest}
               enabled={financeEnabled}
               availability={financeAvailability}
               timeZone={timeZone}
               open={setRecordRequest}
+              setNotice={setNotice}
+              go={go}
+              repeat={() => openForm("pool", true)}
             />
           </Suspense>
         )}

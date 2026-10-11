@@ -91,7 +91,7 @@ test("offline drafts survive closing the page, and a payment proposal never incr
   await expect(reopenedPerson.locator(".pool-person-due")).toHaveText(
     "R$ 37,50",
   );
-  await expect(reopened.getByText("Você pode preparar jogos e rascunhos."))
+  await expect(reopened.getByText(/Você pode preparar jogos, que ficam salvos/))
     .toBeVisible();
 });
 

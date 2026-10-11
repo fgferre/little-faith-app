@@ -771,47 +771,6 @@ svg {
 .state-badge.conflict {
   color: #a56a1c;
 }
-.step {
-  background: transparent;
-  border: 0;
-  border-top: 1px solid var(--border);
-  padding: 16px 0;
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  text-align: left;
-}
-.step-number {
-  width: 29px;
-  height: 29px;
-  border-radius: 50%;
-  background: var(--lavender);
-  color: var(--purple-ink);
-  font-size: 12px;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-}
-.step-number.done {
-  background: #e9f3ed;
-  color: #3b805f;
-}
-.step strong {
-  font-size: 12px;
-  display: block;
-  font-weight: 600;
-}
-.step small {
-  font-size: 12px;
-  color: var(--muted);
-  display: block;
-  margin-top: 5px;
-  line-height: 1.7;
-}
-.step > svg {
-  margin-left: auto;
-  color: var(--muted);
-}
 .inline-note {
   display: flex;
   align-items: flex-start;
@@ -915,23 +874,6 @@ tr:last-child td {
   border-color: #596482;
   background: #2e354c;
   color: #c3d1f0;
-}
-.planner-overview {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 18px;
-  padding: 25px 0;
-}
-.planner-overview span {
-  display: block;
-  color: var(--muted);
-  font-size: 12px;
-  margin-bottom: 10px;
-}
-.planner-overview strong {
-  font-size: 25px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
 }
 .text-amber {
   color: #986316;
@@ -1821,6 +1763,215 @@ tr:last-child td {
   margin: 4px 0 0;
   font-size: 15px;
 }
+/* Registrar e Sorteio */
+.pool-stack {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+  min-width: 0;
+}
+.pool-card-title {
+  margin: 2px 0 6px;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.pool-note,
+.pool-sub {
+  margin-top: 10px;
+}
+.pool-card > .ui-problem {
+  margin: 4px 0 12px;
+}
+.pool-card .ui-more-body > .ui-btn {
+  margin-top: 4px;
+}
+.pool-files {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.pool-file {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+.pool-file:first-child {
+  border-top: 0;
+}
+.pool-file-name {
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.pool-file > .ui-chip {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  justify-self: end;
+}
+.pool-file > .pool-actions,
+.pool-file > .ui-problem {
+  grid-column: 1 / -1;
+  margin-top: 6px;
+}
+.pool-attach {
+  position: relative;
+  width: 100%;
+  margin-top: 14px;
+  cursor: pointer;
+}
+.pool-attach:focus-within {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+.pool-attach.disabled {
+  opacity: .5;
+  cursor: default;
+}
+.pool-ticket {
+  display: grid;
+  gap: 10px;
+}
+.pool-ticket-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.pool-compare {
+  display: grid;
+  gap: 8px;
+}
+.pool-fail {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+  margin-top: 12px;
+}
+.pool-drawn {
+  margin: 8px 0 10px;
+}
+.pool-drawn .ui-balls:not(.grid) {
+  justify-content: space-between;
+}
+.pool-drawn .ui-balls.grid {
+  grid-template-columns: repeat(5, 40px);
+  justify-content: space-between;
+  gap: 8px;
+}
+.pool-drawn .ui-ball {
+  width: 42px;
+  height: 42px;
+  font-size: 16px;
+}
+.pool-drawn .ui-balls.grid .ui-ball {
+  width: 40px;
+  height: 40px;
+  font-size: 15px;
+}
+.pool-choice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 8px 0;
+  cursor: pointer;
+}
+.pool-choice input {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  accent-color: var(--purple-ink);
+}
+.pool-choice > span {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.pool-version {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+.pool-result {
+  text-align: center;
+}
+.pool-result > .ui-eyebrow {
+  margin-bottom: 6px;
+}
+.pool-result .ui-money.prize {
+  margin: 8px 0 2px;
+  font-size: clamp(34px, 12vw, 48px);
+  white-space: nowrap;
+}
+.pool-result .pool-actions {
+  flex-direction: column;
+  margin-top: 16px;
+}
+.pool-result .pool-actions > .ui-btn {
+  flex: none;
+}
+.pool-result > .ui-btn {
+  width: 100%;
+}
+.pool-result > .ui-more {
+  text-align: left;
+}
+.pool-result > .ui-sec {
+  margin-top: 4px;
+}
+.pool-prize-pending {
+  margin: 8px 0 2px;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.pool-best {
+  margin: 6px 0 0;
+  font-size: 15px;
+}
+.pool-link {
+  min-height: 44px;
+  padding: 0 8px;
+  border: 0;
+  background: none;
+  color: var(--purple-ink);
+  font: 700 13px/1 Sora, system-ui, sans-serif;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.pool-link:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+.pool-draw {
+  display: grid;
+  gap: 16px;
+  align-items: start;
+}
+.pool-draw > * {
+  min-width: 0;
+}
+@media (max-width: 359px) {
+  .pool-drawn .ui-ball,
+  .pool-drawn .ui-balls.grid .ui-ball {
+    width: 36px;
+    height: 36px;
+    font-size: 15px;
+  }
+  .pool-drawn .ui-balls.grid {
+    grid-template-columns: repeat(5, 36px);
+  }
+}
 @media (min-width: 1000px) {
   .pool-cols {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -1828,6 +1979,29 @@ tr:last-child td {
   }
   .pool-play {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+  }
+  .pool-draw {
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    grid-template-areas: "main result" "games result";
+    gap: 20px;
+  }
+  .pool-draw-main {
+    grid-area: main;
+  }
+  .pool-draw-result {
+    grid-area: result;
+  }
+  .pool-draw-games {
+    grid-area: games;
+  }
+  .pool-drawn .ui-balls:not(.grid) {
+    justify-content: flex-start;
+    gap: 14px;
+  }
+  .pool-drawn .ui-ball {
+    width: 52px;
+    height: 52px;
+    font-size: 19px;
   }
   .pool-card {
     padding: 20px;
@@ -2128,10 +2302,6 @@ tr:last-child td {
     font-size: 12px;
     white-space: nowrap;
     padding: 8px 10px;
-  }
-  .planner-overview {
-    grid-template-columns: 1fr;
-    gap: 22px;
   }
   .odds-card {
     padding: 18px;

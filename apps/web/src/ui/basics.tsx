@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { useReducedMotion } from "motion/react";
 import { Check, ChevronDown, CircleAlert, Clock3 } from "lucide-react";
 import { formatBRL } from "@bolao/core";
 import type { LotteryId } from "@bolao/core";
@@ -109,18 +111,47 @@ export function ProblemBox(
   );
 }
 
-/** Dinheiro grande (44, tabular) ou prêmio (48, ouro com brilho, o único efeito herói da tela). */
+/** Centavos subindo de zero até o valor em 1,2 s, depois da espera (conta em bigint; o último quadro é o valor exato). */
+function useCountUp(cents: string | undefined, enabled: boolean, delay: number) {
+  const reduced = useReducedMotion();
+  const animate = enabled && !reduced && cents !== undefined;
+  const [shown, setShown] = useState(animate ? "0" : cents);
+  useEffect(() => {
+    if (!animate || cents === undefined) return;
+    const target = BigInt(cents);
+    const start = performance.now() + delay;
+    let frame = 0;
+    const tick = (now: number) => {
+      const t = Math.min(1, Math.max(0, (now - start) / 1200));
+      const eased = BigInt(Math.round((1 - (1 - t) ** 3) * 1000));
+      setShown(t >= 1 ? cents : (target * eased / 1000n).toString());
+      if (t < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [cents, animate, delay]);
+  return animate ? shown : cents;
+}
+
+/**
+ * Dinheiro grande (44, tabular) ou prêmio (48, ouro com brilho, o único efeito herói da tela);
+ * `countUp` faz o valor contar até o total quando aparece (desligado com movimento reduzido).
+ */
 export function Money(
-  { cents, prize = false, suffix, children }: {
+  { cents, prize = false, countUp = false, delay = 0, suffix, children }: {
     cents?: string;
     prize?: boolean;
+    countUp?: boolean;
+    /** Espera antes de contar, em ms (as bolas sorteadas caem primeiro). */
+    delay?: number;
     suffix?: ReactNode;
     children?: ReactNode;
   },
 ) {
+  const shown = useCountUp(cents, countUp, delay);
   return (
     <span className={`ui-money ${prize ? "prize" : ""}`}>
-      {cents !== undefined ? formatBRL(cents) : children}
+      {shown !== undefined ? formatBRL(shown) : children}
       {suffix && <small>{suffix}</small>}
     </span>
   );

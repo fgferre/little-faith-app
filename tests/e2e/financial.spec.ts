@@ -973,17 +973,17 @@ const syntheticOriginal = Buffer.from(
   "%PDF-1.4\nOriginal sintético de integração; não é recibo CAIXA.\n%%EOF\n",
 );
 async function addOriginal(page: Page) {
-  await page.getByLabel("Selecionar original").setInputFiles({
+  await page.getByLabel("Anexar comprovante").setInputFiles({
     name: "comprovante-sintetico.pdf",
     mimeType: "application/pdf",
     buffer: syntheticOriginal,
   });
-  await expect(page.locator(".evidence-file small")).toContainText(
+  await expect(page.locator(".pool-file")).toContainText(
     "Salvo neste aparelho",
   );
   await page.getByRole("button", { name: "Enviar original", exact: true })
     .click();
-  await expect(page.locator(".evidence-file small")).toContainText(
+  await expect(page.locator(".pool-file")).toContainText(
     "Original verificado",
   );
 }
@@ -1068,12 +1068,12 @@ test("originals persist offline, registration is reviewed separately and the reg
   test.setTimeout(90_000);
   const manifest = await lockRegistrationFixture(page, request);
   await context.setOffline(true);
-  await page.getByLabel("Selecionar original").setInputFiles({
+  await page.getByLabel("Anexar comprovante").setInputFiles({
     name: "comprovante-sintetico.pdf",
     mimeType: "application/pdf",
     buffer: syntheticOriginal,
   });
-  await expect(page.locator(".evidence-file small")).toContainText(
+  await expect(page.locator(".pool-file")).toContainText(
     "Salvo neste aparelho",
   );
   await page.reload();
@@ -1095,7 +1095,7 @@ test("originals persist offline, registration is reviewed separately and the reg
   ).toBeEnabled();
   await page.getByRole("button", { name: "Enviar original", exact: true })
     .click();
-  await expect(page.locator(".evidence-file small")).toContainText(
+  await expect(page.locator(".pool-file")).toContainText(
     "Original verificado",
   );
   const before = await fixturePost(request, "registration_pull", { groupId });
@@ -1105,7 +1105,7 @@ test("originals persist offline, registration is reviewed separately and the reg
   );
   const checklistPromise = page.waitForEvent("download");
   await page.getByRole("button", {
-    name: "Baixar lista privada para o registrador",
+    name: "Baixar lista",
     exact: true,
   }).click();
   const checklist = await readFile(
@@ -1120,8 +1120,8 @@ test("originals persist offline, registration is reviewed separately and the reg
     manifest.content.plan.tickets.length,
   );
   await approveRecord(page);
-  const report = page.locator('[aria-label="Registro conferido"]');
-  await expect(report.getByText("Conferência completa", { exact: true }))
+  const report = page.locator('[aria-label="O que foi registrado"]');
+  await expect(report.getByText("Registro completo", { exact: true }))
     .toBeVisible();
   const recorded = await fixturePost(request, "registration_pull", { groupId });
   expect(recorded.reports[0].comparison.status).toBe("complete");
@@ -1210,7 +1210,7 @@ test("manual results, official conflicts, failed collection and contest times pr
   await fillObserved(page, manifest);
   await approveRecord(page);
   await step(page, "Sorteio");
-  await page.getByText("Informar resultado manual com fonte", { exact: true })
+  await page.getByRole("button", { name: "Informar resultado", exact: true })
     .click();
   await page.getByLabel("Data do sorteio em Brasília").fill("2026-10-08");
   await page.getByLabel("Dezenas sorteadas", { exact: true }).fill(
@@ -1230,11 +1230,12 @@ test("manual results, official conflicts, failed collection and contest times pr
     exact: true,
   }).click();
   await approveRecord(page);
+  const resultCard = page.locator('[aria-label="Resultado"]');
   await expect(
-    page.locator('[aria-label="Apuração dos jogos registrados"]').getByText(
-      /R\$ 1\.000,00/,
-    ).first(),
+    resultCard.getByRole("heading", { name: "Acertamos a sena!" }),
   ).toBeVisible();
+  await resultCard.getByText("Ver cálculo", { exact: true }).click();
+  await expect(resultCard.getByText(/R\$ 1\.000,00/).first()).toBeVisible();
   const originalNumbers = ["01", "02", "03", "04", "05", "60"];
   const source = (numbers = originalNumbers) =>
     JSON.stringify({
@@ -1251,16 +1252,15 @@ test("manual results, official conflicts, failed collection and contest times pr
   await request.post("http://127.0.0.1:4190/__test/source", {
     data: { rawText: source() },
   });
+  await page.getByText("Atualizar o resultado", { exact: true }).click();
   await page.getByRole("button", {
     name: "Consultar resultado da CAIXA",
     exact: true,
   })
     .click();
-  const resultPanel = page.locator('[aria-label="Resultado do concurso"]');
+  const resultPanel = page.locator('[aria-label="Números sorteados"]');
   await expect(
-    resultPanel.getByText("Diferenças entre versões precisam de revisão", {
-      exact: true,
-    }),
+    resultPanel.getByText("Dois resultados não batem", { exact: true }),
   )
     .toBeVisible();
   const officialVersion =
@@ -1268,16 +1268,15 @@ test("manual results, official conflicts, failed collection and contest times pr
       item: { source: string; version: number },
     ) => item.source === "caixa" && item.version === 2);
   expect(officialVersion).toBeTruthy();
-  await page.getByLabel("Versão para usar").selectOption(officialVersion.id);
+  await resultPanel.locator(`input[type="radio"][value="${officialVersion.id}"]`)
+    .check();
   await page.getByLabel("Motivo da escolha").fill(
     "Resultado sintético oficial escolhido após comparar as duas fontes.",
   );
-  await page.getByRole("button", {
-    name: "Revisar escolha do resultado",
-    exact: true,
-  }).click();
+  await page.getByRole("button", { name: "Revisar", exact: true }).click();
   await approveRecord(page);
-  await expect(resultPanel.getByText(/Versão 2 · Fonte CAIXA/)).toBeVisible();
+  await expect(resultPanel.getByText(/^CAIXA · coletado em/)).toBeVisible();
+  await expect(resultPanel.locator(".pool-drawn")).toContainText("60");
   await request.post("http://127.0.0.1:4190/__test/source", {
     data: { fail: true },
   });
@@ -1288,7 +1287,7 @@ test("manual results, official conflicts, failed collection and contest times pr
     .click();
   await expect(
     page.getByRole("alert").filter({
-      hasText: "último resultado válido preservado",
+      hasText: "O último resultado válido continua valendo.",
     }),
   ).toBeVisible();
   const resultSnapshot = await fixturePost(request, "results_pull", {
@@ -1297,9 +1296,7 @@ test("manual results, official conflicts, failed collection and contest times pr
   expect(resultSnapshot.results).toHaveLength(2);
   expect(resultSnapshot.selections).toHaveLength(1);
   expect(resultSnapshot.results[1].drawnNumbers).toEqual([1, 2, 3, 4, 5, 60]);
-  await page.getByText("Informar ou revisar horários com fonte", {
-    exact: true,
-  }).click();
+  await page.getByText("Horários do concurso", { exact: true }).click();
   await page.getByLabel("Data do concurso em Brasília").fill("2026-10-08");
   await page.getByLabel("Sorteio previsto (Brasília)").fill("2026-10-08T20:00");
   await page.getByLabel("Encerramento do canal (Brasília)").fill(
@@ -1337,9 +1334,7 @@ test("manual results, official conflicts, failed collection and contest times pr
   })
     .click();
   await expect(
-    resultPanel.getByText("Diferenças entre versões precisam de revisão", {
-      exact: true,
-    }),
+    resultPanel.getByText("Dois resultados não batem", { exact: true }),
   )
     .toBeVisible();
 });

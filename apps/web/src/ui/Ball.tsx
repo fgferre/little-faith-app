@@ -1,10 +1,13 @@
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { motion, useReducedMotion } from "motion/react";
 
-export type BallFinish = "silver" | "gold" | "ring";
+export type BallFinish = "silver" | "gold" | "ring" | "wrong";
 export type BallSize = "md" | "sm";
 
-/** Uma bola de metal: prata nos jogos, ouro nos sorteados e acertos premiados, anel nos acertos sem prêmio. */
+/**
+ * Uma bola de metal: prata nos jogos, ouro nos sorteados e acertos premiados, anel de ouro nos acertos
+ * sem prêmio e anel vermelho no número que diverge do planejado.
+ */
 export function Ball(
   { number, size = "md", finish = "silver", reveal, index = 0 }: {
     number: number;
@@ -38,15 +41,21 @@ export function Ball(
   );
 }
 
-/** Uma fileira de bolas (5–6 por linha; 15 números viram 5×3), com o nome acima quando não cabe ao lado. */
+/**
+ * Uma fileira de bolas (5–6 por linha; 15 números viram 5×3), com o nome acima quando não cabe ao lado
+ * e, embaixo do nome, um selo ou a contagem de acertos.
+ */
 export function Balls(
-  { numbers, hits, winner = false, size = "md", name, reveal }: {
+  { numbers, hits, winner = false, wrong, size = "md", name, note, reveal }: {
     numbers: number[];
-    hits?: Set<number>;
+    hits?: Set<number> | undefined;
     winner?: boolean;
+    /** Números que não batem com o planejado: anel vermelho. */
+    wrong?: Set<number>;
     size?: BallSize;
     name?: string;
-    reveal?: "drop" | "pop";
+    note?: ReactNode;
+    reveal?: "drop" | "pop" | undefined;
   },
 ) {
   const cols = numbers.length <= 6
@@ -70,7 +79,11 @@ export function Balls(
             key={n}
             number={n}
             size={size}
-            finish={hit ? winner ? "gold" : "ring" : "silver"}
+            finish={hit
+              ? winner ? "gold" : "ring"
+              : wrong?.has(n)
+              ? "wrong"
+              : "silver"}
             reveal={reveal === "pop" && !hit ? undefined : reveal}
             index={i}
           />
@@ -81,7 +94,10 @@ export function Balls(
   if (!name) return row;
   return (
     <div className="ui-game">
-      <span className="ui-game-name">{name}</span>
+      <span className="ui-game-name">
+        {name}
+        {note && <span className="ui-game-note">{note}</span>}
+      </span>
       {row}
     </div>
   );
