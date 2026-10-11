@@ -257,6 +257,9 @@ async function handle(request, response) {
     case "results_pull":
       result = await rpc("results_pull", [value.groupId]);
       break;
+    case "settlement_pull":
+      result = await rpc("settlement_pull", [value.groupId]);
+      break;
     case "evidence_status":
       result = await rpc("evidence_status", [url.searchParams.get("id")]);
       break;

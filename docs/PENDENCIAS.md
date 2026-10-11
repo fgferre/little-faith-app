@@ -2,7 +2,7 @@
 
 Lista viva do que está aberto. Leia só a seção O BASTÃO e o item da vez; o resto, por `grep`.
 Item resolvido sai da lista e vira commit com o número entre parênteses; a história de cada número fica no git (`git log --all --grep="(NNN)"`).
-Número é identidade, não posição: item novo entra no fim da sua seção. **Próximo número livre: 13.**
+Número é identidade, não posição: item novo entra no fim da sua seção. **Próximo número livre: 14.**
 
 ## O BASTÃO — onde a rodada parou (10/10) — `npm run done` VERDE; ESTILO ESCOLHIDO; PRÓXIMO: ETAPA 6 ENXUTA
 
@@ -31,6 +31,13 @@ paralelo com arquivos separados; depois a E5, já no estilo novo. Começar numa 
 plano.
 
 ## ALTA — bloqueia a entrega ou pode perder trabalho
+
+**13. `npm run done` oscila por causa do planejador antigo (11/10).**
+Durante a simulação (0,4 s), a tabela de resultados parciais mostra chances como "0,00000000000000001084%", que
+alargam a grade além da tela e fazem a página pular; o botão "Pausar simulação" não fica estável e o fluxo
+`foundation.spec.ts:296` falha em ~2 de 11 rodadas (antes e depois da separação da tela). Também oscilam, sob
+carga, corridas de sincronização em `financial.spec.ts` (97, 626, 1060, 1144, 1199). Resolver na tela nova do
+planejador (chance como "1 em 834 mil", grade sem transbordar) e trocando esperas por tempo por esperas por estado.
 
 ## MÉDIA — afeta o produto
 

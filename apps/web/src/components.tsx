@@ -1,15 +1,18 @@
 import { useEffect, useId, useRef } from "react";
 import {
   AlertTriangle,
+  ArrowRight,
   ArrowUpRight,
   Check,
+  ChevronRight,
   Clock3,
   CloudOff,
+  Ticket,
   X,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import type { LocalState, LotteryId } from "@bolao/core";
-import { LOTTERIES } from "@bolao/core";
+import type { LocalRecord, LocalState, LotteryId } from "@bolao/core";
+import { betCost, formatBRL, LOTTERIES, sumCents } from "@bolao/core";
 
 export function Clover(
   { className = "", decorative = true }: {
@@ -202,5 +205,95 @@ export function Modal(
       {description && <p className="modal-description">{description}</p>}
       {children}
     </dialog>
+  );
+}
+
+export function Stat(
+  { icon, color, label, value, note }: {
+    icon: ReactNode;
+    color: string;
+    label: string;
+    value: string;
+    note: string;
+  },
+) {
+  return (
+    <section className="stat-card">
+      <span className={`icon-tile ${color}`}>{icon}</span>
+      <span className="stat-label">{label}</span>
+      <strong>{value}</strong>
+      <small>{note}</small>
+    </section>
+  );
+}
+
+export function Step(
+  { n, title, description, done, action }: {
+    n: string;
+    title: string;
+    description: string;
+    done: boolean;
+    action?: () => void;
+  },
+) {
+  const content = (
+    <>
+      <span className={`step-number ${done ? "done" : ""}`}>
+        {done ? <Check size={15} /> : n}
+      </span>
+      <span>
+        <strong>{title}</strong>
+        <small>{description}</small>
+      </span>
+      {action && <ChevronRight size={16} />}
+    </>
+  );
+  return action
+    ? <button className="step" onClick={action}>{content}</button>
+    : <div className="step">{content}</div>;
+}
+
+export function PoolCard(
+  { pool, bets, onClick }: {
+    pool: LocalRecord<"pool">;
+    bets: LocalRecord<"bet">[];
+    onClick: () => void;
+  },
+) {
+  return (
+    <button className={`pool-card ${pool.data.lotteryId}`} onClick={onClick}>
+      <div className="pool-card-top">
+        <span className={`pool-icon ${pool.data.lotteryId}`}>
+          <Clover />
+        </span>
+        <span className="draft-pill">Em preparação</span>
+      </div>
+      <LotteryBadge lotteryId={pool.data.lotteryId} />
+      <h2>{pool.data.title}</h2>
+      <p>
+        {pool.data.contestNumber
+          ? `Concurso ${pool.data.contestNumber}`
+          : "Concurso a definir"}
+      </p>
+      <div className="pool-card-stats">
+        <span>
+          <Ticket size={16} />
+          {bets.length} jogos
+        </span>
+        <strong>
+          {formatBRL(
+            sumCents(
+              bets.map((b) =>
+                betCost(b.data.lotteryId, b.data.numbers)
+              ),
+            ),
+          )}
+        </strong>
+      </div>
+      <div className="pool-card-footer">
+        <StateBadge state={pool.state} />
+        <ArrowRight size={19} />
+      </div>
+    </button>
   );
 }
