@@ -25,6 +25,7 @@ await sync(db, transport);
 - `planningPull(groupId): Promise<PlanningSnapshot>`, para buscar planos aplicados e manifestos após a leitura financeira. Não envia decisões salvas.
 - `registrationPull(groupId): Promise<RegistrationSnapshot>`, para buscar manifestos, metadados privados e relatórios após o planejamento. Não envia originais nem confirma checklists.
 - `resultsPull(groupId): Promise<ResultSnapshot>`, para buscar resultados, calendários e escolhas humanas depois do registro. Não coleta fontes externas nem decide conflitos.
+- `settlementPull(groupId): Promise<SettlementSnapshot>`, para buscar despesas, prêmios, resgates, pagamentos e encerramentos depois dos resultados. Não envia nem decide nada.
 
 Web Locks serializam a sincronização entre abas quando disponíveis. Chamadas simultâneas no mesmo contexto compartilham uma execução. O fallback entre contextos depende da idempotência transacional do servidor. Falhas de rede preservam as operações; o chamador controla o intervalo e a repetição. O envio processa no máximo 100 lotes de 100 entidades por execução.
 
@@ -79,5 +80,15 @@ A versão 4 acrescenta `evidenceUploads`, `confirmedEvidence`, `registrationMani
 `collectResults(db, transport, groupId, poolId)` consulta a fonte oficial por meio do backend. É uma operação técnica online, separada de aprovação humana; seu histórico de sucesso ou falha fica em `resultCollectionAttempts`. A resposta validada e o sucesso são persistidos juntos. Uma resposta antiga devolve a revisão mais nova já armazenada no aparelho. Não envia comandos manuais salvos.
 
 `prepareResultCommand`, `executeResultCommand` e `recoverResultCommand` (alias `recoveryResultCommand`) seguem a mesma política de decisão explícita e recuperação GET. Resultado manual, escolha entre versões e confirmação de calendário não são executados na reconexão. O recibo precisa estar vinculado ao fato correspondente e à ação original aprovada, incluindo justificativa e referências da fonte. Relatório e resultado nunca viram dinheiro recebido ou distribuição.
+
+## Divisão do prêmio
+
+A versão 5 acrescenta `expenseConfirmations`, `prizeConfirmations`, `prizeRedemptions`, `settlementDistributions`, `poolSettlements`, `settlementSnapshots`, `settlementCommands` e `settlementReceipts`. A migração preserva todas as tabelas anteriores.
+
+`applySettlementSnapshot` valida o retrato com o núcleo e grava, na mesma transação, as fontes (finanças, registro e resultados do mesmo corte) e as cinco listas de fatos. Um fato existente é imutável; uma cópia antiga ou incompleta não apaga fatos posteriores. `getSettlementSnapshot(db, groupId)` devolve a última cópia completa ou `null`. Um cálculo nunca é gravado como dinheiro.
+
+`prepareSettlementCommand` conserva a decisão exata antes da rede. `executeSettlementCommand(db, transport, key)` exige uma ação humana online com o `SettlementTransport` do núcleo; o recibo aceito precisa corresponder ao fato aprovado. `recoverSettlementCommand` (alias `recoverySettlementCommand`) faz somente GET; null/404 conserva a decisão desconhecida e não reenvia. A sincronização e a reconexão nunca executam essas decisões.
+
+## Exportação de emergência
 
 `exportEmergencySnapshot` devolve JSON **sem criptografia** no formato `bolao-emergency-v5`, com aviso explícito e todas as tabelas locais, inclusive decisões desconhecidas, falhas de consulta e originais pendentes ou já enviados. Blobs são representados por `{ encoding: 'base64', mimeType, byteSize, sha256, data }`; os hashes são verificados antes da exportação. A leitura das tabelas é atômica e a conversão dos bytes ocorre depois, fora da transação IndexedDB. Base64 aumenta o tamanho dos arquivos em aproximadamente um terço. A cópia não baixa originais ausentes do servidor, não autoriza reenviar pendências e não é a exportação completa criptografada especificada em `docs/ESPECIFICACAO.md`; restauração e backup completo ficam para a etapa de recuperação.

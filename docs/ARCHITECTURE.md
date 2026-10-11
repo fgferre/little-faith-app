@@ -1,6 +1,6 @@
 # Arquitetura da aplicação
 
-O navegador é o ambiente de trabalho de cada aparelho. O Supabase é a autoridade compartilhada para identidade, autorização, versões, confirmações financeiras, aplicação de planos e trava de bolões. A fundação descrita aqui inclui o fechamento da etapa 4 da [especificação](ESPECIFICACAO.md); convites, registro externo de apostas, resultados e a entrega A completa continuam pendentes.
+O navegador é o ambiente de trabalho de cada aparelho. O Supabase é a autoridade compartilhada para identidade, autorização, versões, confirmações financeiras, aplicação de planos e trava de bolões. A fundação descrita aqui cobre as etapas 1 a 6 da [especificação](ESPECIFICACAO.md) (administração, jogos e planos, registro e resultado, divisão do prêmio) no núcleo, no aparelho, no servidor e nas telas. Convites vinculados, agente e importação, backup criptografado com restauração, o piloto com Supabase real e a entrega A completa continuam pendentes.
 
 ```mermaid
 flowchart LR
@@ -20,6 +20,8 @@ flowchart LR
   Financial --> Ledger[Movimentos imutáveis / compensações]
   RPC --> Plans[Planos aplicados / compromisso do orçamento]
   Plans --> Manifests[Manifestos privados / versões / SHA-256]
+  RPC --> Registry[Originais privados / registros / resultados]
+  RPC --> Settlement[Despesas / prêmio / resgates / pagamentos]
   Files[Arquivos originais privados] --> Storage[Supabase Storage / RLS]
 ```
 
@@ -47,7 +49,7 @@ flowchart LR
 
 O núcleo é puro e pode ser usado no navegador, em uma CLI e na função Deno. A função importa o validador original; o `deno.json` resolve explicitamente os imports internos do núcleo. Não existe uma cópia gerada do núcleo no backend. O SQL mantém verificações defensivas equivalentes porque os RPCs também são acessíveis pelo PostgREST, sem passar pelo Hono. Mudanças de catálogo/limites precisam de uma migration correspondente e de testes de concordância.
 
-Os rascunhos usam JSONB com campos permitidos por tipo. O envelope é tipado pelo contrato v1 e o servidor recusa campos extras. Dependências entre pessoas, bolões, cotas e jogos são verificadas no grupo durante a gravação. Estatutos publicados, aceites, recebimentos, alocações, movimentos, cotas confirmadas e revogações possuem tabelas relacionais próprias com chaves estrangeiras e fatos imutáveis. A segunda migration acrescenta as finanças; a terceira acrescenta planos, catálogo completo e manifestos. As migrations anteriores foram preservadas.
+Os rascunhos usam JSONB com campos permitidos por tipo. O envelope é tipado pelo contrato v1 e o servidor recusa campos extras. Dependências entre pessoas, bolões, cotas e jogos são verificadas no grupo durante a gravação. Estatutos publicados, aceites, recebimentos, alocações, movimentos, cotas confirmadas e revogações possuem tabelas relacionais próprias com chaves estrangeiras e fatos imutáveis. A segunda migration acrescenta as finanças; a terceira, planos, catálogo completo e manifestos; a quarta, originais, registro e resultados; a quinta, a divisão do prêmio. As migrations anteriores foram preservadas.
 
 ## Estados com autoridades diferentes
 
@@ -55,8 +57,9 @@ Os rascunhos usam JSONB com campos permitidos por tipo. O envelope é tipado pel
 - Um rascunho sincronizado possui versão e recibo do servidor; isso comprova o recebimento da edição.
 - Um fato financeiro confirmado exige uma operação humana online sobre a revisão atual do grupo.
 - Um plano aplicado ou manifesto travado exige revisão humana online, orçamento confirmado e verificação dos jogos e direitos atuais.
+- Um fato da divisão do prêmio (despesa, prêmio, resgate ou pagamento) exige revisão humana online sobre o registro e o resultado atuais; prêmio calculado não é prêmio confirmado, nem dinheiro resgatado ou pago.
 
-`sync_push` aceita somente `group`, `person`, `pool` em `draft`, `quota`, `bet` e `payment-proposal`. Cotas sincronizadas são intenções internas, sem direitos confirmados. Propostas de pagamento mantêm os estados `pending`, `needs-review` ou `rejected` e nunca aumentam o caixa. O endpoint HTTP `review_decide` encaminha decisões financeiras ao RPC financeiro e `plan_apply`/`pool_lock` ao RPC `planning_decide`. Essas decisões não usam a fila de rascunhos. A tabela antiga `confirmed_payments` permanece reservada e sem uso; os recebimentos atuais são transferências do grupo e podem financiar vários bolões.
+`sync_push` aceita somente `group`, `person`, `pool` em `draft`, `quota`, `bet` e `payment-proposal`. Cotas sincronizadas são intenções internas, sem direitos confirmados. Propostas de pagamento mantêm os estados `pending`, `needs-review` ou `rejected` e nunca aumentam o caixa. O endpoint HTTP `review_decide` encaminha decisões financeiras ao RPC financeiro, `plan_apply`/`pool_lock` ao RPC `planning_decide`, as ações de registro e de resultado aos seus RPCs de decisão e as da divisão do prêmio a `settlement_decide`. Essas decisões não usam a fila de rascunhos. A tabela antiga `confirmed_payments` permanece reservada e sem uso; os recebimentos atuais são transferências do grupo e podem financiar vários bolões.
 
 Uma cota exige declaração de maioridade da pessoa, custo em centavos inteiros e no máximo 200 pessoas com cotas distintas no bolão. Como uma cota vale 100 unidades, o produto do preço em centavos pelas unidades deve ser divisível por 100. Alterar o preço de um bolão revalida todas as suas cotas, e mover uma cota para outro bolão também verifica a capacidade do destino. Essas verificações ocorrem sob o mesmo bloqueio transacional do grupo; uma rejeição não grava a entidade nem avança sua revisão.
 
@@ -88,7 +91,20 @@ O catálogo `caixa-pools-2026-10-08-v1` contém 32 regras por quantidade de núm
 
 O manifesto guarda o conteúdo, bytes canônicos UTF-8, SHA-256, horário UTC do servidor e recibo. Chaves ordenadas, inteiros seguros e arrays ordenados tornam o hash verificável pelo núcleo e por WebCrypto. Ele é privado: o retrato financeiro completo inclui outros bolões do grupo. O download deve ser tratado como manifesto privado, sem publicação automática. O hash comprova a correspondência com os bytes apresentados, sem provar registro externo ou impedir alterações feitas pelo administrador da infraestrutura.
 
-Antes do prazo e enquanto o bolão não estiver registrado, uma nova aplicação e trava podem acrescentar versões sem reabrir o rascunho. A revisão preserva pessoas, responsáveis, direitos, orçamento e retrato financeiro do manifesto inicial; somente plano, jogos e taxas podem variar dentro desse compromisso. Todos os fatos anteriores permanecem. O registro externo ainda não existe nesta etapa; os estados `registered` e `settled` já bloqueiam essas revisões. `plan_pull` devolve a história completa e `plan_command_status` recupera a decisão original.
+Antes do prazo e enquanto o bolão não estiver registrado, uma nova aplicação e trava podem acrescentar versões sem reabrir o rascunho. A revisão preserva pessoas, responsáveis, direitos, orçamento e retrato financeiro do manifesto inicial; somente plano, jogos e taxas podem variar dentro desse compromisso. Todos os fatos anteriores permanecem. Depois do registro externo, os estados `registered` e `settled` bloqueiam essas revisões; `settled` só será alcançado quando o encerramento do bolão existir. `plan_pull` devolve a história completa e `plan_command_status` recupera a decisão original.
+
+## Divisão do prêmio
+
+Os fatos de cada bolão seguem a ordem do dinheiro: despesa, prêmio, resgate e pagamento. Cada família tem tabelas próprias, imutáveis, e uma `version` sequencial por bolão; correções não editam o fato anterior.
+
+- **Despesa** (`expense_confirm`): o custo real dos jogos e da taxa, confirmado por uma pessoa sobre o relatório de registro atual. Uma correção aponta explicitamente a confirmação que substitui e exige razão humana, assim como um custo diferente do observado no comprovante.
+- **Prêmio** (`prize_confirm`): o valor confirmado sobre o resultado atual, sem conflito de fontes. O valor calculado a partir dos jogos registrados aparece como referência; divergir dele ou corrigir uma confirmação anterior exige razão. No acordo oficial, os direitos vêm do valor e do dono de cada recibo de cota observado, e a soma precisa fechar com o prêmio; no interno, o prêmio é repartido pelas unidades congeladas no manifesto, em centavos exatos. O prazo de resgate é opcional e usa a regra versionada `caixa-redemption-90-days-2026-10-08-v1`.
+- **Resgate** (`redemption_record`, `redemption_reverse`): o registro de que o prêmio foi recebido. No acordo interno pertence ao titular congelado; no oficial, a quem tem direito observado. Desfazer cria um lançamento compensatório e não apaga o original.
+- **Pagamento** (`distribution_record`, `distribution_reverse`): pagamento de prêmio ou devolução de contribuição a uma pessoa. Não pode exceder o direito, o resgate disponível nem o caixa; não consome dinheiro de outro bolão. Desfazer também compensa.
+
+Cada comando referencia a versão observada do bolão, que precisa avançar as decisões anteriores, e originais privados já enviados quando há dinheiro. O fato, o recibo e o horário são gerados pelo servidor, e a ordem vem da revisão do grupo, não de horários que possam empatar. `settlement_pull` devolve, no mesmo corte de revisão, o retrato financeiro, o de registro, o de resultados e as cinco listas da divisão; `settlement_command_status` recupera o recibo original de uma resposta perdida. Como nas outras famílias, a decisão aceita avança a revisão, acrescenta auditoria encadeada e um marcador canônico, e a repetição devolve o recibo original.
+
+O SQL recalcula direitos, saldos e partes de cada pessoa, e o núcleo reconstrói cada fato a partir do histórico e o compara, em JSON canônico, com o que foi gravado. O runner PGlite aplica essa comparação a respostas reais do SQL. O demonstrativo do grupo não é recibo da CAIXA nem documento fiscal. `pool_settle` e `pool_reopen` existem no contrato, mas o servidor os recusa com uma mensagem: encerrar e reabrir o bolão ficam para depois.
 
 ## Protocolo de sincronização
 
@@ -120,13 +136,13 @@ A auditoria registra apenas identificadores, versões e ação, sem copiar nomes
 |---|---|
 | Administração | Convites vinculados, visões individuais e de registrador, conciliação bancária e evidências de arquivo vinculadas |
 | Jogos e planos | Atualizações e exceções de catálogo por concurso, probabilidades de carteiras e simulações ampliadas |
-| Registro e resultado | Evidências com hash e referências, conferência do registrador, coleta da Caixa e revisões de resultados |
-| Distribuição | Direitos do manifesto de fechamento, resgates, prêmios, rateio e movimentos compensatórios da distribuição |
+| Registro e resultado | Feito no código; falta instalar o agendamento do coletor de resultados e conferir contra a CAIXA e o Supabase reais |
+| Distribuição | Feito: despesas, prêmio, resgates, pagamentos e compensações. Falta o encerramento e a reabertura do bolão |
 | Agente e importação | OAuth delegado, permissões revogáveis, MCP/CLI, propostas e aprovação humana com o mesmo servidor |
 | Recuperação e piloto | Backup criptografado com arquivos, restauração verificada, retenção, dispositivos reais e publicação explicitamente autorizada |
 
 ## Validação
 
-O backend possui testes Deno para validação compartilhada, identidade humana, CORS e encaminhamento dos endpoints financeiros e de planejamento. Os testes SQL cobrem idempotência, conflitos, isolamento, escrita proibida, paginação, auditoria, cotas, pagamentos, alocações, estatutos, prazos, estornos, planos, travas e revisões preservadas. O runner PGlite aplica todas as migrations em ordem, valida respostas financeiras e de planejamento reais pelo núcleo TypeScript, compara as 32 regras do catálogo e confere hashes dos manifestos com uma implementação independente.
+`npm run done` passou em 11/10/2026: tipos, lint, 313 testes de unidade em 15 arquivos, SQL em PGlite, 15 testes da API em Deno, build e 34 fluxos de navegador. Os testes Deno cobrem validação compartilhada, identidade humana, CORS e o encaminhamento dos endpoints financeiros, de planejamento, de registro e resultados e da divisão do prêmio. Os testes SQL cobrem idempotência, conflitos, isolamento, escrita proibida, paginação, auditoria, cotas, pagamentos, alocações, estatutos, prazos, estornos, planos, travas, revisões preservadas, registro, resultados e a divisão (despesa, prêmio, resgate, pagamento e compensações, acesso de outro grupo ou de agente e imutabilidade dos fatos). O runner PGlite aplica as cinco migrations em ordem, valida pelo núcleo TypeScript real 15 respostas financeiras, 8 de planejamento, 21 de registro e resultado e 17 da divisão, reconstrói 10 fatos da divisão a partir do histórico, compara as 32 regras do catálogo e confere hashes dos manifestos com uma implementação independente.
 
 PGlite usa schemas mínimos de Auth/Storage, e os testes HTTP da função usam transporte de Auth simulado. Eles verificam lógica e contratos, mas não comprovam integração com Supabase Auth, OAuth Google, Storage HTTP, Edge↔PostgREST nem concorrência entre conexões reais. Essa integração permanece necessária antes de uma publicação. Nenhum deploy foi executado.

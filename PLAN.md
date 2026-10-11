@@ -26,7 +26,7 @@ Especificação: `docs/ESPECIFICACAO.md` › "Apuração e rateio" e "Ordem de i
   - [x] E5c. Etapa "Dividir" (11/10, com o cartão do WhatsApp): prêmio confirmado, resgate, a parte de cada pessoa e "já paguei", ligados ao transporte e
     à sincronização; a fila de settlement entra na proteção de revisão de **todas** as famílias de comandos; o caixa
     exibido passa a ser a projeção conciliada; cartão do WhatsApp (item 7, parte da imagem).
-- [ ] E6. E2E completo da etapa 6 e `npm run done`; documentação com os números que passarem de verdade (item 3).
+- [x] E6. E2E completo da etapa 6 e `npm run done` (11/10, 34 fluxos); documentação com os números que passaram (11/10).
 - [ ] E7. Piloto: Supabase real, Google, publicação e um bolão real do começo ao fim (cada passo pede a palavra dele).
 
 Etapa 6 enxuta para o piloto: na tela, prêmio confirmado, resgate, a parte de cada pessoa e "já paguei"; despesas,

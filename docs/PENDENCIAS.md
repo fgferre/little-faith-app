@@ -37,12 +37,6 @@ resolvida na E5b-1. Resolver trocando esperas por tempo por esperas por estado (
 
 ## MÉDIA — afeta o produto
 
-**3. Documentação defasada (10/10).**
-O README ("O que funciona" sem a etapa 5 e chamando registro e resultados de "etapas seguintes"),
-`docs/ARCHITECTURE.md` (introdução e "Próximas fronteiras") e `docs/IMPLEMENTATION.md` inteiro (descreve a base
-anterior à etapa 5) contam um estado antigo. Atualizar com os números que passarem de verdade (`PLAN.md` E6); o que
-ainda valer de `docs/IMPLEMENTATION.md` vai para o README, e ele sai.
-
 **4. A exportação de emergência não é backup (10/10).**
 O export atual é `bolao-emergency-v5`, sem criptografia; não apresentar como backup completo. `@zip.js/zip.js@2.23.0`
 já está instalado no web; codec e interface do backup (etapa 8) não foram escritos.
