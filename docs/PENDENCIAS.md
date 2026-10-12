@@ -39,6 +39,11 @@ público (passo 7 do piloto): decisão dele. **Fora daqui:** sem Supabase real, 
 **Textos pedidos por ele, já aplicados:** marca *"Seu bolão em boa companhia"*; início *"Faça sua fezinha, organize
 suas apostas e boa sorte!"*.
 
+**Pesquisa de mercado (12/10):** `docs/PESQUISA-MERCADO.md` — Caixa, 14 apps, ~340 avaliações lidas, cruzamento com o
+app e 12 oportunidades. **Em aberto com ele (12/10):** (1) o fluxo da chamada quando acumula ("quem respondeu entra",
+botão "Todos entraram", mensagem pronta) no lugar da cópia automática de todo mundo; (2) ler "acumulou" e o prêmio
+estimado do próximo concurso no Sorteio; (3) o push dos commits da demonstração e desta pesquisa.
+
 **A próxima rodada — a ordem é dele:** (a) o piloto (`docs/PILOTO.md`; cada passo com conta ou chave é dele;
 ele pensa em criar um Gmail só do projeto, 12/10); (e) os fluxos que oscilam sob carga (13). Depois do piloto: participante com conta e convites; foto do bilhete no cartão por URL
 temporária; limite de taxa na rota pública (ver BACKLOG).
