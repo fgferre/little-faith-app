@@ -10,3 +10,4 @@
 - (11/10) Conferir no primeiro deploy se o empacotador da função aceita importar `packages/core` de fora de `supabase/` (item 5).
 - (11/10) A rota pública do cartão do participante (`GET /v1/participant_card`) não tem limite de taxa; o token tem 256 bits, mas convém um limite por IP antes de abrir para muita gente.
 - (11/10) O cartão do participante não mostra a foto do bilhete (spec: imagem original fora de página compartilhada); se o dono quiser, usar URL temporária.
+- (12/10) Em Sorteio a 1440 px, `medir.mjs` acusa seis bolas de jogos com texto #1b1446 em contraste 1,15 (as de "Ver mais jogos"?); já acontecia antes do redesign; conferir se é bola dobrada/escondida ou cor de fato.

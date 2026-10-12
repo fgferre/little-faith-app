@@ -4,8 +4,9 @@ Direção visual "Noite do sorteio", versão afinada (escolhas dele em 10 e 11/1
 `docs/estilo/direcao-visual.html` (configuração `estilo` do navegador), imagens `docs/estilo/noite-*.png`, ferramentas
 `captura.mjs` (fotos) e `medir.mjs` (contraste, bordas, tamanhos, transbordo em 320/360/390):
 
-- Fundo noturno em gradiente violeta-escuro; cartões com preenchimento branco a 6 % e borda a 10 % (14 % quando
-  tocáveis), sem desfoque. Um efeito herói por tela: o brilho fica só no ouro. Botão principal chapado #5b43d6; botão
+- Fundo violeta quase preto (#130d20, com um brilho #2a1b3e só no alto), tinta branca quente #fff6ea, cartões em
+  painel #1f172e com borda #3b2d4d (camadas, não transparência), navegação ativa em ouro #f6d7a3 com filete #d9b478
+  (paleta da proposta "Noite em boa companhia", escolha dele em 12/10 com antes/depois); sem desfoque. Um efeito herói por tela: o brilho fica só no ouro. Botão principal chapado #5b43d6; botão
   secundário só com borda #7a74a8; barra de arrecadação chapada em verde-menta #3ee6a0.
 - Bolas de metal polido (escolha dele, 11/10): prata para os números dos jogos, ouro para os sorteados e para os
   acertos de jogos premiados; jogo sem prêmio marca os acertos com um anel fino de ouro e a contagem apagada ("3
