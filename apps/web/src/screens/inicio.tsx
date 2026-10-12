@@ -7,6 +7,7 @@ import type { BolaoDatabase } from "@bolao/local";
 import type { FormKind, Route, Snapshot } from "../app-shared";
 import {
   Avatars,
+  Bar,
   Button,
   calendarDaysUntil,
   Card,
@@ -91,6 +92,14 @@ export function InicioScreen(
     views[0];
   const target = draw?.drawAt ?? deadline?.pool.data.deadlineAt ?? null;
 
+  // "6 de 8 pessoas já pagaram": quem não deve mais nada neste bolão.
+  const paidLine = (v: PoolView) => {
+    const paid = v.people.length - v.owing.length;
+    return `${paid} de ${v.people.length} ${
+      v.people.length === 1 ? "pessoa" : "pessoas"
+    } já ${paid === 1 ? "pagou" : "pagaram"}`;
+  };
+
   const when = (v: PoolView) => {
     if (v.drawAt) return formatWhen(Date.parse(v.drawAt), now, timeZone);
     if (v.pool.data.deadlineAt && (v.step === "montar" || v.step === "arrecadar")) {
@@ -108,22 +117,33 @@ export function InicioScreen(
         onMouseMove={reduceMotion ? undefined : moveCapa}
         onMouseLeave={reduceMotion ? undefined : resetCapa}
       >
+        <div className="home-capa-texto">
+          <Eyebrow>Little Faith · Bolões</Eyebrow>
+          <h1>
+            Seu bolão em <em>boa companhia.</em>
+          </h1>
+          <p>Os jogos, os pagamentos e a torcida. Tudo no mesmo lugar.</p>
+          <Button
+            className="gold"
+            onClick={() =>
+              hero
+                ? route.navigate("boloes", hero.pool.id)
+                : route.navigate("boloes")}
+          >
+            Acompanhar sorteio
+          </Button>
+        </div>
         <div className="home-capa-arte" aria-hidden="true">
           <img
             src={capa900}
             srcSet={`${capa900} 900w, ${capa1536} 1536w`}
-            sizes="(min-width: 1000px) 480px, 224px"
+            sizes="(min-width: 1000px) 580px, min(100vw, 640px)"
             width={1536}
             height={1024}
             alt=""
             decoding="async"
             fetchPriority="high"
           />
-        </div>
-        <div className="home-capa-texto">
-          <Eyebrow>Little Faith · Bolões</Eyebrow>
-          <h1>Faça sua fezinha, organize suas apostas e boa sorte!</h1>
-          <p>Os jogos, os pagamentos e a torcida. Tudo no mesmo lugar.</p>
         </div>
       </div>
 
@@ -166,6 +186,35 @@ export function InicioScreen(
                         <p className="ui-sec">{hero.pool.data.title}</p>
                       </>
                     )}
+                  {hero.hasQuotas && (
+                    <div className="home-vez">
+                      <Money>{formatBRL(hero.collectedCents)}</Money>
+                      <p className="ui-sec">
+                        recebidos
+                        {hero.expectedCents !== null && (
+                          <>
+                            {" de "}
+                            <span className="ui-nb">
+                              {formatBRL(hero.expectedCents)}
+                            </span>
+                          </>
+                        )}
+                      </p>
+                      {hero.expectedCents !== null &&
+                        hero.expectedCents !== "0" && (
+                        <Bar
+                          done={Number(hero.collectedCents) /
+                            Number(hero.expectedCents)}
+                          label={`${formatBRL(hero.collectedCents)} recebidos de ${
+                            formatBRL(hero.expectedCents)
+                          }`}
+                        />
+                      )}
+                      {hero.people.length > 0 && (
+                        <p className="ui-sec">{paidLine(hero)}</p>
+                      )}
+                    </div>
+                  )}
                   {hero.owing.length > 0 && (
                     <>
                       <div className="home-due">
@@ -243,6 +292,13 @@ export function InicioScreen(
                     className="home-pool"
                     onClick={() => route.navigate("boloes", v.pool.id)}
                   >
+                    <span
+                      className={`home-num mod-${v.pool.data.lotteryId}`}
+                      aria-hidden="true"
+                    >
+                      {String(LOTTERIES[v.pool.data.lotteryId].minNumbers)
+                        .padStart(2, "0")}
+                    </span>
                     <span className="home-pool-main">
                       <b>{v.pool.data.title}</b>
                       <span className="ui-sec">
@@ -281,6 +337,9 @@ export function InicioScreen(
             </section>
           </>
         )}
+      <h2 className="home-moto">
+        Faça sua fezinha, organize suas apostas e boa sorte!
+      </h2>
     </div>
   );
 }

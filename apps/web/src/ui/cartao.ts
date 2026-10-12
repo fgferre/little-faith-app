@@ -341,7 +341,7 @@ const pad = (n: number) => String(n).padStart(2, "0");
 const sorted = (numbers: number[]) => [...numbers].sort((a, b) => a - b);
 
 /**
- * A marca: o laço da turma, o mesmo de .ui-brandmark (LACO, caixa de 100), centrado na linha. O laço
+ * A marca: o laço da turma em vetor (LACO, caixa de 100; na tela a marca é a imagem 3D), centrado na linha. O laço
  * ocupa uns 70 da caixa de 100 com a borda; aqui ele ocupa os 1,9em de largura que as duas bolas ocupavam.
  */
 function brandMark(ctx: Ctx, x: number, cy: number, em: number) {

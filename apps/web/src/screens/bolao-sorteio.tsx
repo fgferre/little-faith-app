@@ -643,12 +643,20 @@ export function BolaoSorteio(
     </Card>
   );
   const gamesList = <GameGroups groups={groups} row={gameRow} />;
+  const stageHead = (
+    <>
+      <p className="sorteio-eyebrow">A torcida é de todo mundo.</p>
+      <p className="sorteio-frase">Uma pequena dose de fé.</p>
+    </>
+  );
 
   if (!drawn && !conflict) {
     const future = drawAt !== null && Date.parse(drawAt) > Date.now();
     return (
       <div className="pool-cols">
-        <Card className="pool-card" label="Sorteio">
+        <Card className="pool-card sorteio-palco" label="Sorteio">
+          {stageHead}
+          <p className="sorteio-sub">Vamos conferir a sorte da turma?</p>
           <Eyebrow>{future ? "Sorteio em" : "Sorteio"}</Eyebrow>
           {future && drawAt
             ? <Countdown target={drawAt} timeZone={timeZone} />
@@ -663,20 +671,22 @@ export function BolaoSorteio(
               Defina o concurso do bolão para consultar o resultado.
             </p>
           )}
-          {!!games.length && (
-            <>
-              <p className="ui-sec pool-sub">
-                {games.length} {games.length === 1 ? "jogo" : "jogos"}
-                {plan && ` · ${reais(plan.plan.betCostCents)}`}
-              </p>
-              {gamesList}
-              <div className="pool-actions">{tellButton}</div>
-            </>
-          )}
-          {actions(false)}
-          {failure}
-          {offline}
-          {extras}
+          <div className="sorteio-detalhes">
+            {!!games.length && (
+              <>
+                <p className="ui-sec pool-sub">
+                  {games.length} {games.length === 1 ? "jogo" : "jogos"}
+                  {plan && ` · ${reais(plan.plan.betCostCents)}`}
+                </p>
+                {gamesList}
+                <div className="pool-actions">{tellButton}</div>
+              </>
+            )}
+            {actions(false)}
+            {failure}
+            {offline}
+            {extras}
+          </div>
         </Card>
         {manualCard}
         {sheet}
@@ -696,7 +706,7 @@ export function BolaoSorteio(
     : null;
   // Espaço sem quebra no valor: "R$" não fica numa linha e o número na outra.
   const rollover = rolled && (
-    <h2 className="pool-card-title">
+    <h2 className="pool-card-title sorteio-titulo">
       {caixa!.nextEstimatedPrizeCents !== null
         ? `Acumulou! Próximo prêmio estimado ${
           formatBRL(caixa!.nextEstimatedPrizeCents).replace(" ", "\u00a0")
@@ -750,7 +760,7 @@ export function BolaoSorteio(
       {conflict
         ? (
           <>
-            <h2 className="ui-title">Falta escolher o resultado</h2>
+            <h2 className="ui-title sorteio-titulo">Falta escolher o resultado</h2>
             <p className="ui-sec">
               O prêmio só é calculado depois que você escolher qual resultado
               vale.
@@ -760,7 +770,7 @@ export function BolaoSorteio(
         : !assessed
         ? (
           <>
-            <h2 className="ui-title">Falta conferir o registro</h2>
+            <h2 className="ui-title sorteio-titulo">Falta conferir o registro</h2>
             <p className="ui-sec">
               O prêmio é calculado só com os jogos que foram registrados de
               verdade.
@@ -771,7 +781,7 @@ export function BolaoSorteio(
         : winners.length
         ? (
           <>
-            <h2 className="ui-title">{winTitle(lotteryId, top)}</h2>
+            <h2 className="ui-title sorteio-titulo">{winTitle(lotteryId, top)}</h2>
             {prizeView}
             {rollover}
             {rolled && nextLine}
@@ -807,7 +817,7 @@ export function BolaoSorteio(
         )
         : (
           <>
-            <h2 className="ui-title">Não foi dessa vez.</h2>
+            <h2 className="ui-title sorteio-titulo">Não foi dessa vez.</h2>
             {best?.prize && (
               <p className="pool-best">
                 Melhor jogo: <b>{best.name}</b>, {acertos(best.prize.hits)}
@@ -837,7 +847,8 @@ export function BolaoSorteio(
   return (
     <div className="pool-draw">
       <div className="pool-stack pool-draw-main">
-        <Card className="pool-card" label="Números sorteados">
+        <Card className="pool-card sorteio-palco" label="Números sorteados">
+          {stageHead}
           <Eyebrow>Números sorteados</Eyebrow>
           {drawn && (
             <>
@@ -860,68 +871,70 @@ export function BolaoSorteio(
               <p className="ui-sec">{sourceLine(result!, timeZone)}</p>
             </>
           )}
-          {conflict && (
-            <>
-              <ProblemBox title="Dois resultados não batem">
-                Escolha qual vale. O prêmio só é calculado depois disso.
-              </ProblemBox>
-              <fieldset className="pool-fieldset pool-form">
-                <legend>Qual resultado vale</legend>
-                {versions.filter((item) => item.drawnNumbers).map((item) => (
-                  <label className="pool-choice" key={item.id}>
-                    <input
-                      type="radio"
-                      name={`resultado-${pool.id}`}
-                      value={item.id}
-                      checked={chosen === item.id}
-                      onChange={() => setChosen(item.id)}
-                    />
-                    <span>
-                      <span className="ui-sec">{sourceLine(item, timeZone)}</span>
-                      <Balls
-                        numbers={item.drawnNumbers!}
-                        hits={new Set(item.drawnNumbers)}
-                        winner
-                        size="sm"
+          <div className="sorteio-detalhes">
+            {conflict && (
+              <>
+                <ProblemBox title="Dois resultados não batem">
+                  Escolha qual vale. O prêmio só é calculado depois disso.
+                </ProblemBox>
+                <fieldset className="pool-fieldset pool-form">
+                  <legend>Qual resultado vale</legend>
+                  {versions.filter((item) => item.drawnNumbers).map((item) => (
+                    <label className="pool-choice" key={item.id}>
+                      <input
+                        type="radio"
+                        name={`resultado-${pool.id}`}
+                        value={item.id}
+                        checked={chosen === item.id}
+                        onChange={() => setChosen(item.id)}
                       />
-                    </span>
+                      <span>
+                        <span className="ui-sec">{sourceLine(item, timeZone)}</span>
+                        <Balls
+                          numbers={item.drawnNumbers!}
+                          hits={new Set(item.drawnNumbers)}
+                          winner
+                          size="sm"
+                        />
+                      </span>
+                    </label>
+                  ))}
+                  <label>
+                    Motivo da escolha<textarea
+                      value={reason}
+                      rows={2}
+                      onChange={(event) => setReason(event.target.value)}
+                    />
                   </label>
-                ))}
-                <label>
-                  Motivo da escolha<textarea
-                    value={reason}
-                    rows={2}
-                    onChange={(event) => setReason(event.target.value)}
-                  />
-                </label>
-                <Button
-                  icon={<ShieldCheck aria-hidden="true" />}
-                  disabled={!enabled || !chosen || !reason.trim()}
-                  onClick={() =>
-                    open({
-                      family: "result",
-                      action: {
-                        type: "result_resolve",
-                        poolId: pool.id,
-                        poolVersion: pool.serverVersion,
-                        resultId: chosen,
-                        observedResultIds: versions.map((item) => item.id)
-                          .sort(),
-                        reason: reason.trim(),
-                      },
-                    })}
-                >
-                  Revisar
-                </Button>
-              </fieldset>
-            </>
-          )}
-          {failure}
-          <Disclosure summary="Atualizar o resultado">
-            {actions(true)}
-            {offline}
-          </Disclosure>
-          {extras}
+                  <Button
+                    icon={<ShieldCheck aria-hidden="true" />}
+                    disabled={!enabled || !chosen || !reason.trim()}
+                    onClick={() =>
+                      open({
+                        family: "result",
+                        action: {
+                          type: "result_resolve",
+                          poolId: pool.id,
+                          poolVersion: pool.serverVersion,
+                          resultId: chosen,
+                          observedResultIds: versions.map((item) => item.id)
+                            .sort(),
+                          reason: reason.trim(),
+                        },
+                      })}
+                  >
+                    Revisar
+                  </Button>
+                </fieldset>
+              </>
+            )}
+            {failure}
+            <Disclosure summary="Atualizar o resultado">
+              {actions(true)}
+              {offline}
+            </Disclosure>
+            {extras}
+          </div>
         </Card>
         {manualCard}
       </div>

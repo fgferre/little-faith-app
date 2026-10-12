@@ -1,4 +1,5 @@
-import { useId } from "react";
+import laco120 from "../assets/laco-3d-120.png";
+import laco240 from "../assets/laco-3d-240.png";
 
 type Stops = readonly (readonly [number, string])[];
 
@@ -21,47 +22,21 @@ export const LACO = {
   knot: [[0, "#fff6dc"], [.4, "#eac77e"], [1, "#8f6425"]] as Stops,
 };
 
-/** A marca do app: o laço da turma. O tamanho vem do font-size do contêiner. */
+/** A marca do app: o laço da turma em 3D (o vetor LACO segue no favicon, nos ícones e no cartão). O tamanho vem do font-size do contêiner. */
 export function BrandMark({ className }: { className?: string }) {
-  // um id por cópia: a marca aparece duas vezes (barra lateral e topo do celular) e uma delas fica
-  // escondida; um degradê definido dentro da cópia escondida não pinta a outra
-  const id = useId().replace(/[^\w-]/g, "");
   return (
     <span
       className={["ui-brandmark", className].filter(Boolean).join(" ")}
       aria-hidden="true"
     >
-      <svg viewBox="0 0 100 100" aria-hidden="true">
-        <defs>
-          {LACO.petals.map((petal) => (
-            <linearGradient key={petal.name} id={`${id}-${petal.name}`} x1="0" y1="0" x2="1" y2="1">
-              {petal.stops.map(([offset, color]) => (
-                <stop key={offset} offset={offset} stopColor={color} />
-              ))}
-            </linearGradient>
-          ))}
-          <radialGradient id={`${id}-no`} cx=".35" cy=".3" r=".8">
-            {LACO.knot.map(([offset, color]) => (
-              <stop key={offset} offset={offset} stopColor={color} />
-            ))}
-          </radialGradient>
-        </defs>
-        <g transform="rotate(45 50 50)">
-          {LACO.petals.map((petal, i) => (
-            <g key={petal.name} transform={`rotate(${i * 90} 50 50)`}>
-              <path
-                d={LACO.petal}
-                fill={`url(#${id}-${petal.name})`}
-                stroke={LACO.rim}
-                strokeOpacity=".55"
-                strokeWidth="1.2"
-              />
-              <path d={LACO.shine} fill="#fff" fillOpacity={petal.shine} />
-            </g>
-          ))}
-        </g>
-        <circle cx="50" cy="50" r="5.5" fill={`url(#${id}-no)`} />
-      </svg>
+      <img
+        src={laco120}
+        srcSet={`${laco120} 1x, ${laco240} 2x`}
+        width={40}
+        height={40}
+        alt=""
+        decoding="async"
+      />
     </span>
   );
 }

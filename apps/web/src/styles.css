@@ -1,6 +1,9 @@
 :root {
   color-scheme: dark;
-  font-family: Sora, system-ui, sans-serif;
+  --f-texto: Inter, system-ui, sans-serif;
+  --f-titulo: Sora, system-ui, sans-serif;
+  --f-marca: Fraunces, Georgia, serif;
+  font-family: var(--f-texto);
   color: #fff6ea;
   background: #0f0a19;
   font-synthesis: none;
@@ -68,6 +71,17 @@ h3,
 p {
   margin: 0;
 }
+/* letras: Inter no texto, Sora em títulos, rótulos, números e bolas; Fraunces só na marca e nas frases de emoção */
+h1,
+h2,
+h3,
+.ui-eyebrow,
+.ui-money,
+.ui-chip,
+.ui-ball,
+.home-due {
+  font-family: var(--f-titulo);
+}
 small {
   font-size: max(12px, .8em);
 }
@@ -96,18 +110,22 @@ svg {
 }
 .brand {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 8px 10px;
   padding: 4px 8px 18px;
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -.01em;
+  font: 600 25px/1 var(--f-marca);
+  letter-spacing: -.04em;
+}
+.brand em,
+.mobile-brand em,
+.card-top em {
+  font-style: italic;
+  font-weight: 500;
 }
 .brand-sub {
-  display: block;
-  margin-top: 4px;
-  font-size: 12px;
-  font-weight: 600;
+  flex: 1 0 100%;
+  font: 500 12px/1.3 var(--f-texto);
   letter-spacing: 0;
   color: var(--muted);
 }
@@ -237,7 +255,8 @@ svg {
   color: var(--gold);
 }
 .sidebar-note strong {
-  font-size: 15px;
+  font: italic 500 21px/1.2 var(--f-marca);
+  color: #edd9bb;
 }
 .sidebar-note p {
   font-size: 13px;
@@ -293,6 +312,8 @@ svg {
 }
 .mobile-brand {
   display: none;
+  font: 600 21px/1 var(--f-marca);
+  letter-spacing: -.04em;
 }
 .desktop-crumb {
   display: flex;
@@ -378,18 +399,15 @@ svg {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 12px;
-  margin: 16px 32px 0;
-  padding: 10px 10px 10px 14px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--surface);
-  font-size: 13px;
-  font-weight: 600;
+  gap: 6px 10px;
+  margin: 10px 32px 0;
+  font: 500 13px/1.4 var(--f-texto);
+  color: var(--muted);
 }
 .demo-banner > svg {
-  width: 18px;
-  height: 18px;
+  flex: none;
+  width: 16px;
+  height: 16px;
   color: var(--gold);
 }
 .demo-banner > span {
@@ -397,6 +415,7 @@ svg {
 }
 .demo-banner .ui-btn {
   flex: none;
+  margin-left: auto;
 }
 .offline-banner {
   display: flex;
@@ -1018,7 +1037,7 @@ tr:last-child td {
   border-radius: 14px;
   background: rgba(255, 255, 255, .04);
   color: var(--text);
-  font: 500 16px Sora, system-ui, sans-serif;
+  font: 500 16px var(--f-texto);
 }
 .modal label > input:focus-visible,
 .modal label > textarea:focus-visible,
@@ -1282,28 +1301,33 @@ tr:last-child td {
 .home {
   max-width: 640px;
 }
-/* capa da Início: a cena 3D no canto de cima à direita (celular) ou na direita (desktop), o texto à esquerda */
+/* capa da Início: o texto em cima e a cena 3D numa faixa embaixo (celular); a cena na metade
+   direita, coberta por um degradê que vem da esquerda (desktop). Luz dourada no alto à direita. */
 .home-capa {
-  --arte: clamp(110px, 34vw, 140px);
   position: relative;
+  isolation: isolate;
   overflow: hidden;
-  margin: 0 0 12px;
-  padding: 16px;
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  background: linear-gradient(150deg, #27183d 0%, #170d28 55%, #110a1d 100%);
+  margin: 0 0 14px;
+  border: 1px solid #51344f;
+  border-radius: 20px;
+  background: #190f27;
+}
+.home-capa::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(circle at 75% 20%, #edc88312, transparent 40%);
+  pointer-events: none;
 }
 .home-capa-arte {
-  position: absolute;
-  top: 0;
-  right: 0;
-  height: var(--arte);
-  aspect-ratio: 3 / 2;
+  position: relative;
+  z-index: -3;
+  height: 240px;
+  margin-top: -6px;
   overflow: hidden;
-  -webkit-mask-image: linear-gradient(to right, transparent, #000 35%), linear-gradient(to top, transparent, #000 25%);
-  -webkit-mask-composite: source-in;
-  mask-image: linear-gradient(to right, transparent, #000 35%), linear-gradient(to top, transparent, #000 25%);
-  mask-composite: intersect;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 26%);
+  mask-image: linear-gradient(to bottom, transparent, #000 26%);
 }
 .home-capa-arte img {
   position: absolute;
@@ -1318,27 +1342,48 @@ tr:last-child td {
 }
 .home-capa-texto {
   position: relative;
+  padding: 22px 20px 0;
 }
 .home-capa .ui-eyebrow {
-  letter-spacing: .12em;
+  margin-bottom: 12px;
+  font-weight: 600;
+  letter-spacing: .15em;
+  color: #d8bdd4;
 }
 .home-capa h1 {
-  margin: calc(var(--arte) * .8 - 32px) 0 0;
-  font-size: 26px;
-  font-weight: 700;
-  line-height: 1.15;
-  letter-spacing: 0;
+  margin: 0 0 14px;
+  font: 500 clamp(29px, 3.7vw, 43px)/1.15 var(--f-titulo);
+  letter-spacing: -.03em;
   color: var(--text);
 }
+.home-capa h1 em {
+  display: block;
+  font-family: var(--f-marca);
+  font-size: 1.14em;
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: -.02em;
+  color: #f1cc89;
+}
 .home-capa p {
-  margin: 6px 0 0;
+  max-width: 260px;
+  margin: 0;
   font-size: 14px;
-  line-height: 1.45;
-  color: var(--muted);
+  line-height: 1.65;
+  color: #d5c7dc;
+}
+.home-capa .ui-btn {
+  display: inline-flex;
+  width: auto;
+  margin-top: 20px;
+  padding: 11px 20px;
+  border-radius: 12px;
 }
 .home-hero {
   container-type: inline-size;
   padding: 18px 16px;
+  border-color: #4a3454;
+  background: linear-gradient(140deg, #2a1d3a, #1a1226);
 }
 .home-hero .ui-eyebrow {
   margin-bottom: 8px;
@@ -1353,13 +1398,27 @@ tr:last-child td {
 .home-hero .ui-btn {
   margin-top: 14px;
 }
+/* bolão da vez: quanto já entrou, de quanto, a barra e quantas pessoas já pagaram */
+.home-vez {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #4a3454;
+}
+.home-hero .home-vez .ui-money {
+  margin: 0 0 2px;
+  font-size: min(36px, 12cqi);
+}
+.home-vez .ui-bar {
+  height: 6px;
+  margin: 14px 0 10px;
+}
 .home-due {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-top: 16px;
   padding-top: 14px;
-  border-top: 1px solid var(--border);
+  border-top: 1px dashed #614666;
 }
 .home-due p {
   margin: 0;
@@ -1385,6 +1444,28 @@ tr:last-child td {
   gap: 12px;
   margin-bottom: 10px;
   padding: 14px 10px 14px 16px;
+}
+/* esfera da modalidade: quantas dezenas leva um jogo simples, na cor da modalidade */
+.home-num {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  /* brilho pequeno no alto, fora do número; o miolo fica escuro o bastante para o branco */
+  background:
+    radial-gradient(circle at 28% 16%, rgba(255, 255, 255, .75) 0, rgba(255, 255, 255, 0) 5px),
+    radial-gradient(
+      circle at 30% 22%,
+      color-mix(in srgb, var(--mod) 50%, #1b1030) 0,
+      color-mix(in srgb, var(--mod) 26%, #120a20) 78%,
+      color-mix(in srgb, var(--mod) 60%, #fff) 100%
+    );
+  box-shadow: inset -2px -4px 7px #24103699, 0 5px 12px #0004;
+  color: #fff;
+  font: 600 13px/1 var(--f-titulo);
+  text-shadow: 0 1px 2px #0008;
 }
 .home-pool-main {
   display: block;
@@ -1436,6 +1517,13 @@ tr:last-child td {
   height: 20px;
   color: var(--muted);
 }
+/* o lema no rodapé da Início */
+.home-moto {
+  margin: 26px 4px 0;
+  font: 500 13px/1.5 var(--f-texto);
+  letter-spacing: 0;
+  color: var(--muted);
+}
 @media (min-width: 1000px) {
   .home {
     max-width: 1040px;
@@ -1451,28 +1539,37 @@ tr:last-child td {
     grid-area: 1 / 1 / 2 / -1;
     display: flex;
     align-items: center;
-    min-height: 280px;
-    margin-bottom: 20px;
-    padding: 32px 40px;
+    min-height: 332px;
+    margin-bottom: 22px;
+    padding: 30px;
+  }
+  .home-capa::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    background: linear-gradient(90deg, #140f22fa 0%, #140f22dc 24%, #140f2255 49%, transparent 71%);
   }
   .home-capa-arte {
+    position: absolute;
+    top: 0;
+    right: 0;
     bottom: 0;
-    width: 45%;
+    width: 55%;
     height: auto;
-    aspect-ratio: auto;
-    -webkit-mask-image: linear-gradient(to right, transparent, #000 30%);
-    mask-image: linear-gradient(to right, transparent, #000 30%);
+    margin: 0;
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 22%);
+    mask-image: linear-gradient(to right, transparent, #000 22%);
   }
   .home-capa-texto {
-    max-width: 55%;
+    max-width: 54%;
+    padding: 0;
   }
   .home-capa h1 {
-    margin-top: 10px;
-    font-size: 34px;
+    margin-bottom: 16px;
   }
-  .home-capa p {
-    margin-top: 10px;
-    font-size: 15px;
+  .home-capa .ui-btn {
+    margin-top: 22px;
   }
   .home-hero {
     grid-area: 2 / 1;
@@ -1483,6 +1580,9 @@ tr:last-child td {
   .home-pools {
     grid-area: 2 / 2 / span 2;
     margin-top: 0;
+  }
+  .home-moto {
+    grid-column: 1 / -1;
   }
 }
 /* tela do bolão: voltar, título, faixa de etapas e o conteúdo da etapa */
@@ -1507,7 +1607,7 @@ tr:last-child td {
   border-radius: 12px;
   background: transparent;
   color: var(--text);
-  font: 600 15px/1 Sora, system-ui, sans-serif;
+  font: 600 15px/1 var(--f-titulo);
   cursor: pointer;
 }
 .pool-back svg {
@@ -1930,7 +2030,7 @@ tr:last-child td {
   border: 0;
   background: none;
   color: var(--purple-ink);
-  font: 700 13px/1 Sora, system-ui, sans-serif;
+  font: 700 13px/1 var(--f-titulo);
   text-decoration: underline;
   cursor: pointer;
 }
@@ -2061,8 +2161,6 @@ tr:last-child td {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 17px;
-    font-weight: 700;
   }
   .topbar-actions {
     gap: 4px;
@@ -2230,8 +2328,8 @@ tr:last-child td {
   align-items: center;
   gap: 8px;
   min-height: 64px;
-  font-size: 17px;
-  font-weight: 700;
+  font: 600 21px/1 var(--f-marca);
+  letter-spacing: -.04em;
 }
 .card-main > .ui-eyebrow {
   margin: 8px 0 6px;

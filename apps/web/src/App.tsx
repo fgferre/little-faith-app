@@ -543,10 +543,9 @@ function OrganizerApp() {
           >
             <BrandMark />
             <span>
-              little faith<span className="brand-sub">
-                Seu bolão em boa companhia
-              </span>
+              little <em>faith</em>
             </span>
+            <span className="brand-sub">Seu bolão em boa companhia</span>
           </a>
           {group
             ? (
@@ -648,7 +647,10 @@ function OrganizerApp() {
           <header className="topbar">
             <div className="breadcrumb">
               <span className="mobile-brand">
-                <BrandMark />little faith
+                <BrandMark />
+                <span>
+                  little <em>faith</em>
+                </span>
               </span>
               <span className="desktop-crumb">
                 {group?.data.name ?? "Seu espaço"}{" "}

@@ -119,7 +119,7 @@
   outline: 0;
   background: transparent;
   color: var(--text);
-  font: 500 16px Sora, system-ui, sans-serif;
+  font: 500 16px var(--f-texto);
   font-variant-numeric: tabular-nums;
 }
 
@@ -165,7 +165,7 @@
   border-radius: 14px;
   background: #5b43d6;
   color: #fff;
-  font: 700 15px/1.2 Sora, system-ui, sans-serif;
+  font: 600 15px/1.2 var(--f-texto);
   text-decoration: none;
   transition: background-color .18s, border-color .18s, color .18s, box-shadow .18s;
 }
@@ -176,6 +176,17 @@
   border: 1.5px solid var(--ghost-line);
 }
 .ui-btn.ghost:hover { background: rgba(255, 255, 255, .05); }
+.ui-btn.gold {
+  min-height: 44px;
+  border: 1px solid #f7e2b8;
+  background: linear-gradient(180deg, #f6d7a3, #e2b874);
+  color: #241323;
+  box-shadow: 0 6px 18px rgba(226, 184, 116, .25);
+}
+.ui-btn.gold:hover {
+  background: linear-gradient(180deg, #fadfb2, #e9c385);
+  box-shadow: 0 8px 22px rgba(226, 184, 116, .34);
+}
 .ui-btn.sm {
   width: auto;
   min-height: 44px;
@@ -273,7 +284,7 @@
   border-radius: 999px;
   background: transparent;
   color: var(--muted);
-  font: 600 13px/1 Sora, system-ui, sans-serif;
+  font: 600 13px/1 var(--f-titulo);
   white-space: nowrap;
 }
 .ui-step svg { width: 14px; height: 14px; flex: none; }
@@ -311,7 +322,7 @@
   background: var(--ag);
   box-shadow: 0 1px 2px rgba(0, 0, 0, .35);
   color: #1b1446;
-  font: 700 13px/1 Sora, system-ui, sans-serif;
+  font: 700 13px/1 var(--f-titulo);
   font-variant-numeric: tabular-nums;
   text-shadow: 0 1px 0 rgba(255, 255, 255, .4);
 }
@@ -408,14 +419,21 @@
 .ui-brandmark {
   display: block;
   flex: none;
-  width: 1.9em;
-  height: 1.9em;
+  width: 2em;
+  height: 2em;
   font-size: 20px;
 }
-.ui-brandmark svg {
+.ui-brandmark img {
   display: block;
   width: 100%;
   height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, .4));
+  transition: transform .65s cubic-bezier(.2, .8, .2, 1);
+}
+a:hover > .ui-brandmark img,
+a:focus-visible > .ui-brandmark img {
+  transform: rotate(-15deg) scale(1.15);
 }
 
 /* pessoas */

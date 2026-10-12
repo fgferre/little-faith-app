@@ -436,7 +436,10 @@ export function ParticipanteScreen({ token }: { token: string }) {
     <MotionConfig reducedMotion="user">
       <div className="card-page">
         <header className="card-top">
-          <BrandMark />little faith
+          <BrandMark />
+          <span>
+            little <em>faith</em>
+          </span>
         </header>
         <main className="card-main">
           {load.state === "loading" && (
