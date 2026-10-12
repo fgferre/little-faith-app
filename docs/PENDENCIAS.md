@@ -34,7 +34,11 @@ link não pede confirmação; um link por pessoa serve a todos os bolões da tur
 **Git:** remoto `origin` = github.com/fgferre/little-faith-app, **privado**, criado com o primeiro push em 11/10;
 a rodada foi enviada com a palavra dele (11/10, tarde); visual do cartão aprovado por ele. GitHub Pages grátis exige repositório
 público (passo 7 do piloto): decisão dele. **Fora daqui:** sem Supabase real, OAuth Google, cron ou deploy
-(item 5). Nenhum subagente ativo. Não há `PLAN.md`.
+(item 5). **Mudou em 12/10:** piloto feito até o passo 7 com ele presente; app publicado em
+https://fgferre.github.io/little-faith-app/ ligado ao Supabase real; o que falta está no item 5. Repositório agora
+**público** por decisão dele (12/10). O redesign visual está no branch `redesign/noite-companhia` (worktree
+`…/Little Faith App-redesign`, outra sessão), com `npm run done` verde e à espera da palavra dele para entrar em
+`main`; depois de juntar, publicar de novo pelo fluxo (um clique). Nenhum subagente ativo. Não há `PLAN.md`.
 
 **Textos pedidos por ele, já aplicados:** marca *"Seu bolão em boa companhia"*; início *"Faça sua fezinha, organize
 suas apostas e boa sorte!"*.
@@ -46,8 +50,8 @@ Sorteio lê do resultado oficial (texto bruto da Caixa, sem campo novo) que acum
 concurso, e o botão vira "Chamar a turma: concurso N+1". Regra dele (12/10): "sempre que houver oportunidade para
 melhorar a UX, nunca diremos não". Piloto começado em 12/10 com ele presente (passo 1, Supabase).
 
-**A próxima rodada — a ordem é dele:** (a) o piloto (`docs/PILOTO.md`; cada passo com conta ou chave é dele;
-ele pensa em criar um Gmail só do projeto, 12/10); (e) os fluxos que oscilam sob carga (13). Depois do piloto: participante com conta e convites; foto do bilhete no cartão por URL
+**A próxima rodada — a ordem é dele:** (a) o primeiro bolão de verdade no endereço público (passo 8 do piloto) e o
+que o item 5 lista; (b) juntar o redesign em `main` e republicar; (c) os fluxos que oscilam sob carga (13). Depois do piloto: participante com conta e convites; foto do bilhete no cartão por URL
 temporária; limite de taxa na rota pública (ver BACKLOG).
 
 ## ALTA — bloqueia a entrega ou pode perder trabalho
@@ -64,13 +68,19 @@ resolvida na E5b-1. Resolver trocando esperas por tempo por esperas por estado (
 O export atual é `bolao-emergency-v5`, sem criptografia; não apresentar como backup completo. `@zip.js/zip.js@2.23.0`
 já está instalado no web; codec e interface do backup (etapa 8) não foram escritos.
 
-**5. Nada foi conferido contra o Supabase real (10/10).**
-Sem projeto conectado, OAuth Google, dois aparelhos, cron do coletor (`results-collector` preparado, nenhum cron
-instalado) nem deploy; as credenciais não estão neste checkout. Os testes usam Auth/Storage simulados e RPCs reais no
-PGlite. Conectar pede a palavra dele; o passo a passo está em `docs/PILOTO.md` (11/10). O plano grátis do Supabase
-pausa por inatividade: um bolão mensal pode achar o servidor dormindo no dia do prêmio. Risco a conferir no primeiro
-`supabase functions deploy`: a função importa `packages/core` de fora de `supabase/`; se o empacotador recusar, mover
-o núcleo usado pela função para `supabase/functions/_shared` ou mapear no `deno.json`.
+**5. O piloto está no ar; faltam o cron, a produção do login e o lembrete da pausa (12/10).**
+Feito em 12/10 com ele presente: projeto Supabase `little-faith` (São Paulo), seis migrations aplicadas pela CLI
+(`npx -y supabase@2 … db push`, sem senha), função `api` publicada importando `packages/core` sem queixa, segredo
+`API_ALLOWED_ORIGINS`, login Google (projeto Google Cloud `little-faith`, cliente web, usuário de teste = ele), URLs
+de retorno, `.env` local, repositório público e GitHub Pages em https://fgferre.github.io/little-faith-app/ (fluxo
+"Publicar no GitHub Pages", por clique). Conferido: login no preview local e no endereço público; grupo "Turma de
+teste" gravado em `groups` e lido de volta no outro aparelho; `/v1/groups` sem sessão → 401; cartão com token falso
+→ 404. Falta: (a) o app do Google está em "Testando": só os e-mails cadastrados como usuário de teste entram; para
+outros organizadores, publicar o app do Google ("Em produção") ou cadastrá-los; (b) nenhum cron do coletor de
+resultados (`results-collector` não publicado; resultado entra à mão ou pela busca no app); (c) o plano grátis pausa
+o projeto por inatividade (passo 9 do piloto, decisão dele); (d) o link do participante e o comprovante ainda não
+foram exercitados no servidor real; (e) a chave de serviço chega à função sozinha, mas ninguém conferiu o
+`evidence_upload` real.
 
 ## BAIXA — dívida interna, ninguém vê
 
