@@ -111,6 +111,7 @@ export function BolaoDividir(
     timeZone,
     setNotice,
     go,
+    repeat,
   }: {
     db: BolaoDatabase;
     groupId: string;
@@ -121,6 +122,7 @@ export function BolaoDividir(
     timeZone: string;
     setNotice: (notice: Notice) => void;
     go: (step: PoolStep) => void;
+    repeat: () => void;
   },
 ) {
   const { snapshot, finance } = settlement;
@@ -741,6 +743,9 @@ export function BolaoDividir(
                 </p>
               )}
           </Card>
+          <div className="pool-actions">
+            <Button onClick={repeat}>Repetir com a mesma turma</Button>
+          </div>
           <p className="ui-sec split-later">Encerrar o bolão entra depois.</p>
           {!!facts.length && (
             <Disclosure summary="Detalhes técnicos" className="split-tech">

@@ -1332,6 +1332,47 @@ test("manual results, official conflicts, failed collection and contest times pr
     .toBeVisible();
 });
 
+test("repeating with the same group carries the people, quotas and games into a new pool and suggests the next contest", async ({ page, request }) => {
+  test.setTimeout(120_000);
+  const manifest = await lockRegistrationFixture(page, request);
+  await addOriginal(page);
+  await fillObserved(page, manifest);
+  await approveRecord(page);
+  await step(page, "Jogar");
+  await expect(page.locator(".pool-game").first()).toBeVisible();
+  const games = await page.locator(".pool-game .ui-balls").allTextContents();
+  // A draw that hits no planned game on four or more numbers, so the result card offers "Repetir".
+  const drawn = Array.from({ length: 55 }, (_, i) => [1, 2, 3, 4, 5, 6].map((k) => i + k))
+    .find((c) => manifest.content.plan.bets.every((b) => c.filter((n) => b.numbers.includes(n)).length < 4))!;
+  await step(page, "Sorteio");
+  await page.getByRole("button", { name: "Informar resultado", exact: true }).click();
+  await page.getByLabel("Data do sorteio em Brasília").fill("2026-10-08");
+  await page.getByLabel("Dezenas sorteadas", { exact: true }).fill(drawn.join(" "));
+  await page.getByLabel("Prêmio de 6 acertos (R$)").fill("1000,00");
+  await page.getByLabel("Prêmio de 5 acertos (R$)").fill("100,00");
+  await page.getByLabel("Prêmio de 4 acertos (R$)").fill("10,00");
+  await page.getByLabel("Fonte do resultado", { exact: true }).fill("Publicação sintética de integração.");
+  await page.getByLabel("Motivo do resultado manual").fill("Conferência humana sintética para testar a repetição.");
+  await page.getByRole("button", { name: "Revisar resultado informado", exact: true }).click();
+  await approveRecord(page);
+  await page.getByRole("button", { name: "Repetir com a mesma turma", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText(`Vão junto: 1 pessoa com suas cotas e ${games.length} ${games.length === 1 ? "jogo" : "jogos"}.`)).toBeVisible();
+  await expect(dialog.getByLabel(/^Concurso/)).toHaveValue("1235");
+  await expect(dialog.getByLabel("Forma de participação")).toHaveValue("internal");
+  await dialog.getByRole("button", { name: "Salvar neste aparelho" }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(page).toHaveURL(/#\/boloes\/(?!50400000)[^/]+\/montar$/);
+  await expect(page.locator("dd", { hasText: /^1235$/ })).toBeVisible();
+  await step(page, "Arrecadar");
+  const person = page.locator(".pool-person", { hasText: "Pessoa financeira" });
+  await expect(person.locator(".pool-person-sub")).toHaveText("1 cota · pagou R$ 0,00");
+  await expect(person.getByText("Ainda não pagou")).toBeVisible();
+  await step(page, "Jogar");
+  await expect(page.locator(".pool-game")).toHaveCount(games.length);
+  expect(await page.locator(".pool-game .ui-balls").allTextContents()).toEqual(games);
+});
+
 const brl = (cents: string | bigint) => {
   const value = BigInt(cents);
   const whole = (value / 100n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");

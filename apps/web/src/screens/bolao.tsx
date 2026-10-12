@@ -75,7 +75,7 @@ export function BolaoScreen(
     gamesCost: string;
     draftGamesCost: string;
     proposedCents: string;
-    /** `repeat` abre o novo bolão com nome, modalidade e preço deste. */
+    /** `repeat` abre o novo bolão com nome, modalidade, preço, concurso seguinte, cotas e jogos deste. */
     openForm: (kind: FormKind, repeat?: boolean) => void;
     setPlanningRequest: (request: PlanningRequest) => void;
     setRecordRequest: (request: RecordRequest) => void;
@@ -207,7 +207,7 @@ export function BolaoScreen(
               setNotice={setNotice}
               go={go}
               repeat={() => openForm("pool", true)}
-            />
+          />
           </Suspense>
         )}
         {step === "dividir" && groupId && (
@@ -222,7 +222,8 @@ export function BolaoScreen(
             timeZone={timeZone}
             setNotice={setNotice}
             go={go}
-          />
+            repeat={() => openForm("pool", true)}
+            />
         )}
       </div>
     </div>

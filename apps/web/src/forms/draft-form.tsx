@@ -26,6 +26,9 @@ const localDateInput = (value: string | null) => {
     .toISOString().slice(0, 16);
 };
 
+const plural = (n: number, one: string, many: string) =>
+  `${n} ${n === 1 ? one : many}`;
+
 export function DraftForm(
   {
     kind,
@@ -45,7 +48,7 @@ export function DraftForm(
     kind: FormKind;
     group: LocalRecord<"group"> | undefined;
     pool: LocalRecord<"pool"> | undefined;
-    /** "Repetir com a mesma turma": o novo bolão começa com nome, modalidade e preço deste. */
+    /** "Repetir com a mesma turma": o novo bolão começa com nome, modalidade, preço, concurso seguinte e forma de participação deste, e leva as cotas e (na mesma modalidade) os jogos. */
     repeatOf?: LocalRecord<"pool"> | undefined;
     persons: LocalRecord<"person">[];
     quotas: LocalRecord<"quota">[];
@@ -60,6 +63,7 @@ export function DraftForm(
 ) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [copyWarned, setCopyWarned] = useState(false);
   const startLottery = repeatOf?.data.lotteryId ?? pool?.data.lotteryId ??
     "mega-sena";
   const [lotteryId, setLotteryId] = useState<LotteryId>(startLottery);
@@ -106,6 +110,7 @@ export function DraftForm(
     setBusy(true);
     const fields = new FormData(event.currentTarget);
     const text = (name: string) => String(fields.get(name) ?? "").trim();
+    let copyWarning: string | null = null;
     try {
       if (entityFormKind === "group") {
         if (!text("name")) throw new Error("Dê um nome ao grupo.");
@@ -137,6 +142,43 @@ export function DraftForm(
             | "official",
           status: "draft",
         }, editing ? pool?.id : undefined);
+        if (repeatOf && !editing) {
+          // Cada save é uma transação própria: uma falha não desfaz o bolão nem as outras cópias.
+          let failedQuotas = 0;
+          let failedBets = 0;
+          for (const q of quotas) {
+            try {
+              await save("quota", {
+                poolId: created.id,
+                personId: q.data.personId,
+                units: q.data.units,
+              });
+            } catch {
+              failedQuotas += 1;
+            }
+          }
+          if (lotteryId === repeatOf.data.lotteryId) {
+            for (const b of bets) {
+              try {
+                await save("bet", {
+                  poolId: created.id,
+                  lotteryId,
+                  numbers: b.data.numbers,
+                  authorIds: b.data.authorIds,
+                  catalogVersion: rule.catalogVersion,
+                  seed: null,
+                  generationAlgorithmVersion: null,
+                });
+              } catch {
+                failedBets += 1;
+              }
+            }
+          }
+          if (failedQuotas || failedBets) {
+            copyWarning =
+              `O bolão foi criado, mas ${plural(failedQuotas, "cota", "cotas")} e ${plural(failedBets, "jogo", "jogos")} não foram copiados.`;
+          }
+        }
         onPoolCreated(created.id);
       } else if (kind === "person") {
         await save("person", {
@@ -224,7 +266,10 @@ export function DraftForm(
           await saveGenerated(run, generated);
         }
       }
-      onClose();
+      if (copyWarning) {
+        setError(copyWarning);
+        setCopyWarned(true);
+      } else onClose();
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -236,7 +281,7 @@ export function DraftForm(
     <Modal
       title={titles[kind]}
       description={descriptions[kind]}
-      dirty={selected.length > 0 || lotteryId !== startLottery}
+      dirty={!copyWarned && (selected.length > 0 || lotteryId !== startLottery)}
       onClose={() => {
         if (!busy) onClose();
       }}
@@ -246,6 +291,13 @@ export function DraftForm(
           void submit(e);
         }}
       >
+        {repeatOf && kind === "pool" && (
+          <p className="ui-sec form-note">
+            {lotteryId === repeatOf.data.lotteryId
+              ? `Vão junto: ${plural(quotas.length, "pessoa", "pessoas")} com suas cotas e ${plural(bets.length, "jogo", "jogos")}. Os pagamentos começam do zero.`
+              : `Vão junto: ${plural(quotas.length, "pessoa", "pessoas")} com suas cotas. Os jogos não vão: a modalidade mudou.`}
+          </p>
+        )}
         {(entityFormKind === "group" || entityFormKind === "pool" ||
           kind === "person") && (
           <label>
@@ -336,7 +388,11 @@ export function DraftForm(
                   min="1"
                   step="1"
                   placeholder="A definir"
-                  defaultValue={editing ? pool?.data.contestNumber ?? "" : ""}
+                  defaultValue={editing
+                    ? pool?.data.contestNumber ?? ""
+                    : repeatOf?.data.contestNumber != null
+                    ? repeatOf.data.contestNumber + 1
+                    : ""}
                 />
               </label>
               <label>
@@ -367,7 +423,7 @@ export function DraftForm(
                 name="mode"
                 defaultValue={editing
                   ? pool?.data.participationMode
-                  : "undecided"}
+                  : repeatOf?.data.participationMode ?? "undecided"}
               >
                 <option value="undecided">Decidir depois</option>
                 <option value="internal">Combinado entre a turma</option>
@@ -540,11 +596,11 @@ export function DraftForm(
         {error && <p className="form-error" role="alert">{error}</p>}
         <div className="modal-actions">
           <Button variant="ghost" disabled={busy} onClick={onClose}>
-            Cancelar
+            {copyWarned ? "Fechar" : "Cancelar"}
           </Button>
           <Button
             type="submit"
-            disabled={busy ||
+            disabled={busy || copyWarned ||
               ((kind === "payment" || kind === "quota") && !persons.length)}
             icon={busy
               ? <LoaderCircle aria-hidden="true" className="spin" />
