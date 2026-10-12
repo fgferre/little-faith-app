@@ -85,7 +85,7 @@ export function BolaoScreen(
   const view = usePoolViews({ db, snapshot, financialView, isDemo }).find((
     v,
   ) => v.pool.id === pool.id);
-  const settlement = useSettlement(db, isDemo ? null : groupId);
+  const settlement = useSettlement(db, groupId);
   const reconciledCents = hasSettlementFacts(settlement.snapshot, pool.id)
     ? settlement.finance?.pools[pool.id]?.organizerCashCents ?? null
     : null;

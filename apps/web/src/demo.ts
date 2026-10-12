@@ -15,11 +15,14 @@ import type {
   LotteryId,
 } from "@bolao/core";
 import type { BolaoDatabase } from "@bolao/local";
+import { seedDrawnPool } from "./demo-sorteado";
 
 export const DEMO_GROUP_ID = "d0000000-0000-4000-8000-000000000001";
-const DEMO_SEED =
+export const DEMO_SEED =
   "a43ce33f4532278e2fbed411130521d9c6a8b84b364492f716988510971f964e";
-const people = [
+export const STATUTE =
+  "Participação válida após pagamento integral confirmado. Autoria dos números não altera direitos. Sobras serão devolvidas. Exemplo de estatuto, sem validade para um grupo real.";
+export const people = [
   "Camila Almeida",
   "Rafael Costa",
   "Bianca Santos",
@@ -29,13 +32,21 @@ const people = [
   "Isabela Rocha",
   "Pedro Silva",
 ];
-const id = (n: number) =>
+export const personData = (name: string) => ({
+  name,
+  nickname: name.split(" ")[0]!,
+  adultDeclared: true,
+});
+export const id = (n: number) =>
   `d0000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 
-function record<K extends EntityKind>(
+export function record<K extends EntityKind>(
   kind: K,
   n: number,
   data: EntityDataMap[K],
+  stamp: Partial<
+    Pick<LocalRecord<K>, "serverVersion" | "state" | "createdAt" | "updatedAt">
+  > = {},
 ): LocalRecord<K> {
   return {
     id: id(n),
@@ -47,12 +58,13 @@ function record<K extends EntityKind>(
     state: "local",
     createdAt: "2026-10-07T15:00:00.000Z",
     updatedAt: "2026-10-07T15:00:00.000Z",
+    ...stamp,
   };
 }
 
 const ZONE = "America/Sao_Paulo";
 const MEGA_CONTEST = 3000;
-const civilDay = (at: Date) =>
+export const civilDay = (at: Date) =>
   new Intl.DateTimeFormat("en-CA", {
     timeZone: ZONE,
     year: "numeric",
@@ -105,15 +117,10 @@ export async function seedDemo(db: BolaoDatabase) {
     const wednesdayDeadline = nextAt(now, 3, "15:00").instant;
     const group = record("group", 1, {
       name: "Turma da sorte",
-      statute:
-        "Participação válida após pagamento integral confirmado. Autoria dos números não altera direitos. Sobras serão devolvidas. Exemplo de estatuto, sem validade para um grupo real.",
+      statute: STATUTE,
     });
     const persons = people.map((name, index) =>
-      record("person", 100 + index, {
-        name,
-        nickname: name.split(" ")[0]!,
-        adultDeclared: true,
-      })
+      record("person", 100 + index, personData(name))
     );
     const pools = [
       record("pool", 10, {
@@ -254,4 +261,6 @@ export async function seedDemo(db: BolaoDatabase) {
       updatedAt: now.toISOString(),
     });
   });
+  // Semeia o que falta: quem já tinha a demonstração recebe só o bolão sorteado; o resto fica intacto.
+  await seedDrawnPool(db);
 }

@@ -108,7 +108,7 @@ function BoloesList(
   },
 ) {
   const views = usePoolViews({ db, snapshot, financialView, isDemo });
-  const settlement = useSettlement(db, isDemo ? null : groupId);
+  const settlement = useSettlement(db, groupId);
   const rows = views.map((view) => ({
     view,
     ended: poolSituation(view, settlement.finance?.pools[view.pool.id]).ended,

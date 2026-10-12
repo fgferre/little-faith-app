@@ -75,7 +75,7 @@ export function HistoricoScreen(
     isDemo: boolean;
   },
 ) {
-  const settlement = useSettlement(db, isDemo ? null : groupId);
+  const settlement = useSettlement(db, groupId);
   const views = usePoolViews({ db, snapshot, financialView, isDemo });
   const cash = hasSettlementFacts(settlement.snapshot)
     ? settlement.finance
