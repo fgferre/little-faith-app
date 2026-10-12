@@ -40,7 +40,8 @@ test("demo is clearly marked and never mixes with the organizer drafts", async (
   await expect(
     page.getByText("Um gostinho do app: estes são dados de exemplo."),
   ).toBeVisible();
-  await expect(page.getByText("R$ 360,00", { exact: true })).toBeVisible();
+  // o valor aparece duas vezes na Início (bolão da vez e lista); basta o primeiro
+  await expect(page.getByText("R$ 360,00", { exact: true }).first()).toBeVisible();
   await createGroup(page);
   await expect(page.getByText("Turma da sorte", { exact: true })).not
     .toBeVisible();
