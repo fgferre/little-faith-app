@@ -4,7 +4,7 @@ Lista viva do que está aberto. Leia só a seção O BASTÃO e o item da vez; o 
 Item resolvido sai da lista e vira commit com o número entre parênteses; a história de cada número fica no git (`git log --all --grep="(NNN)"`).
 Número é identidade, não posição: item novo entra no fim da sua seção. **Próximo número livre: 14.**
 
-## O BASTÃO — onde a rodada parou (12/10) — DIA DO PRÊMIO, CARTÃO DO PARTICIPANTE E REPETIR COM A MESMA TURMA; `npm run done` VERDE
+## O BASTÃO — onde a rodada parou (12/10) — DIA DO PRÊMIO, CARTÃO, REPETIR E A DEMONSTRAÇÃO INTEIRA; `npm run done` VERDE
 
 **Estado:** etapas 1–6 da especificação feitas; app inteiro no estilo "Noite do sorteio" afinado. Itens 6 e 7
 resolvidos nesta rodada: o titular dos bilhetes aparece em Registrar, Sorteio e Dividir, e Dividir avisa que
@@ -15,11 +15,16 @@ dela. Servidor: tabela `participant_links` (token só por hash SHA-256), 4 RPCs 
 organizador cria e cancela o link por pessoa em Arrecadar. Item 8 resolvido em 12/10: "Repetir com a mesma turma"
 (em Sorteio, quando não houve prêmio, e agora também no fim de Dividir) leva as pessoas com suas cotas e os jogos
 (só na mesma modalidade), sugere o concurso seguinte e copia a forma de participação; pagamentos começam do zero;
-a cópia não é atômica (uma falha avisa no formulário e não cria segundo bolão). Encerrar/reabrir ficam para depois.
+a cópia não é atômica (uma falha avisa no formulário e não cria segundo bolão). Item 11 resolvido em 12/10: a
+demonstração ganhou o bolão "Mega da sexta" (Mega-Sena 2999), travado, registrado com comprovante, com quadra
+premiada (R$ 1.287,20), prêmio confirmado e resgatado e 6 de 8 repasses feitos; semeado em `demo-sorteado.ts` com as
+funções do núcleo e validado pelo núcleo; quem já tinha a demo recebe só o bolão novo. Bolões, Histórico e a tela do
+bolão passam a ler a liquidação também na demo. Encerrar/reabrir ficam para depois.
 
 **Verificado em 12/10, nesta sessão:** `npm run done` verde — tipos, lint, 313 testes, SQL no PGlite (o cartão é
-conferido contra `computeSettlement` do núcleo), 16 testes da API, build e 37 fluxos no navegador (2 do
-participante com rotas simuladas, 1 do repetir pela interface; a API real do link só é coberta pelos testes Deno e SQL). Capturas em
+conferido contra `computeSettlement` do núcleo), 16 testes da API, build e 38 fluxos no navegador (2 do
+participante com rotas simuladas, 1 do repetir pela interface, 1 da demonstração inteira; a API real do link só é
+coberta pelos testes Deno e SQL). Capturas em
 `.tmp/b/` (apagável).
 
 **Decisões dele (11/10):** frente (b) antes do piloto; primeiro push autorizado. **Decisões tomadas aqui, que ele
@@ -34,15 +39,16 @@ público (passo 7 do piloto): decisão dele. **Fora daqui:** sem Supabase real, 
 **Textos pedidos por ele, já aplicados:** marca *"Seu bolão em boa companhia"*; início *"Faça sua fezinha, organize
 suas apostas e boa sorte!"*.
 
-**A próxima rodada — a ordem é dele:** (a) o piloto (`docs/PILOTO.md`; cada passo com conta ou chave é dele);
-(d) a demonstração com um bolão inteiro, com prêmio (11); (e) os fluxos que oscilam sob carga (13). Depois do piloto: participante com conta e convites; foto do bilhete no cartão por URL
+**A próxima rodada — a ordem é dele:** (a) o piloto (`docs/PILOTO.md`; cada passo com conta ou chave é dele;
+ele pensa em criar um Gmail só do projeto, 12/10); (e) os fluxos que oscilam sob carga (13). Depois do piloto: participante com conta e convites; foto do bilhete no cartão por URL
 temporária; limite de taxa na rota pública (ver BACKLOG).
 
 ## ALTA — bloqueia a entrega ou pode perder trabalho
 
 **13. Fluxos de navegador oscilam por corridas de sincronização (11/10).**
 Sob carga, `financial.spec.ts` abre diálogos antes de a sincronização terminar (linhas ~97/102, 626, 1060, 1144,
-1199) e falha em ~1 de 4 rodadas; sozinho passa. A parte do planejador (página pulando durante a simulação) foi
+1199; em 12/10 também a linha 842, "a lock review rejects…", que espera o aviso "mesma versão") e falha em ~1 de 4
+rodadas; sozinho passa. A parte do planejador (página pulando durante a simulação) foi
 resolvida na E5b-1. Resolver trocando esperas por tempo por esperas por estado ("Sincronizado" visível) nesses pontos.
 
 ## MÉDIA — afeta o produto
@@ -58,10 +64,6 @@ PGlite. Conectar pede a palavra dele; o passo a passo está em `docs/PILOTO.md` 
 pausa por inatividade: um bolão mensal pode achar o servidor dormindo no dia do prêmio. Risco a conferir no primeiro
 `supabase functions deploy`: a função importa `packages/core` de fora de `supabase/`; se o empacotador recusar, mover
 o núcleo usado pela função para `supabase/functions/_shared` ou mapear no `deno.json`.
-
-**11. A demonstração para antes do melhor (revisão de 10/10).**
-Registro, resultado e divisão não aparecem no modo de exemplo, e a Revisão some nele. A demonstração devia mostrar um
-bolão inteiro, com prêmio.
 
 ## BAIXA — dívida interna, ninguém vê
 
