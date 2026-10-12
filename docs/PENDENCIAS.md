@@ -21,11 +21,10 @@ participante, com as rotas simuladas; a API real do link só é coberta pelos te
 
 **Decisões dele (11/10):** frente (b) antes do piloto; primeiro push autorizado. **Decisões tomadas aqui, que ele
 pode virar:** o cartão não mostra a foto do bilhete (spec: imagem original fora de página compartilhada); cancelar o
-link não pede confirmação; um link por pessoa serve a todos os bolões da turma. Ele recebeu a imagem do cartão e
-ainda não deu a palavra sobre o visual.
+link não pede confirmação; um link por pessoa serve a todos os bolões da turma.
 
 **Git:** remoto `origin` = github.com/fgferre/little-faith-app, **privado**, criado com o primeiro push em 11/10;
-os commits desta rodada ainda não foram enviados (push pede a palavra dele). GitHub Pages grátis exige repositório
+a rodada foi enviada com a palavra dele (11/10, tarde); visual do cartão aprovado por ele. GitHub Pages grátis exige repositório
 público (passo 7 do piloto): decisão dele. **Fora daqui:** sem Supabase real, OAuth Google, cron ou deploy
 (item 5). Nenhum subagente ativo. Não há `PLAN.md`.
 
