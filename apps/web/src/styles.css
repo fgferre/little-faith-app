@@ -400,8 +400,12 @@ svg {
   flex-wrap: wrap;
   align-items: center;
   gap: 6px 10px;
-  margin: 10px 32px 0;
-  font: 500 13px/1.4 var(--f-texto);
+  margin-top: 32px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-family: var(--f-texto);
+  font-size: 13px;
+  line-height: 1.4;
   color: var(--muted);
 }
 .demo-banner > svg {
@@ -2118,7 +2122,6 @@ tr:last-child td {
     padding-left: 28px;
     padding-right: 28px;
   }
-  .demo-banner,
   .offline-banner {
     margin-left: 28px;
     margin-right: 28px;
@@ -2168,7 +2171,6 @@ tr:last-child td {
   .connection-pill {
     padding: 0 12px;
   }
-  .demo-banner,
   .offline-banner {
     margin: 12px 16px 0;
   }

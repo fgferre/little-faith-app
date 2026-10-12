@@ -1,4 +1,5 @@
 import type { LotteryId } from "@bolao/core";
+import laco3d from "../assets/laco-3d-240.png";
 import { LACO } from "./BrandMark";
 
 /** Um jogo no cartão: só os números, nunca dados de pagamento. */
@@ -633,7 +634,7 @@ function drawResult(ctx: Ctx, result: ShareCardData["result"], top: number) {
   }
 }
 
-function draw(ctx: Ctx, data: ShareCardData) {
+function draw(ctx: Ctx, data: ShareCardData, marca: ImageBitmap | null) {
   // fundo da noite: radial-gradient(120% 80% at 50% 0%, ...)
   ctx.fillStyle = "#0f0a19";
   ctx.fillRect(0, 0, W, H);
@@ -682,9 +683,27 @@ function draw(ctx: Ctx, data: ShareCardData) {
 
   // rodapé, de baixo para cima: marca + "sem dados de pagamento"; acima, a linha do resultado
   const footer = BOTTOM - 26;
-  const markW = brandMark(ctx, X0, footer, 28);
-  font(ctx, 700, SMALL);
-  line(ctx, "Little Faith", X0 + markW + 14, footer, MUTED);
+  // a marca é a imagem 3D da tela; sem ela (falha ao carregar), o laço em vetor no mesmo espaço
+  const markSize = 1.9 * 28;
+  if (marca) {
+    // a imagem tem margem transparente: desenha maior, centrada no mesmo espaço
+    const markDraw = 2.5 * 28;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(marca, X0 - (markDraw - markSize) / 2, footer - markDraw / 2, markDraw, markDraw);
+  }
+  const markW = marca ? markSize : brandMark(ctx, X0, footer, 28);
+  // o nome como na tela: "little" em Fraunces reta e "faith" em itálico, na mesma linha de base
+  ctx.font = `600 ${SMALL}px Fraunces, Georgia, serif`;
+  if ("letterSpacing" in ctx) ctx.letterSpacing = "0px";
+  ctx.fillStyle = MUTED;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+  const nameX = X0 + markW + 14;
+  const nameY = footer + ctx.measureText("H").actualBoundingBoxAscent / 2;
+  ctx.fillText("little ", nameX, nameY);
+  const faithX = nameX + ctx.measureText("little ").width;
+  ctx.font = `italic 500 ${SMALL}px Fraunces, Georgia, serif`;
+  ctx.fillText("faith", faithX, nameY);
   font(ctx, 600, SMALL);
   line(ctx, "sem dados de pagamento", X1, footer, "rgba(169, 163, 204, .8)", "right");
   const resultH = resultHeight(data.result);
@@ -702,12 +721,13 @@ function draw(ctx: Ctx, data: ShareCardData) {
   drawResult(ctx, data.result, gamesEnd + 40 + free / 2);
 }
 
-/** Espera a Sora do app (empacotada, funciona sem internet); sem ela, a letra do sistema. */
+/** Espera a Sora e a Fraunces do app (empacotadas, funcionam sem internet); sem elas, a letra do sistema. */
 async function fontsReady() {
   if (typeof document === "undefined" || !document.fonts) return;
   const loads = [600, 700, 800].map((weight) =>
     document.fonts.load(`${weight} 40px Sora`)
   );
+  loads.push(document.fonts.load(`600 ${SMALL}px Fraunces`), document.fonts.load(`italic 500 ${SMALL}px Fraunces`));
   await Promise.race([
     Promise.allSettled(loads),
     new Promise((resolve) => setTimeout(resolve, 3000)),
@@ -717,12 +737,16 @@ async function fontsReady() {
 /** O cartão do WhatsApp: PNG 1080 × 1350 (4:5) desenhado num canvas fora da tela. */
 export async function renderShareCard(data: ShareCardData): Promise<Blob> {
   await fontsReady();
+  const marca = await fetch(laco3d)
+    .then((r) => r.blob())
+    .then((b) => createImageBitmap(b))
+    .catch(() => null);
   const canvas = document.createElement("canvas");
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Este navegador não desenha imagens.");
-  draw(ctx, data);
+  draw(ctx, data, marca);
   return new Promise((resolve, reject) =>
     canvas.toBlob(
       (blob) =>

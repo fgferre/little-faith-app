@@ -603,8 +603,8 @@ function OrganizerApp() {
           <div className="sidebar-bottom">
             <div className="sidebar-note">
               <Sparkles aria-hidden="true" />
-              <strong>Sorte boa é compartilhada.</strong>
-              <p>O cuidado com o grupo começa por aqui.</p>
+              <strong>Um pouco de fé.</strong>
+              <p>Um cuidado de cada vez.</p>
               {isDemo && (
                 <Button
                   variant="ghost"
@@ -700,22 +700,6 @@ function OrganizerApp() {
               </button>
             </div>
           </header>
-          {isDemo && (
-            <div className="demo-banner">
-              <Sparkles aria-hidden="true" />
-              <span>Um gostinho do app: estes são dados de exemplo.</span>
-              <Button
-                variant="ghost"
-                small
-                onClick={() => {
-                  switchMode("local");
-                  setForm("group");
-                }}
-              >
-                Criar meu grupo
-              </Button>
-            </div>
-          )}
           {group && (
             <div className="mobile-context">
               <label className="group-switch">
@@ -862,6 +846,22 @@ function OrganizerApp() {
                   )}
                 </>
               )}
+            {isDemo && (
+              <div className="demo-banner">
+                <Sparkles aria-hidden="true" />
+                <span>Um gostinho do app: estes são dados de exemplo.</span>
+                <Button
+                  variant="ghost"
+                  small
+                  onClick={() => {
+                    switchMode("local");
+                    setForm("group");
+                  }}
+                >
+                  Criar meu grupo
+                </Button>
+              </div>
+            )}
           </main>
         </div>
 
