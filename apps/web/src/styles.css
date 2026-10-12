@@ -1,19 +1,19 @@
 :root {
   color-scheme: dark;
   font-family: Sora, system-ui, sans-serif;
-  color: #f4f1ff;
-  background: #0a0820;
+  color: #fff6ea;
+  background: #0f0a19;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --bg: #120e33;
-  --surface: rgba(255, 255, 255, .06);
-  --text: #f4f1ff;
-  --muted: #a9a3cc;
-  --border: rgba(255, 255, 255, .10);
+  --bg: #130d20;
+  --surface: #1f172e;
+  --text: #fff6ea;
+  --muted: #c0b3d2;
+  --border: #3b2d4d;
   --purple: #5b43d6;
-  --purple-ink: #c4b8ff;
-  --lavender: rgba(139, 116, 255, .18);
+  --purple-ink: #cdbdff;
+  --lavender: rgba(183, 160, 236, .18);
   --shadow: none;
 }
 * {
@@ -22,7 +22,7 @@
 body {
   margin: 0;
   min-width: 320px;
-  background: radial-gradient(120% 100vh at 50% 0%, #2c2170 0%, var(--bg) 55%, #0a0820 100%) no-repeat, #0a0820;
+  background: radial-gradient(100% 70vh at 50% 0%, #2a1b3e 0%, #160f23 50%, #0f0a19 100%) no-repeat, #0f0a19;
   color: var(--text);
 }
 button,
@@ -92,7 +92,7 @@ svg {
   padding: 22px 16px 18px;
   overflow-y: auto;
   border-right: 1px solid var(--border);
-  background: rgba(255, 255, 255, .025);
+  background: linear-gradient(165deg, #261733 0%, #181122 55%, #130e1d 100%);
 }
 .brand {
   display: flex;
@@ -137,7 +137,7 @@ svg {
   width: 32px;
   height: 32px;
   border-radius: 10px;
-  background: #3b3274;
+  background: #4a3658;
   font-size: 12px;
   font-weight: 800;
 }
@@ -195,12 +195,12 @@ svg {
   height: 20px;
 }
 .nav-item:hover {
-  background: rgba(255, 255, 255, .05);
+  background: rgba(72, 48, 82, .6);
 }
 .nav-item.active {
-  background: rgba(139, 116, 255, .18);
-  color: var(--text);
-  box-shadow: inset 3px 0 0 #a996ff;
+  background: linear-gradient(105deg, rgba(96, 68, 113, .55), rgba(65, 47, 75, .3));
+  color: #f6d7a3;
+  box-shadow: inset 3px 0 0 #d9b478;
 }
 .nav-badge {
   display: grid;
@@ -289,6 +289,7 @@ svg {
   min-height: 68px;
   padding: 0 32px;
   border-bottom: 1px solid var(--border);
+  background: rgba(23, 16, 32, .9);
 }
 .mobile-brand {
   display: none;
@@ -371,7 +372,7 @@ svg {
   height: 9px;
   border-radius: 50%;
   background: var(--amber);
-  box-shadow: 0 0 0 2px #120e33;
+  box-shadow: 0 0 0 2px #130d20;
 }
 .demo-banner {
   display: flex;
@@ -481,7 +482,7 @@ svg {
 /* desligado continua legível: fundo apagado e texto secundário, sem transparência */
 .button.primary:disabled {
   opacity: 1;
-  background: #2f2866;
+  background: #352a52;
   color: var(--muted);
 }
 .button.secondary:disabled {
@@ -943,7 +944,7 @@ tr:last-child td {
   padding: 10px 6px 10px 14px;
   border: 1px solid rgba(255, 255, 255, .18);
   border-radius: 14px;
-  background: #1f1852;
+  background: #241a35;
   box-shadow: 0 16px 40px rgba(0, 0, 0, .5);
   font-size: 15px;
   font-weight: 600;
@@ -1028,7 +1029,7 @@ tr:last-child td {
   box-shadow: 0 0 0 3px rgba(139, 116, 255, .6);
 }
 .modal select option {
-  background: #1f1852;
+  background: #241a35;
   color: var(--text);
 }
 .modal input::placeholder,
@@ -1184,7 +1185,7 @@ tr:last-child td {
   padding: 16px;
   border: 1px solid rgba(255, 255, 255, .18);
   border-radius: 18px;
-  background: #1f1852;
+  background: #241a35;
   box-shadow: 0 -12px 40px rgba(0, 0, 0, .5);
 }
 .modal-leave strong {
@@ -1290,7 +1291,7 @@ tr:last-child td {
   padding: 16px;
   border: 1px solid var(--border);
   border-radius: 18px;
-  background: linear-gradient(150deg, #23163f 0%, #170d28 55%, #120a1f 100%);
+  background: linear-gradient(150deg, #27183d 0%, #170d28 55%, #110a1d 100%);
 }
 .home-capa-arte {
   position: absolute;
@@ -2093,7 +2094,7 @@ tr:last-child td {
     width: 100%;
     padding: 6px 4px calc(8px + env(safe-area-inset-bottom));
     border-top: 1px solid var(--border);
-    background: #0d0a26;
+    background: #171020;
   }
   .bottom-nav a {
     display: flex;
@@ -2122,7 +2123,8 @@ tr:last-child td {
     color: var(--text);
   }
   .bottom-nav a.active .bottom-nav-icon {
-    background: rgba(139, 116, 255, .28);
+    background: rgba(96, 68, 113, .6);
+    color: #f6d7a3;
   }
   .bottom-nav .nav-badge {
     position: absolute;

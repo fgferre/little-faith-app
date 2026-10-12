@@ -139,9 +139,9 @@
   width: 100%;
   margin: 0;
   padding: 16px;
-  border: 1px solid rgba(255, 255, 255, .10);
+  border: 1px solid var(--border);
   border-radius: 18px;
-  background: rgba(255, 255, 255, .06);
+  background: var(--surface);
   color: var(--text);
   font: inherit;
   text-align: left;
@@ -150,7 +150,7 @@
   border-color: var(--line-tap);
   cursor: pointer;
 }
-.ui-card.interactive:hover { background: rgba(255, 255, 255, .08); }
+.ui-card.interactive:hover { background: #271d38; }
 
 /* botões */
 .ui-btn {
@@ -183,7 +183,7 @@
 }
 .ui-btn svg { width: 20px; height: 20px; flex: none; }
 /* desligado continua legível: fundo apagado e texto secundário, sem transparência */
-.ui-btn:disabled { opacity: 1; background: #2f2866; color: var(--muted); }
+.ui-btn:disabled { opacity: 1; background: #352a52; color: var(--muted); }
 .ui-btn.ghost:disabled { background: transparent; }
 .ui-btn:focus-visible,
 .ui-card.interactive:focus-visible,
@@ -429,13 +429,13 @@
   margin-left: -6px;
   border: 2px solid #191341;
   border-radius: 50%;
-  background: #3b3274;
+  background: #4a3658;
   color: var(--text);
   font-size: 12px;
   font-weight: 700;
 }
 .ui-av:first-child { margin-left: 0; }
-.ui-av.more { background: #2a2360; }
+.ui-av.more { background: #3a2a47; }
 .ui-av.paid { background: color-mix(in srgb, var(--mint) 22%, #191341); }
 .ui-av.owe {
   margin-left: 4px;
@@ -535,7 +535,7 @@
   border: 0;
   border-top: 1px solid rgba(255, 255, 255, .18);
   border-radius: 28px 28px 0 0;
-  background: linear-gradient(180deg, #1f1852 0%, #151038 60%);
+  background: linear-gradient(180deg, #241a35 0%, #180f26 60%);
   color: var(--text);
   box-shadow: 0 -24px 60px rgba(0, 0, 0, .6);
 }
@@ -601,7 +601,7 @@
 }
 .ui-sheet-card.wait {
   border: 1px solid rgba(255, 255, 255, .1);
-  background: radial-gradient(120% 80% at 50% 0%, #2c2170 0%, #160f3d 60%, #0d0a26 100%);
+  background: radial-gradient(120% 80% at 50% 0%, #2a1b3e 0%, #160f23 60%, #0f0a19 100%);
 }
 .ui-sheet-actions { display: grid; gap: 10px; }
 .ui-sheet-note { margin: 12px 0 0; text-align: center; }

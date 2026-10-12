@@ -635,14 +635,14 @@ function drawResult(ctx: Ctx, result: ShareCardData["result"], top: number) {
 
 function draw(ctx: Ctx, data: ShareCardData) {
   // fundo da noite: radial-gradient(120% 80% at 50% 0%, ...)
-  ctx.fillStyle = "#0d0a26";
+  ctx.fillStyle = "#0f0a19";
   ctx.fillRect(0, 0, W, H);
   ctx.save();
   ctx.setTransform(1, 0, 0, (.8 * H) / (1.2 * W), W / 2, 0);
   const sky = ctx.createRadialGradient(0, 0, 0, 0, 0, 1.2 * W);
-  sky.addColorStop(0, "#2c2170");
-  sky.addColorStop(.6, "#160f3d");
-  sky.addColorStop(1, "#0d0a26");
+  sky.addColorStop(0, "#2a1b3e");
+  sky.addColorStop(.6, "#160f23");
+  sky.addColorStop(1, "#0f0a19");
   ctx.fillStyle = sky;
   ctx.fillRect(-W, 0, 2 * W, 2 * H);
   ctx.restore();
