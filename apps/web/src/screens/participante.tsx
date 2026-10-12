@@ -240,7 +240,7 @@ function ResultCard({ pool }: { pool: Pool }) {
               prize
               cents={result.prizeConfirmedCents!}
               countUp
-              delay={1200}
+              delay={700}
             />
             <span className="ui-sec">prêmio confirmado</span>
           </div>

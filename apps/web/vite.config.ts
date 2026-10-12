@@ -17,7 +17,7 @@ function offlineShell() {
       const assets = await readdir(`${dist}assets`);
       const paths = [
         "index.html",
-        "clover.svg",
+        "laco.svg",
         "manifest.webmanifest",
         ...assets.map((file) => `assets/${file}`),
       ];

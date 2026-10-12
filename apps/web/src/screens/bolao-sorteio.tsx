@@ -716,7 +716,7 @@ export function BolaoSorteio(
           <Money
             prize
             countUp={firstReveal}
-            delay={drawn!.length * 180 + 300}
+            delay={drawn!.length * 70 + 250}
             cents={prizeCents}
           />
         )

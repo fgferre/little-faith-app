@@ -33,7 +33,7 @@ export function Ball(
       initial={reveal === "drop" ? { y: -24, opacity: 0 } : { scale: .6 }}
       animate={reveal === "drop" ? { y: 0, opacity: 1 } : { scale: 1 }}
       transition={{
-        delay: index * (reveal === "drop" ? .18 : .06),
+        delay: index * (reveal === "drop" ? .07 : .05),
         type: "spring",
         stiffness: 420,
         damping: reveal === "drop" ? 18 : 14,

@@ -1,4 +1,5 @@
 import type { LotteryId } from "@bolao/core";
+import { LACO } from "./BrandMark";
 
 /** Um jogo no cartão: só os números, nunca dados de pagamento. */
 export interface ShareCardGame {
@@ -339,20 +340,45 @@ function hexAlpha(hex: string, alpha: number) {
 const pad = (n: number) => String(n).padStart(2, "0");
 const sorted = (numbers: number[]) => [...numbers].sort((a, b) => a - b);
 
-/** A marca: prata atrás e ouro na frente (1em = a bola de prata), como .ui-brandmark. */
+/**
+ * A marca: o laço da turma, o mesmo de .ui-brandmark (LACO, caixa de 100), centrado na linha. O laço
+ * ocupa uns 70 da caixa de 100 com a borda; aqui ele ocupa os 1,9em de largura que as duas bolas ocupavam.
+ */
 function brandMark(ctx: Ctx, x: number, cy: number, em: number) {
-  const top = cy - .9 * em;
-  ball(ctx, x + .5 * em, top + .05 * em + .5 * em, em, "silver");
-  const gx = x + .65 * em + .625 * em;
-  const gy = top + .5 * em + .625 * em;
+  const size = 1.9 * em;
+  const k = size / 70;
+  const petal = new Path2D(LACO.petal);
+  const shine = new Path2D(LACO.shine);
   ctx.save();
+  ctx.translate(x + size / 2, cy);
+  ctx.scale(k, k);
+  ctx.translate(-50, -50);
+  ctx.lineWidth = 1.2;
+  ctx.strokeStyle = hexAlpha(LACO.rim, .55);
+  LACO.petals.forEach((p, i) => {
+    ctx.save();
+    ctx.translate(50, 50);
+    ctx.rotate((45 + 90 * i) * Math.PI / 180);
+    ctx.translate(-50, -50);
+    // o degradê do SVG vai de canto a canto da pétala (34 × 46); este vetor dá as mesmas faixas
+    const fill = ctx.createLinearGradient(33, 8, 77, 40.5);
+    for (const [offset, color] of p.stops) fill.addColorStop(offset, color);
+    ctx.fillStyle = fill;
+    ctx.fill(petal);
+    ctx.stroke(petal);
+    ctx.fillStyle = `rgba(255, 255, 255, ${p.shine})`;
+    ctx.fill(shine);
+    ctx.restore();
+  });
+  // o nó: o radial do SVG (centro em .35/.3 e raio .8 da caixa do círculo)
+  const knot = ctx.createRadialGradient(48.35, 47.8, 0, 48.35, 47.8, 8.8);
+  for (const [offset, color] of LACO.knot) knot.addColorStop(offset, color);
+  ctx.fillStyle = knot;
   ctx.beginPath();
-  ctx.arc(gx, gy, .625 * em + 1.5 * (em / 20), 0, TAU);
-  ctx.fillStyle = "rgba(10, 8, 32, .6)";
+  ctx.arc(50, 50, 5.5, 0, TAU);
   ctx.fill();
   ctx.restore();
-  ball(ctx, gx, gy, 1.25 * em, "gold");
-  return 1.9 * em;
+  return size;
 }
 
 interface GamesLayout {

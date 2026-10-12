@@ -1,4 +1,6 @@
+import type { MouseEvent } from "react";
 import { ChevronRight, MessageCircle, Plus } from "lucide-react";
+import { useReducedMotion } from "motion/react";
 import { formatBRL, LOTTERIES } from "@bolao/core";
 import type { FinancialView, LocalRecord } from "@bolao/core";
 import type { BolaoDatabase } from "@bolao/local";
@@ -16,6 +18,8 @@ import {
 } from "../ui";
 import { joinNames, STEP_LABEL, usePoolViews } from "./bolao-etapas";
 import type { PoolView } from "./bolao-etapas";
+import capa900 from "../assets/inicio-companhia-900.jpg";
+import capa1536 from "../assets/inicio-companhia-1536.jpg";
 
 export function InicioScreen(
   {
@@ -43,6 +47,27 @@ export function InicioScreen(
   },
 ) {
   const views = usePoolViews({ db, snapshot, financialView, isDemo });
+  const reduceMotion = useReducedMotion();
+
+  // Capa: a cena acompanha o ponteiro do mouse, no máximo 6 px por eixo; nada no toque.
+  const moveCapa = (event: MouseEvent<HTMLDivElement>) => {
+    if (!matchMedia("(pointer: fine)").matches) return;
+    const box = event.currentTarget.getBoundingClientRect();
+    const shift = (ratio: number) =>
+      `${(Math.max(-1, Math.min(1, ratio * 2 - 1)) * -6).toFixed(1)}px`;
+    event.currentTarget.style.setProperty(
+      "--capa-x",
+      shift((event.clientX - box.left) / box.width),
+    );
+    event.currentTarget.style.setProperty(
+      "--capa-y",
+      shift((event.clientY - box.top) / box.height),
+    );
+  };
+  const resetCapa = (event: MouseEvent<HTMLDivElement>) => {
+    event.currentTarget.style.removeProperty("--capa-x");
+    event.currentTarget.style.removeProperty("--capa-y");
+  };
 
   // Alvo da contagem: o próximo sorteio conhecido; senão o prazo de pagamento mais próximo.
   const now = Date.now();
@@ -78,9 +103,29 @@ export function InicioScreen(
 
   return (
     <div className="home">
-      <h1 className="home-tagline">
-        Faça sua fezinha, organize suas apostas e boa sorte!
-      </h1>
+      <div
+        className="home-capa"
+        onMouseMove={reduceMotion ? undefined : moveCapa}
+        onMouseLeave={reduceMotion ? undefined : resetCapa}
+      >
+        <div className="home-capa-arte" aria-hidden="true">
+          <img
+            src={capa900}
+            srcSet={`${capa900} 900w, ${capa1536} 1536w`}
+            sizes="(min-width: 1000px) 480px, 224px"
+            width={1536}
+            height={1024}
+            alt=""
+            decoding="async"
+            fetchPriority="high"
+          />
+        </div>
+        <div className="home-capa-texto">
+          <Eyebrow>Little Faith · Bolões</Eyebrow>
+          <h1>Faça sua fezinha, organize suas apostas e boa sorte!</h1>
+          <p>Os jogos, os pagamentos e a torcida. Tudo no mesmo lugar.</p>
+        </div>
+      </div>
 
       {!group
         ? (

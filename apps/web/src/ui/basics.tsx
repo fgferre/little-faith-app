@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type {
   ButtonHTMLAttributes,
+  CSSProperties,
   InputHTMLAttributes,
   ReactNode,
 } from "react";
@@ -190,7 +191,7 @@ function useCountUp(cents: string | undefined, enabled: boolean, delay: number) 
     const start = performance.now() + delay;
     let frame = 0;
     const tick = (now: number) => {
-      const t = Math.min(1, Math.max(0, (now - start) / 1200));
+      const t = Math.min(1, Math.max(0, (now - start) / 800));
       const eased = BigInt(Math.round((1 - (1 - t) ** 3) * 1000));
       setShown(t >= 1 ? cents : (target * eased / 1000n).toString());
       if (t < 1) frame = requestAnimationFrame(tick);
@@ -229,8 +230,15 @@ export function Money(
   const shown = useCountUp(cents, countUp, delay);
   return (
     <span
-      className={["ui-money", prize && "prize", small && "sm"].filter(Boolean)
-        .join(" ")}
+      className={[
+        "ui-money",
+        prize && "prize",
+        small && "sm",
+        prize && countUp && "ui-money-celebra",
+      ].filter(Boolean).join(" ")}
+      style={prize && countUp
+        ? { "--celebra-delay": `${delay + 800}ms` } as CSSProperties
+        : undefined}
     >
       {shown !== undefined ? formatBRL(shown) : children}
       {suffix && <small>{suffix}</small>}
