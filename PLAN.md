@@ -23,3 +23,18 @@ esconder informação); Inter e Fraunces; imagem 3D de prêmio (fica para depois
 
 Estado em 12/10, fim da tarde: passos 1–6 e 8 feitos; `npm run done` verde no worktree
 `/Users/fgferre/Github/Little Faith App-redesign` (314 unitários, SQL, 16 API, build, 39 fluxos). Paleta aplicada e aprovada; falta a palavra dele para juntar o branch em `main` (o piloto publica `main`). Comparação de marca e capturas desta rodada em `.tmp/marca/` do checkout principal (apagável).
+
+## Rodada 2 (12/10, noite) — "igual à proposta", não "inspirado nela"
+
+Ele viu o lado a lado (`.tmp/marca/lado/lado-a-lado.html`) e achou o resultado pobre perto da proposta. Aprovou as
+quatro mudanças abaixo (desfazem o "só Sora" e o limite de 280 px da capa):
+9. [x] Tipografia da proposta: Inter no texto (`--f-texto`), Sora em títulos/números (`--f-titulo`), Fraunces na
+   marca e nas frases de emoção (`--f-marca`); pacotes `@fontsource/inter` e `@fontsource/fraunces` empacotados.
+10. [x] Marca 3D (imagem do ChatGPT, `src/assets/laco-3d-{120,240}.png`) na barra lateral, topo do celular e cartão
+    do participante; nome "little *faith*" em Fraunces; vetor fica no favicon e nos ícones. Faixa de demonstração
+    vira uma linha leve (texto e botão iguais: os testes olham para eles).
+11. [x] Capa como a proposta: "Seu bolão em / *boa companhia.*", botão dourado "Acompanhar sorteio", cena 3D grande
+    (no celular passa dos 280 px); "Faça sua fezinha…" vira a linha de rodapé (continua um heading, pelo teste).
+    "Bolão da vez" com degradê e barra; lista com bolas numeradas por modalidade.
+12. [x] Palco do Sorteio: fundo quente, arco de luz, frase em Fraunces; nada escondido atrás de clique (`sorteio.css`).
+13. [x] Conferir lado a lado de novo com a proposta, medir 320/390/768/1440, `npm run done`, commits.
