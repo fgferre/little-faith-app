@@ -50,8 +50,27 @@ Sorteio lê do resultado oficial (texto bruto da Caixa, sem campo novo) que acum
 concurso, e o botão vira "Chamar a turma: concurso N+1". Regra dele (12/10): "sempre que houver oportunidade para
 melhorar a UX, nunca diremos não". Piloto começado em 12/10 com ele presente (passo 1, Supabase).
 
-**A próxima rodada — a ordem é dele:** (a) o primeiro bolão de verdade no endereço público (passo 8 do piloto) e o
-que o item 5 lista; (b) juntar o redesign em `main` e republicar; (c) os fluxos que oscilam sob carga (13). Depois do piloto: participante com conta e convites; foto do bilhete no cartão por URL
+**A FILA (12/10, uma lista só, nesta ordem; quem pegar a próxima conversa começa pelo primeiro item aberto e
+marca aqui o que fechar):**
+1. Testar no servidor real o comprovante do registro e o link do participante, com o grupo "Turma de teste" (~1 h).
+2. Aviso semanal automático para o Supabase não pausar (GitHub Actions chamando a API uma vez por semana) (~30 min).
+3. Encerrar o bolão: a tela de Dividir fecha a conta (sobras, devoluções, pendências); `pool_settle`/`pool_reopen`
+   já existem no núcleo e no servidor (~2 h).
+4. Pix na cobrança e no cartão: chave de quem faz o caixa no cadastro do grupo; "Pix copia e cola" e QR com o valor
+   de cada pessoa em Arrecadar e no cartão pessoal; confirmação continua manual (~2 h; pede uma peça pequena para
+   desenhar o QR).
+5. Juntar o redesign (`redesign/noite-companhia`, 7 commits verificados) em `main` e republicar (palavra dele + ~1 h).
+6. O primeiro bolão de verdade, pequeno, com ele presente e acompanhado de perto.
+7. Fluxos de navegador que oscilam sob carga (item 13): trocar esperas por tempo por esperas por estado (~2 h).
+8. Avisos de prazo do prêmio (30/15/7/1 dias) de volta na tela do bolão e no cartão (~1 h).
+9. Mensagens prontas para o grupo: resultado do sorteio e chamada quando acumula com "Acumulou!" (~1 h).
+10. Busca automática do resultado no horário (publicar `results-collector`, segredo e agendamento) (~2 h + conta dele).
+11. "Estou dentro" e "paguei" (com comprovante) pelo cartão do participante (~3 h).
+12. Outros organizadores entrando com Google: publicar o app do Google "em produção" ou cadastrar e-mails (conta dele).
+13. Backup completo com senha (etapa 8 da especificação) (~4 h).
+14. Teimosinha e série de concursos paga adiantado (~1 dia).
+15. Pesquisa, rodada 2: ele abre o Loterias Online (maioridade) e conversa com 5 organizadores; eu cruzo.
+16. O assistente que lê o WhatsApp (etapa do agente, depois do piloto por decisão dele). Depois do piloto: participante com conta e convites; foto do bilhete no cartão por URL
 temporária; limite de taxa na rota pública (ver BACKLOG).
 
 ## ALTA — bloqueia a entrega ou pode perder trabalho
