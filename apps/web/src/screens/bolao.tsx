@@ -75,7 +75,7 @@ export function BolaoScreen(
     gamesCost: string;
     draftGamesCost: string;
     proposedCents: string;
-    /** `repeat` abre o novo bolão com nome, modalidade, preço, concurso seguinte, cotas e jogos deste. */
+    /** `repeat` abre o novo bolão com nome, modalidade, preço, concurso seguinte e jogos deste; as pessoas entram pela chamada. */
     openForm: (kind: FormKind, repeat?: boolean) => void;
     setPlanningRequest: (request: PlanningRequest) => void;
     setRecordRequest: (request: RecordRequest) => void;
@@ -146,6 +146,7 @@ export function BolaoScreen(
         )}
         {step === "arrecadar" && view && (
           <BolaoArrecadar
+            db={db}
             snapshot={snapshot}
             view={view}
             openForm={openForm}

@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { ContestCalendarVersion, ContestResultVersion, LotteryId, ResultAction } from './index';
-import { brasiliaDateTimeToUTC, createResultView, currentResult, decimalBRLTokenToCents, manualResultRaw, parseCaixaCalendar, parseCaixaResult, RESULT_SOURCE_URLS, sha256Hex, validateCalendarVersion, validateResultCommand, validateResultReceipt, validateResultSnapshot, validateResultVersion } from './index';
+import { brasiliaDateTimeToUTC, createResultView, currentResult, decimalBRLTokenToCents, manualResultRaw, parseCaixaCalendar, parseCaixaResult, readCaixaExtras, RESULT_SOURCE_URLS, sha256Hex, validateCalendarVersion, validateResultCommand, validateResultReceipt, validateResultSnapshot, validateResultVersion } from './index';
 import { fixtureId, manualResult, REG_GROUP, REG_POOL, registrationCalendar, resultSnapshot } from './registration.test-fixtures';
 
 const COLLECTED = '2026-10-08T15:10:00.000Z';
@@ -72,6 +72,14 @@ describe('official CAIXA raw result parser', () => {
     const manual = manualResult(); expect(validateResultVersion(manual)).toEqual(manual);
     expect(() => validateResultVersion({ ...manual, rawText: manual.rawText.replace('"contestNumber":3000', '"contestNumber":3000.000000000000001'), sha256: sha256Hex(manual.rawText.replace('"contestNumber":3000', '"contestNumber":3000.000000000000001')) })).toThrow('fração');
     expect(() => validateResultVersion({ ...manual, sourceReference: 'Outra referência' })).toThrow('correspondentes');
+  });
+  it('reads rollover and next estimate for display only, deriving rollover from the top tier when unflagged', () => {
+    expect(readCaixaExtras(MEGA_RAW)).toEqual({ accumulated: true, nextEstimatedPrizeCents: '11500000000', nextContestNumber: 3001 });
+    expect(readCaixaExtras(raw('caixa-lotofacil-3600.json')).accumulated).toBe(false);
+    expect(readCaixaExtras(editedRaw((value) => { delete value.acumulado; delete value.valorEstimadoProximoConcurso; delete value.numeroConcursoProximo; }))).toEqual({ accumulated: true, nextEstimatedPrizeCents: null, nextContestNumber: null });
+    expect(readCaixaExtras(editedRaw((value) => { delete value.acumulado; value.listaRateioPremio = null; })).accumulated).toBeNull();
+    const none = { accumulated: null, nextEstimatedPrizeCents: null, nextContestNumber: null };
+    expect(readCaixaExtras(manualResult().rawText)).toEqual(none); expect(readCaixaExtras('')).toEqual(none);
   });
 });
 

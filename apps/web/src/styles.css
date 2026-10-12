@@ -1562,7 +1562,8 @@ tr:last-child td {
   padding: 0;
   list-style: none;
 }
-.pool-person {
+.pool-person,
+.pool-call-person {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -1570,7 +1571,8 @@ tr:last-child td {
   padding: 12px 0;
   border-top: 1px solid var(--border);
 }
-.pool-person:first-child {
+.pool-person:first-child,
+.pool-call-person:first-child {
   border-top: 0;
 }
 .pool-person-name {
@@ -1621,6 +1623,26 @@ tr:last-child td {
 .pool-person-link > .ui-btn {
   flex: none;
   white-space: nowrap;
+}
+/* chamada: o nome e a cota de antes à esquerda, "Entrou" à direita; as duas ações não cabem lado a lado em 390 px, então cada uma tem a sua linha, com a largura do texto */
+.pool-call-from {
+  margin: 0;
+}
+.pool-call-action {
+  display: flex;
+  margin: 10px 0 4px;
+}
+.pool-call-action > .ui-btn {
+  flex: none;
+  white-space: nowrap;
+}
+.pool-call-person > .ui-btn {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  white-space: nowrap;
+}
+.pool-call-left {
+  margin: 4px 0 0;
 }
 .pool-actions {
   display: flex;

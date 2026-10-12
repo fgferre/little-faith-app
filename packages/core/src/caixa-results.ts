@@ -104,6 +104,28 @@ export function parseCaixaResult(input: CaixaResultInput): ParsedCaixaResult {
   return { lotteryId, contestNumber, drawDate, drawnNumbers, payouts, status: drawnNumbers === null ? 'waiting' : payouts?.every((p) => p.prizeCents !== null) ? 'complete' : 'numbers-only', sourceUrl, rawText, sha256: sha256Hex(rawText), collectedAt, nextContest };
 }
 
+export interface CaixaExtras {
+  accumulated: boolean | null;
+  /** Exact integer cents of the published estimate; a zero estimate counts as not published. */
+  nextEstimatedPrizeCents: string | null;
+  nextContestNumber: number | null;
+}
+/** Display-only facts from a stored CAIXA text; never part of the validated result data. Missing or malformed fields stay null. */
+export function readCaixaExtras(rawText: string): CaixaExtras {
+  const read = <T>(field: () => T): T | null => { try { return field(); } catch { return null; } };
+  const source = read(() => object(parseLosslessJSON(rawText), 'rawText'));
+  if (!source) return { accumulated: null, nextEstimatedPrizeCents: null, nextContestNumber: null };
+  const estimate = read(() => optionalPrize(source.valorEstimadoProximoConcurso));
+  // Without the flag, the jackpot rolls over when the top tier (faixa 1) published zero winners.
+  const top = Array.isArray(source.listaRateioPremio) ? source.listaRateioPremio.find((row) => read(() => integer(object(row, 'listaRateioPremio').faixa, 'faixa')) === 1) : undefined;
+  const topWinners = top === undefined ? null : read(() => optionalInteger(object(top, 'listaRateioPremio').numeroDeGanhadores, 'numeroDeGanhadores'));
+  return {
+    accumulated: typeof source.acumulado === 'boolean' ? source.acumulado : topWinners === null ? null : topWinners === '0',
+    nextEstimatedPrizeCents: estimate === '0' ? null : estimate,
+    nextContestNumber: read(() => integer(source.numeroConcursoProximo, 'numeroConcursoProximo', 1, 999_999)),
+  };
+}
+
 /** Dates only: the public result JSON does not establish hours or channel closing times. */
 export function parseCaixaCalendar(input: CaixaResultInput): { drawDate: string | null; expectedDrawAt: null; registrationClosesAt: null } {
   const lotteryId = planningOption<LotteryId>(input.lotteryId, ['mega-sena', 'lotofacil', 'quina'], 'lotteryId');

@@ -17,6 +17,7 @@ import {
   formatBRL,
   LOTTERIES,
   parseBRL,
+  readCaixaExtras,
 } from "@bolao/core";
 import type {
   ContestResultVersion,
@@ -324,6 +325,14 @@ export function BolaoSorteio(
     item.contestNumber > (pool.data.contestNumber ?? Infinity) &&
     Date.parse(item.expectedDrawAt) > Date.now()
   ).sort((a, b) => a.expectedDrawAt!.localeCompare(b.expectedDrawAt!))[0];
+  // Só o resultado oficial diz se acumulou; com o resultado informado à mão nada muda.
+  const caixa = useMemo(
+    () => result?.source === "caixa" ? readCaixaExtras(result.rawText) : null,
+    [result],
+  );
+  const rolled = !!drawn && caixa?.accumulated === true &&
+    top < prizeHits[lotteryId][0];
+  const nextNumber = caixa?.nextContestNumber ?? (result?.contestNumber ?? 0) + 1;
 
   // Divisão igual só no acordo interno, com as mesmas cotas para todos e centavos exatos.
   const split = (() => {
@@ -685,6 +694,21 @@ export function BolaoSorteio(
       }, titular dos bilhetes. É quem leva o bilhete original à Caixa.`
       : "O bolão foi travado sem titular dos bilhetes."
     : null;
+  // Espaço sem quebra no valor: "R$" não fica numa linha e o número na outra.
+  const rollover = rolled && (
+    <h2 className="pool-card-title">
+      {caixa!.nextEstimatedPrizeCents !== null
+        ? `Acumulou! Próximo prêmio estimado ${
+          formatBRL(caixa!.nextEstimatedPrizeCents).replace(" ", "\u00a0")
+        }`
+        : "Acumulou!"}
+    </h2>
+  );
+  const nextLine = next?.expectedDrawAt && (
+    <p className="ui-sec">
+      Próximo sorteio: {drawLine(next.expectedDrawAt, timeZone)}
+    </p>
+  );
   const prizeView = (
     <>
       {prizeCents !== null
@@ -749,6 +773,8 @@ export function BolaoSorteio(
           <>
             <h2 className="ui-title">{winTitle(lotteryId, top)}</h2>
             {prizeView}
+            {rollover}
+            {rolled && nextLine}
             <div className="pool-actions">
               <Button onClick={() => go("dividir")}>Dividir o prêmio</Button>
               {tellButton}
@@ -793,13 +819,14 @@ export function BolaoSorteio(
                 cartela(s) sem conferência ficam fora da conta.
               </p>
             )}
-            {next?.expectedDrawAt && (
-              <p className="ui-sec">
-                Próximo sorteio: {drawLine(next.expectedDrawAt, timeZone)}
-              </p>
-            )}
+            {rollover}
+            {nextLine}
             <div className="pool-actions">
-              <Button onClick={repeat}>Repetir com a mesma turma</Button>
+              <Button onClick={repeat}>
+                {rolled
+                  ? `Chamar a turma: concurso ${nextNumber}`
+                  : "Repetir com a mesma turma"}
+              </Button>
               {tellButton}
             </div>
           </>

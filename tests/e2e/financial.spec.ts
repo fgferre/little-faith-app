@@ -1332,7 +1332,7 @@ test("manual results, official conflicts, failed collection and contest times pr
     .toBeVisible();
 });
 
-test("repeating with the same group carries the people, quotas and games into a new pool and suggests the next contest", async ({ page, request }) => {
+test("repeating with the same group carries the games, suggests the next contest and calls last round's people in Arrecadar", async ({ page, request }) => {
   test.setTimeout(120_000);
   const manifest = await lockRegistrationFixture(page, request);
   await addOriginal(page);
@@ -1357,7 +1357,7 @@ test("repeating with the same group carries the people, quotas and games into a 
   await approveRecord(page);
   await page.getByRole("button", { name: "Repetir com a mesma turma", exact: true }).click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByText(`Vão junto: 1 pessoa com suas cotas e ${games.length} ${games.length === 1 ? "jogo" : "jogos"}.`)).toBeVisible();
+  await expect(dialog.getByText(`Vão junto: ${games.length} ${games.length === 1 ? "jogo" : "jogos"}. As pessoas entram em Arrecadar conforme responderem.`)).toBeVisible();
   await expect(dialog.getByLabel(/^Concurso/)).toHaveValue("1235");
   await expect(dialog.getByLabel("Forma de participação")).toHaveValue("internal");
   await dialog.getByRole("button", { name: "Salvar neste aparelho" }).click();
@@ -1365,12 +1365,51 @@ test("repeating with the same group carries the people, quotas and games into a 
   await expect(page).toHaveURL(/#\/boloes\/(?!50400000)[^/]+\/montar$/);
   await expect(page.locator("dd", { hasText: /^1235$/ })).toBeVisible();
   await step(page, "Arrecadar");
+  const call = page.getByRole("region", { name: "Chamada" });
+  const caller = call.locator(".pool-call-person", { hasText: "Pessoa financeira" });
+  await expect(caller).toContainText("1 cota");
+  await expect(call.getByText("1 ainda não respondeu")).toBeVisible();
+  await caller.getByRole("button", { name: "Pessoa financeira entrou" }).click();
+  await expect(call).not.toBeVisible();
   const person = page.locator(".pool-person", { hasText: "Pessoa financeira" });
   await expect(person.locator(".pool-person-sub")).toHaveText("1 cota · pagou R$ 0,00");
   await expect(person.getByText("Ainda não pagou")).toBeVisible();
   await step(page, "Jogar");
   await expect(page.locator(".pool-game")).toHaveCount(games.length);
   expect(await page.locator(".pool-game .ui-balls").allTextContents()).toEqual(games);
+});
+
+test("an official result that rolled over says so and calls the group to the next contest", async ({ page, request }) => {
+  test.setTimeout(120_000);
+  const manifest = await lockRegistrationFixture(page, request);
+  await addOriginal(page);
+  await fillObserved(page, manifest);
+  await approveRecord(page);
+  const drawn = Array.from({ length: 55 }, (_, i) => [1, 2, 3, 4, 5, 6].map((k) => i + k))
+    .find((c) => manifest.content.plan.bets.every((b) => c.filter((n) => b.numbers.includes(n)).length < 4))!;
+  await request.post("http://127.0.0.1:4190/__test/source", {
+    data: {
+      rawText: JSON.stringify({
+        acumulado: true,
+        numero: 1234,
+        tipoJogo: "MEGA_SENA",
+        dataApuracao: "08/10/2026",
+        listaDezenas: drawn.map((n) => String(n).padStart(2, "0")),
+        listaRateioPremio: [
+          { faixa: 1, numeroDeGanhadores: 0, valorPremio: 0 },
+          { faixa: 2, numeroDeGanhadores: 1, valorPremio: 100 },
+          { faixa: 3, numeroDeGanhadores: 1, valorPremio: 10 },
+        ],
+        numeroConcursoProximo: 1235,
+        valorEstimadoProximoConcurso: 115000000,
+      }),
+    },
+  });
+  await step(page, "Sorteio");
+  await page.getByRole("button", { name: "Consultar resultado da CAIXA", exact: true }).click();
+  const resultCard = page.locator('[aria-label="Resultado"]');
+  await expect(resultCard.getByText("Acumulou! Próximo prêmio estimado R$ 115.000.000,00", { exact: true })).toBeVisible();
+  await expect(resultCard.getByRole("button", { name: "Chamar a turma: concurso 1235", exact: true })).toBeVisible();
 });
 
 const brl = (cents: string | bigint) => {

@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link2, MessageCircle, UserPlus } from "lucide-react";
 import { formatBRL, formatQuotaUnits, LOTTERIES, sumCents } from "@bolao/core";
+import type { BolaoDatabase } from "@bolao/local";
 import { browserTimeZone, errorMessage } from "../app-shared";
 import type { FormKind, Notice, Snapshot } from "../app-shared";
+import { latestManifest } from "../planning";
+import { saveLocalDraft } from "../repository";
 import {
   createParticipantLink,
   ParticipantApiError,
@@ -78,6 +81,50 @@ function chargeText(view: PoolView) {
   ].join("\n");
 }
 
+/** O convite da chamada: quem continua no bolão novo responde no grupo. */
+function callText(view: PoolView) {
+  const { title, contestNumber, quotaPriceCents, deadlineAt } = view.pool.data;
+  const contest = contestNumber === null
+    ? "o próximo concurso"
+    : `o concurso ${contestNumber}`;
+  const until = deadlineAt
+    ? `, pagar até ${diaMes(deadlineAt, "America/Sao_Paulo")}`
+    : "";
+  return `${title} para ${contest}! Quem continua? Cota ${
+    formatBRL(quotaPriceCents)
+  }${until}. Responde aqui: dentro ou fora.`;
+}
+
+/**
+ * A chamada: quem estava na rodada passada (o bolão mais recente do grupo, na mesma modalidade, já
+ * travado) e ainda não tem cota neste rascunho, com a cota que tinha.
+ */
+function rollCall(snapshot: Snapshot, view: PoolView) {
+  const { pool } = view;
+  if (pool.data.status !== "draft") return { previous: undefined, call: [] };
+  const previous = snapshot.pools.filter((other) =>
+    other.id !== pool.id && other.data.lotteryId === pool.data.lotteryId &&
+    (other.data.status !== "draft" ||
+      !!latestManifest(snapshot.planning, other.id))
+  ).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+  const units = new Map<string, number>();
+  for (const quota of snapshot.quotas) {
+    if (quota.data.poolId !== previous?.id) continue;
+    const { personId } = quota.data;
+    units.set(personId, (units.get(personId) ?? 0) + quota.data.units);
+  }
+  const call = snapshot.persons.flatMap((person) =>
+    units.has(person.id) && !view.people.some((p) => p.id === person.id)
+      ? [{
+        id: person.id,
+        name: person.data.nickname || person.data.name,
+        units: units.get(person.id)!,
+      }]
+      : []
+  ).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  return { previous, call };
+}
+
 /** A mensagem com o link pessoal; o token só existe agora, na criação. */
 function linkText(name: string, group: string, token: string) {
   const url = `${location.origin}${location.pathname}#/p/${token}`;
@@ -136,7 +183,8 @@ function useParticipantLinks(groupId: string | null) {
 }
 
 export function BolaoArrecadar(
-  { snapshot, view, openForm, openReview, goPlay, setNotice }: {
+  { db, snapshot, view, openForm, openReview, goPlay, setNotice }: {
+    db: BolaoDatabase;
     snapshot: Snapshot;
     view: PoolView;
     openForm: (kind: FormKind) => void;
@@ -150,8 +198,10 @@ export function BolaoArrecadar(
     people.flatMap((p) => p.pending.map((item) => item.amountCents)),
   );
   const total = expectedCents === null ? 0 : Number(expectedCents);
+  const { previous, call } = rollCall(snapshot, view);
   const outside = snapshot.persons.filter((person) =>
-    !people.some((p) => p.id === person.id)
+    !people.some((p) => p.id === person.id) &&
+    !call.some((p) => p.id === person.id)
   );
   const states = new Map(people.map((p) => [p.id, personState(p)]));
   const ordered = [...people].sort((a, b) =>
@@ -165,6 +215,7 @@ export function BolaoArrecadar(
     groupId,
   );
   const [busy, setBusy] = useState<string | null>(null);
+  const [joining, setJoining] = useState(false);
   // Mensagem com link criado que não deu para copiar (o navegador pediu outro toque); some ao sair da tela.
   const [unsent, setUnsent] = useState<Record<string, string>>({});
   const activeLinks = (personId: string) =>
@@ -284,6 +335,51 @@ export function BolaoArrecadar(
     );
   }
 
+  async function callMessage() {
+    const copied = await copiar(callText(view));
+    setNotice(
+      copied
+        ? { text: "Mensagem copiada. Cole no grupo do WhatsApp." }
+        : { text: "Não deu para copiar a mensagem. Tente de novo.", error: true },
+    );
+  }
+
+  // Cada cota é uma transação própria: uma falha não desfaz as outras.
+  async function join(entries: typeof call) {
+    if (!groupId) return;
+    setJoining(true);
+    const failed: string[] = [];
+    let reason = "";
+    for (const entry of entries) {
+      try {
+        await saveLocalDraft(db, {
+          id: crypto.randomUUID(),
+          groupId,
+          kind: "quota",
+          data: {
+            poolId: view.pool.id,
+            personId: entry.id,
+            units: entry.units,
+          },
+        });
+      } catch (error) {
+        failed.push(entry.name);
+        reason ||= errorMessage(error);
+      }
+    }
+    setJoining(false);
+    setNotice(
+      failed.length
+        ? {
+          text: `Não deu para incluir ${joinNames(failed)}. ${reason}`,
+          error: true,
+        }
+        : entries.length === 1
+        ? { text: `${entries[0]!.name} entrou com ${cotas(entries[0]!.units)}.` }
+        : { text: `Entraram ${entries.length} pessoas.` },
+    );
+  }
+
   const stateView = (
     person: PoolPerson,
     state: Exclude<PersonState, "paid">,
@@ -386,74 +482,128 @@ export function BolaoArrecadar(
           )
           : (
             <p className="ui-sec pool-empty">
-              Ninguém com cota ainda. Adicione as pessoas e prepare a cota de
-              cada uma.
+              {call.length
+                ? "Ninguém com cota ainda. Marque quem entrou na chamada abaixo."
+                : "Ninguém com cota ainda. Adicione as pessoas e prepare a cota de cada uma."}
             </p>
           )}
       </Card>
-      <Card className="pool-card" label="Pessoas">
-        <Eyebrow>Pessoas</Eyebrow>
-        {!!people.length && problem && (
-          <p className="ui-sec pool-sub">{problem}</p>
-        )}
-        {!!people.length && (
-          <ul className="pool-people">
-            {people.map((person) => {
-              const state = states.get(person.id)!;
-              return (
-                <li className="pool-person" key={person.id}>
-                  <span className="pool-person-name">{person.name}</span>
-                  <span className="pool-person-due">
-                    {person.dueCents === null
-                      ? "Revisar cota"
-                      : formatBRL(person.dueCents)}
-                  </span>
-                  <span className="ui-sec pool-person-sub">
-                    {cotas(person.units)} · pagou {formatBRL(person.paidCents)}
-                  </span>
-                  {state === "paid"
-                    ? <Chip status="confirmed">Pago</Chip>
-                    : (
-                      <div className="pool-person-state">
-                        {stateView(person, state)}
-                      </div>
-                    )}
-                  {!hidden && linkRow(person)}
+      <div className="pool-stack">
+        {!!call.length && (
+          <Card className="pool-card" label="Chamada">
+            <Eyebrow>Chamada</Eyebrow>
+            <p className="ui-sec pool-call-from">
+              {previous?.data.contestNumber
+                ? `Estavam no concurso ${previous.data.contestNumber}.`
+                : "Estavam na rodada passada."}
+            </p>
+            <div className="pool-call-action">
+              <Button
+                variant="ghost"
+                small
+                icon={<MessageCircle aria-hidden="true" />}
+                onClick={() => void callMessage()}
+              >
+                Mensagem da chamada
+              </Button>
+            </div>
+            <ul className="pool-people">
+              {call.map((entry) => (
+                <li className="pool-call-person" key={entry.id}>
+                  <span className="pool-person-name">{entry.name}</span>
+                  <span className="ui-sec">{cotas(entry.units)}</span>
+                  <Button
+                    small
+                    disabled={joining}
+                    aria-label={`${entry.name} entrou`}
+                    onClick={() => void join([entry])}
+                  >
+                    Entrou
+                  </Button>
                 </li>
-              );
-            })}
-          </ul>
+              ))}
+            </ul>
+            <p className="ui-sec pool-call-left">
+              {call.length === 1
+                ? "1 ainda não respondeu"
+                : `${call.length} ainda não responderam`}
+            </p>
+            <div className="pool-call-action">
+              <Button
+                variant="ghost"
+                small
+                disabled={joining}
+                onClick={() => void join(call)}
+              >
+                Todos entraram
+              </Button>
+            </div>
+          </Card>
         )}
-        {!!outside.length && (
-          <p className="ui-sec pool-outside">
-            Sem cota neste bolão: {joinNames(
-              outside.map((p) => p.data.nickname || p.data.name),
-            )}
-          </p>
-        )}
-        {!snapshot.persons.length && (
-          <p className="ui-sec pool-empty">
-            Basta um nome e a declaração de maioridade. Ninguém precisa criar
-            conta.
-          </p>
-        )}
-        <div className="pool-actions">
-          <Button
-            variant={snapshot.persons.length ? "ghost" : "primary"}
-            small
-            icon={<UserPlus aria-hidden="true" />}
-            onClick={() => openForm("person")}
-          >
-            Adicionar pessoa
-          </Button>
-          <Button variant="ghost" small onClick={() => openForm("quota")}>
-            Preparar cota
-          </Button>
-          <Button variant="ghost" small onClick={() => openForm("payment")}>
-            Registrar pagamento
-          </Button>
-        </div>
-      </Card>
+        <Card className="pool-card" label="Pessoas">
+          <Eyebrow>Pessoas</Eyebrow>
+          {!!people.length && problem && (
+            <p className="ui-sec pool-sub">{problem}</p>
+          )}
+          {!!people.length && (
+            <ul className="pool-people">
+              {people.map((person) => {
+                const state = states.get(person.id)!;
+                return (
+                  <li className="pool-person" key={person.id}>
+                    <span className="pool-person-name">{person.name}</span>
+                    <span className="pool-person-due">
+                      {person.dueCents === null
+                        ? "Revisar cota"
+                        : formatBRL(person.dueCents)}
+                    </span>
+                    <span className="ui-sec pool-person-sub">
+                      {cotas(person.units)} · pagou {formatBRL(person.paidCents)}
+                    </span>
+                    {state === "paid"
+                      ? <Chip status="confirmed">Pago</Chip>
+                      : (
+                        <div className="pool-person-state">
+                          {stateView(person, state)}
+                        </div>
+                      )}
+                    {!hidden && linkRow(person)}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {!!outside.length && (
+            <p className="ui-sec pool-outside">
+              Sem cota neste bolão: {joinNames(
+                outside.map((p) => p.data.nickname || p.data.name),
+              )}
+            </p>
+          )}
+          {!snapshot.persons.length && (
+            <p className="ui-sec pool-empty">
+              Basta um nome e a declaração de maioridade. Ninguém precisa criar
+              conta.
+            </p>
+          )}
+          <div className="pool-actions">
+            <Button
+              variant={snapshot.persons.length ? "ghost" : "primary"}
+              small
+              icon={<UserPlus aria-hidden="true" />}
+              onClick={() => openForm("person")}
+            >
+              Adicionar pessoa
+            </Button>
+            <Button variant="ghost" small onClick={() => openForm("quota")}>
+              Preparar cota
+            </Button>
+            <Button variant="ghost" small onClick={() => openForm("payment")}>
+              Registrar pagamento
+            </Button>
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }

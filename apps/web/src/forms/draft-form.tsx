@@ -48,7 +48,7 @@ export function DraftForm(
     kind: FormKind;
     group: LocalRecord<"group"> | undefined;
     pool: LocalRecord<"pool"> | undefined;
-    /** "Repetir com a mesma turma": o novo bolão começa com nome, modalidade, preço, concurso seguinte e forma de participação deste, e leva as cotas e (na mesma modalidade) os jogos. */
+    /** "Repetir com a mesma turma": o novo bolão começa com nome, modalidade, preço, concurso seguinte e forma de participação deste, e leva (na mesma modalidade) os jogos; as pessoas entram pela chamada em Arrecadar. */
     repeatOf?: LocalRecord<"pool"> | undefined;
     persons: LocalRecord<"person">[];
     quotas: LocalRecord<"quota">[];
@@ -144,19 +144,7 @@ export function DraftForm(
         }, editing ? pool?.id : undefined);
         if (repeatOf && !editing) {
           // Cada save é uma transação própria: uma falha não desfaz o bolão nem as outras cópias.
-          let failedQuotas = 0;
           let failedBets = 0;
-          for (const q of quotas) {
-            try {
-              await save("quota", {
-                poolId: created.id,
-                personId: q.data.personId,
-                units: q.data.units,
-              });
-            } catch {
-              failedQuotas += 1;
-            }
-          }
           if (lotteryId === repeatOf.data.lotteryId) {
             for (const b of bets) {
               try {
@@ -174,9 +162,12 @@ export function DraftForm(
               }
             }
           }
-          if (failedQuotas || failedBets) {
-            copyWarning =
-              `O bolão foi criado, mas ${plural(failedQuotas, "cota", "cotas")} e ${plural(failedBets, "jogo", "jogos")} não foram copiados.`;
+          if (failedBets) {
+            copyWarning = `O bolão foi criado, mas ${
+              failedBets === 1
+                ? "1 jogo não foi copiado"
+                : `${failedBets} jogos não foram copiados`
+            }.`;
           }
         }
         onPoolCreated(created.id);
@@ -294,8 +285,9 @@ export function DraftForm(
         {repeatOf && kind === "pool" && (
           <p className="ui-sec form-note">
             {lotteryId === repeatOf.data.lotteryId
-              ? `Vão junto: ${plural(quotas.length, "pessoa", "pessoas")} com suas cotas e ${plural(bets.length, "jogo", "jogos")}. Os pagamentos começam do zero.`
-              : `Vão junto: ${plural(quotas.length, "pessoa", "pessoas")} com suas cotas. Os jogos não vão: a modalidade mudou.`}
+              ? `Vão junto: ${plural(bets.length, "jogo", "jogos")}.`
+              : "Os jogos não vão: a modalidade mudou."}{" "}
+            As pessoas entram em Arrecadar conforme responderem.
           </p>
         )}
         {(entityFormKind === "group" || entityFormKind === "pool" ||
