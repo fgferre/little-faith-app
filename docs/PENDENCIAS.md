@@ -77,8 +77,8 @@ temporária; limite de taxa na rota pública (ver BACKLOG).
 
 **13. Fluxos de navegador oscilam por corridas de sincronização (11/10).**
 Sob carga, `financial.spec.ts` abre diálogos antes de a sincronização terminar (linhas ~97/102, 626, 1060, 1144,
-1199; em 12/10 também a linha 842, "a lock review rejects…", que espera o aviso "mesma versão") e falha em ~1 de 4
-rodadas; sozinho passa. A parte do planejador (página pulando durante a simulação) foi
+1199; em 12/10 também a linha 842, "a lock review rejects…", que espera o aviso "mesma versão"; e, relatado pela sessão do redesign em 12/10, a linha ~1335, "repeating with the
+same group…", esperou 2 min pelo botão "Repetir com a mesma turma") e falha em ~1 de 4 rodadas; sozinho passa. A parte do planejador (página pulando durante a simulação) foi
 resolvida na E5b-1. Resolver trocando esperas por tempo por esperas por estado ("Sincronizado" visível) nesses pontos.
 
 ## MÉDIA — afeta o produto
