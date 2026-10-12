@@ -13,14 +13,14 @@ Roteiro para ligar o app a um Supabase real, ao login do Google e ao GitHub Page
 - **Conferir:** o painel abre sem aviso de "provisioning" e a URL acima responde no navegador (mostra uma resposta curta de erro pedindo chave; isso é normal).
 
 ## 2. Aplicar as migrations (o banco) [SUA CONTA]
-São cinco arquivos em `supabase/migrations/`, **nesta ordem** (a do nome mais novo é a última): `20261007000000_foundation.sql`, `20261007010000_financial.sql`, `20261008000000_planning.sql`, `20261008010000_registration_results.sql`, `20261010000000_settlement.sql`.
+São seis arquivos em `supabase/migrations/`, **nesta ordem** (a do nome mais novo é a última): `20261007000000_foundation.sql`, `20261007010000_financial.sql`, `20261008000000_planning.sql`, `20261008010000_registration_results.sql`, `20261010000000_settlement.sql`, `20261011000000_participant_links.sql`.
 - **Fazer (jeito A, sem instalar nada):** no painel, **SQL Editor > New query**. Abra o primeiro arquivo, copie tudo, cole e toque em **Run**. Repita para cada arquivo, um de cada vez, na ordem. Não rode o mesmo arquivo duas vezes.
 - **Fazer (jeito B, com a CLI):** instale a CLI do Supabase e, na pasta do projeto, rode `supabase login`, `supabase link --project-ref <ref>` e `supabase db push` (pede a senha do banco; digite só no terminal).
 - **Se der erro:** pare, copie a mensagem inteira e traga para a conversa. Não pule arquivo.
 - **Conferir:** em **Table Editor** aparecem `groups`, `draft_records`, `received_payments` e outras; em **Storage** existe o bucket privado `evidence`.
 
 ## 3. Segredos e a função `api` [SUA CONTA]
-- **Fazer:** em **Edge Functions > Secrets** (ou `supabase secrets set ...`), crie `API_ALLOWED_ORIGINS` com as origens do app separadas por vírgula, **sem caminho e sem barra no fim**: `https://<usuario>.github.io,http://127.0.0.1:4173`. Depois publique a função: `supabase functions deploy api` (a CLI usa o `config.toml`; a verificação de login do gateway fica ligada).
+- **Fazer:** em **Edge Functions > Secrets** (ou `supabase secrets set ...`), crie `API_ALLOWED_ORIGINS` com as origens do app separadas por vírgula, **sem caminho e sem barra no fim**: `https://<usuario>.github.io,http://127.0.0.1:4173`. Depois publique a função: `supabase functions deploy api` (a CLI usa o `config.toml`, que desliga a verificação de login do gateway: a função valida a sessão sozinha e o cartão do participante é público por desenho).
 - **Já vêm prontos:** a URL, a chave `anon` e a `service_role` chegam à função sozinhas pelo Supabase. Não cole a `service_role` em lugar nenhum.
 - **Só se quiser resultados automáticos (pode pular no piloto):** crie o segredo `RESULTS_JOB_SECRET` (texto aleatório de 32+ caracteres, por exemplo `openssl rand -hex 32`) e rode `supabase functions deploy results-collector --no-verify-jwt`. Isso **não** liga agendamento nenhum: sem ele, o resultado continua sendo buscado dentro do app ou informado à mão.
 - **Se o deploy reclamar de arquivo não encontrado em `packages/core`:** pare e traga a mensagem; a função importa código de fora da pasta `supabase/`.
