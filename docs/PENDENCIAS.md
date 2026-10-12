@@ -22,8 +22,8 @@ funções do núcleo e validado pelo núcleo; quem já tinha a demo recebe só o
 bolão passam a ler a liquidação também na demo. Encerrar/reabrir ficam para depois.
 
 **Verificado em 12/10, nesta sessão:** `npm run done` verde — tipos, lint, 313 testes, SQL no PGlite (o cartão é
-conferido contra `computeSettlement` do núcleo), 16 testes da API, build e 38 fluxos no navegador (2 do
-participante com rotas simuladas, 1 do repetir pela interface, 1 da demonstração inteira; a API real do link só é
+conferido contra `computeSettlement` do núcleo), 16 testes da API, build e 39 fluxos no navegador (2 do
+participante com rotas simuladas, 1 da chamada ao repetir, 1 do acumulado, 1 da demonstração inteira; a API real do link só é
 coberta pelos testes Deno e SQL). Capturas em
 `.tmp/b/` (apagável).
 
@@ -40,9 +40,11 @@ público (passo 7 do piloto): decisão dele. **Fora daqui:** sem Supabase real, 
 suas apostas e boa sorte!"*.
 
 **Pesquisa de mercado (12/10):** `docs/PESQUISA-MERCADO.md` — Caixa, 14 apps, ~340 avaliações lidas, cruzamento com o
-app e 12 oportunidades. **Em aberto com ele (12/10):** (1) o fluxo da chamada quando acumula ("quem respondeu entra",
-botão "Todos entraram", mensagem pronta) no lugar da cópia automática de todo mundo; (2) ler "acumulou" e o prêmio
-estimado do próximo concurso no Sorteio; (3) o push dos commits da demonstração e desta pesquisa.
+app e 12 oportunidades. **Feito em 12/10 por decisão dele:** repetir não copia cotas; leva os jogos e abre a "Chamada" em Arrecadar (quem
+estava na rodada passada, "Entrou" por pessoa, "Todos entraram", "N ainda não responderam", mensagem pronta); o
+Sorteio lê do resultado oficial (texto bruto da Caixa, sem campo novo) que acumulou e o prêmio estimado do próximo
+concurso, e o botão vira "Chamar a turma: concurso N+1". Regra dele (12/10): "sempre que houver oportunidade para
+melhorar a UX, nunca diremos não". Piloto começado em 12/10 com ele presente (passo 1, Supabase).
 
 **A próxima rodada — a ordem é dele:** (a) o piloto (`docs/PILOTO.md`; cada passo com conta ou chave é dele;
 ele pensa em criar um Gmail só do projeto, 12/10); (e) os fluxos que oscilam sob carga (13). Depois do piloto: participante com conta e convites; foto do bilhete no cartão por URL
