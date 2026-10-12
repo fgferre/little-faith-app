@@ -38,3 +38,7 @@ quatro mudanças abaixo (desfazem o "só Sora" e o limite de 280 px da capa):
     "Bolão da vez" com degradê e barra; lista com bolas numeradas por modalidade.
 12. [x] Palco do Sorteio: fundo quente, arco de luz, frase em Fraunces; nada escondido atrás de clique (`sorteio.css`).
 13. [x] Conferir lado a lado de novo com a proposta, medir 320/390/768/1440, `npm run done`, commits.
+
+14. [x] Os três restos do lado a lado, pedidos por ele (12/10, noite): faixa de demonstração no rodapé (capa logo
+    após o cabeçalho), laço 3D e nome em Fraunces no cartão do WhatsApp, frase da barra lateral como na proposta.
+    Artefato de aprovação publicado (proposta × app, tela por tela); falta a palavra dele e o merge em main.

@@ -36,7 +36,9 @@ Direção visual "Noite do sorteio", versão afinada (escolhas dele em 10 e 11/1
   botão dourado "Acompanhar sorteio" (único botão de ouro do app; leva ao bolão da vez) e a cena 3D do ChatGPT
   (`src/assets/inicio-companhia-{900,1536}.jpg`) à direita no computador (capa de 332 px) e embaixo do texto no celular
   (faixa de 240 px; capa de ~480 px). Paralaxe de até 6 px só com mouse. "Faça sua fezinha…" vira a linha de rodapé
-  da Início. A faixa de demonstração é uma linha leve (texto e botão iguais); o cartão "Sorteio em" ganhou o valor
+  da Início. A faixa de demonstração é uma linha leve no rodapé do conteúdo (texto e botão iguais), para a
+  capa vir logo abaixo do cabeçalho; a barra lateral diz "Um pouco de fé. / Um cuidado de cada vez." em serifada; o
+  cartão do WhatsApp desenha o laço 3D e o nome em Fraunces; o cartão "Sorteio em" ganhou o valor
   recebido, a barra menta e "N de M pessoas já pagaram"; a lista de bolões tem uma bola numerada por modalidade
   (dezenas de um jogo: 06, 15, 05).
 - Palco do Sorteio: o cartão das dezenas tem fundo quente em degradê, arco de luz dourada, rótulo "A torcida é de
