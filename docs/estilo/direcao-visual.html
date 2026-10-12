@@ -205,10 +205,8 @@ h1 { font-size: 28px; font-weight: 700; line-height: 1.15; letter-spacing: -.01e
 .grp svg { width: 18px; height: 18px; color: var(--muted); }
 .logo-mini { margin-right: 4px; }
 /* marca: duas bolas em diagonal (prata atrás, ouro na frente), sem trilho, para não ler como interruptor */
-.mark { position: relative; display: inline-block; flex: none; width: 38px; height: 36px; }
-.mark .ball { position: absolute; font-size: 0; }
-.mark .ball:first-child { width: 20px; height: 20px; left: 0; top: 1px; box-shadow: 0 1px 2px rgba(0,0,0,.35); }
-.mark .ball.gold { width: 25px; height: 25px; left: 13px; top: 10px; box-shadow: 0 0 0 1.5px rgba(10,8,32,.6), 0 2px 4px rgba(0,0,0,.4); }
+.mark { position: relative; display: inline-block; flex: none; width: 38px; height: 38px; }
+.mark svg { display: block; width: 100%; height: 100%; }
 .hero { margin-top: 10px; padding: 18px 16px; }
 .hero .money { margin: 2px 0 4px; }
 .due { display: flex; align-items: center; gap: 10px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
@@ -369,7 +367,26 @@ h1 { font-size: 28px; font-weight: 700; line-height: 1.15; letter-spacing: -.01e
     <div class="screen home">
       <div class="top" style="margin-left:-8px">
         <button class="grp" type="button"><span class="g-av">TT</span>Turma do trabalho<svg aria-hidden="true"><use href="#i-down"/></svg></button>
-        <span class="logo-mini mark" role="img" aria-label="Little Faith"><span class="ball"></span><span class="ball gold"></span></span>
+        <span class="logo-mini mark" role="img" aria-label="Little Faith"><svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><defs>
+<linearGradient id="ga-ouro" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff3cf"/><stop offset=".45" stop-color="#e9c47c"/><stop offset="1" stop-color="#9d6f2a"/></linearGradient>
+<linearGradient id="ga-lav" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f4eeff"/><stop offset=".5" stop-color="#c9b7f2"/><stop offset="1" stop-color="#8369cf"/></linearGradient>
+<linearGradient id="ga-lav2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e6dbff"/><stop offset=".5" stop-color="#b39ce8"/><stop offset="1" stop-color="#6a51ba"/></linearGradient>
+<linearGradient id="ga-ame" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cfa3ff"/><stop offset=".5" stop-color="#7f3bd1"/><stop offset="1" stop-color="#36126a"/></linearGradient>
+<radialGradient id="ra-ouro" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#fff6dc"/><stop offset=".4" stop-color="#eac77e"/><stop offset="1" stop-color="#8f6425"/></radialGradient>
+<radialGradient id="ra-lav" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#f6f1ff"/><stop offset=".45" stop-color="#c2aeef"/><stop offset="1" stop-color="#6b53bd"/></radialGradient>
+<radialGradient id="ra-ame" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#d9b5ff"/><stop offset=".45" stop-color="#8a45d8"/><stop offset="1" stop-color="#34125f"/></radialGradient>
+<radialGradient id="ra-prata" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#ffffff"/><stop offset=".45" stop-color="#cfd0dc"/><stop offset="1" stop-color="#6e6f84"/></radialGradient>
+<linearGradient id="ua-ouro" gradientUnits="userSpaceOnUse" x1="10" y1="10" x2="90" y2="90"><stop offset="0" stop-color="#fff3cf"/><stop offset=".45" stop-color="#e9c47c"/><stop offset="1" stop-color="#9d6f2a"/></linearGradient>
+<linearGradient id="ua-lav" gradientUnits="userSpaceOnUse" x1="50" y1="10" x2="90" y2="60"><stop offset="0" stop-color="#f4eeff"/><stop offset=".5" stop-color="#c9b7f2"/><stop offset="1" stop-color="#8369cf"/></linearGradient>
+</defs>
+<g class="petalas" transform="rotate(45 50 50)">
+<g><g class="petala p1"><path d="M50 54 C44 46 33 39 33 25 A17 17 0 1 1 67 25 C67 39 56 46 50 54 Z" fill="url(#ga-ouro)" stroke="#f6dfa9" stroke-opacity=".55" stroke-width="1.2"/><path class="hl" d="M46 24 C44 17 50 11 56 13 C52 14 48 18 46 24 Z" fill="#fff" fill-opacity=".55"/></g></g>
+<g transform="rotate(90 50 50)"><g class="petala p2"><path d="M50 54 C44 46 33 39 33 25 A17 17 0 1 1 67 25 C67 39 56 46 50 54 Z" fill="url(#ga-lav)" stroke="#f6dfa9" stroke-opacity=".55" stroke-width="1.2"/><path class="hl" d="M46 24 C44 17 50 11 56 13 C52 14 48 18 46 24 Z" fill="#fff" fill-opacity=".55"/></g></g>
+<g transform="rotate(180 50 50)"><g class="petala p3"><path d="M50 54 C44 46 33 39 33 25 A17 17 0 1 1 67 25 C67 39 56 46 50 54 Z" fill="url(#ga-ame)" stroke="#f6dfa9" stroke-opacity=".55" stroke-width="1.2"/><path class="hl" d="M46 24 C44 17 50 11 56 13 C52 14 48 18 46 24 Z" fill="#fff" fill-opacity=".45"/></g></g>
+<g transform="rotate(270 50 50)"><g class="petala p4"><path d="M50 54 C44 46 33 39 33 25 A17 17 0 1 1 67 25 C67 39 56 46 50 54 Z" fill="url(#ga-lav2)" stroke="#f6dfa9" stroke-opacity=".55" stroke-width="1.2"/><path class="hl" d="M46 24 C44 17 50 11 56 13 C52 14 48 18 46 24 Z" fill="#fff" fill-opacity=".55"/></g></g>
+</g>
+<circle class="no" cx="50" cy="50" r="5.5" fill="url(#ra-ouro)"/>
+</svg></span>
       </div>
       <section class="card hero">
         <span class="eyebrow">Sorteio em</span>
@@ -519,7 +536,26 @@ h1 { font-size: 28px; font-weight: 700; line-height: 1.15; letter-spacing: -.01e
         <span class="eyebrow">Nossos jogos</span>
         <div class="games" data-jogos="mega" data-modo="after"></div>
         <div class="sh-res"><span>Acertamos a quadra!</span><b>R$ 1.287,40</b></div>
-        <div class="sh-mark"><span class="mark" aria-hidden="true"><span class="ball"></span><span class="ball gold"></span></span>Little Faith</div>
+        <div class="sh-mark"><span class="mark" aria-hidden="true"><svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><defs>
+<linearGradient id="gb-ouro" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff3cf"/><stop offset=".45" stop-color="#e9c47c"/><stop offset="1" stop-color="#9d6f2a"/></linearGradient>
+<linearGradient id="gb-lav" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f4eeff"/><stop offset=".5" stop-color="#c9b7f2"/><stop offset="1" stop-color="#8369cf"/></linearGradient>
+<linearGradient id="gb-lav2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e6dbff"/><stop offset=".5" stop-color="#b39ce8"/><stop offset="1" stop-color="#6a51ba"/></linearGradient>
+<linearGradient id="gb-ame" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cfa3ff"/><stop offset=".5" stop-color="#7f3bd1"/><stop offset="1" stop-color="#36126a"/></linearGradient>
+<radialGradient id="rb-ouro" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#fff6dc"/><stop offset=".4" stop-color="#eac77e"/><stop offset="1" stop-color="#8f6425"/></radialGradient>
+<radialGradient id="rb-lav" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#f6f1ff"/><stop offset=".45" stop-color="#c2aeef"/><stop offset="1" stop-color="#6b53bd"/></radialGradient>
+<radialGradient id="rb-ame" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#d9b5ff"/><stop offset=".45" stop-color="#8a45d8"/><stop offset="1" stop-color="#34125f"/></radialGradient>
+<radialGradient id="rb-prata" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#ffffff"/><stop offset=".45" stop-color="#cfd0dc"/><stop offset="1" stop-color="#6e6f84"/></radialGradient>
+<linearGradient id="ub-ouro" gradientUnits="userSpaceOnUse" x1="10" y1="10" x2="90" y2="90"><stop offset="0" stop-color="#fff3cf"/><stop offset=".45" stop-color="#e9c47c"/><stop offset="1" stop-color="#9d6f2a"/></linearGradient>
+<linearGradient id="ub-lav" gradientUnits="userSpaceOnUse" x1="50" y1="10" x2="90" y2="60"><stop offset="0" stop-color="#f4eeff"/><stop offset=".5" stop-color="#c9b7f2"/><stop offset="1" stop-color="#8369cf"/></linearGradient>
+</defs>
+<g class="petalas" transform="rotate(45 50 50)">
+<g><g class="petala p1"><path d="M50 54 C44 46 33 39 33 25 A17 17 0 1 1 67 25 C67 39 56 46 50 54 Z" fill="url(#gb-ouro)" stroke="#f6dfa9" stroke-opacity=".55" stroke-width="1.2"/><path class="hl" d="M46 24 C44 17 50 11 56 13 C52 14 48 18 46 24 Z" fill="#fff" fill-opacity=".55"/></g></g>
+<g transform="rotate(90 50 50)"><g class="petala p2"><path d="M50 54 C44 46 33 39 33 25 A17 17 0 1 1 67 25 C67 39 56 46 50 54 Z" fill="url(#gb-lav)" stroke="#f6dfa9" stroke-opacity=".55" stroke-width="1.2"/><path class="hl" d="M46 24 C44 17 50 11 56 13 C52 14 48 18 46 24 Z" fill="#fff" fill-opacity=".55"/></g></g>
+<g transform="rotate(180 50 50)"><g class="petala p3"><path d="M50 54 C44 46 33 39 33 25 A17 17 0 1 1 67 25 C67 39 56 46 50 54 Z" fill="url(#gb-ame)" stroke="#f6dfa9" stroke-opacity=".55" stroke-width="1.2"/><path class="hl" d="M46 24 C44 17 50 11 56 13 C52 14 48 18 46 24 Z" fill="#fff" fill-opacity=".45"/></g></g>
+<g transform="rotate(270 50 50)"><g class="petala p4"><path d="M50 54 C44 46 33 39 33 25 A17 17 0 1 1 67 25 C67 39 56 46 50 54 Z" fill="url(#gb-lav2)" stroke="#f6dfa9" stroke-opacity=".55" stroke-width="1.2"/><path class="hl" d="M46 24 C44 17 50 11 56 13 C52 14 48 18 46 24 Z" fill="#fff" fill-opacity=".55"/></g></g>
+</g>
+<circle class="no" cx="50" cy="50" r="5.5" fill="url(#rb-ouro)"/>
+</svg></span>Little Faith</div>
       </div></div>
       <button class="btn" type="button"><svg aria-hidden="true"><use href="#i-share"/></svg>Compartilhar no WhatsApp</button>
       <p class="sec center" style="margin-top:10px">Ninguém vê dados de pagamento na imagem.</p>
@@ -586,7 +622,26 @@ h1 { font-size: 28px; font-weight: 700; line-height: 1.15; letter-spacing: -.01e
     <p class="frame-label">Computador · 1440 × 900</p>
     <div class="screen desk">
       <aside class="side">
-        <div class="logo"><span class="mark" aria-hidden="true"><span class="ball"></span><span class="ball gold"></span></span>Little Faith</div>
+        <div class="logo"><span class="mark" aria-hidden="true"><svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><defs>
+<linearGradient id="gc-ouro" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff3cf"/><stop offset=".45" stop-color="#e9c47c"/><stop offset="1" stop-color="#9d6f2a"/></linearGradient>
+<linearGradient id="gc-lav" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f4eeff"/><stop offset=".5" stop-color="#c9b7f2"/><stop offset="1" stop-color="#8369cf"/></linearGradient>
+<linearGradient id="gc-lav2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e6dbff"/><stop offset=".5" stop-color="#b39ce8"/><stop offset="1" stop-color="#6a51ba"/></linearGradient>
+<linearGradient id="gc-ame" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cfa3ff"/><stop offset=".5" stop-color="#7f3bd1"/><stop offset="1" stop-color="#36126a"/></linearGradient>
+<radialGradient id="rc-ouro" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#fff6dc"/><stop offset=".4" stop-color="#eac77e"/><stop offset="1" stop-color="#8f6425"/></radialGradient>
+<radialGradient id="rc-lav" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#f6f1ff"/><stop offset=".45" stop-color="#c2aeef"/><stop offset="1" stop-color="#6b53bd"/></radialGradient>
+<radialGradient id="rc-ame" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#d9b5ff"/><stop offset=".45" stop-color="#8a45d8"/><stop offset="1" stop-color="#34125f"/></radialGradient>
+<radialGradient id="rc-prata" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#ffffff"/><stop offset=".45" stop-color="#cfd0dc"/><stop offset="1" stop-color="#6e6f84"/></radialGradient>
+<linearGradient id="uc-ouro" gradientUnits="userSpaceOnUse" x1="10" y1="10" x2="90" y2="90"><stop offset="0" stop-color="#fff3cf"/><stop offset=".45" stop-color="#e9c47c"/><stop offset="1" stop-color="#9d6f2a"/></linearGradient>
+<linearGradient id="uc-lav" gradientUnits="userSpaceOnUse" x1="50" y1="10" x2="90" y2="60"><stop offset="0" stop-color="#f4eeff"/><stop offset=".5" stop-color="#c9b7f2"/><stop offset="1" stop-color="#8369cf"/></linearGradient>
+</defs>
+<g class="petalas" transform="rotate(45 50 50)">
+<g><g class="petala p1"><path d="M50 54 C44 46 33 39 33 25 A17 17 0 1 1 67 25 C67 39 56 46 50 54 Z" fill="url(#gc-ouro)" stroke="#f6dfa9" stroke-opacity=".55" stroke-width="1.2"/><path class="hl" d="M46 24 C44 17 50 11 56 13 C52 14 48 18 46 24 Z" fill="#fff" fill-opacity=".55"/></g></g>
+<g transform="rotate(90 50 50)"><g class="petala p2"><path d="M50 54 C44 46 33 39 33 25 A17 17 0 1 1 67 25 C67 39 56 46 50 54 Z" fill="url(#gc-lav)" stroke="#f6dfa9" stroke-opacity=".55" stroke-width="1.2"/><path class="hl" d="M46 24 C44 17 50 11 56 13 C52 14 48 18 46 24 Z" fill="#fff" fill-opacity=".55"/></g></g>
+<g transform="rotate(180 50 50)"><g class="petala p3"><path d="M50 54 C44 46 33 39 33 25 A17 17 0 1 1 67 25 C67 39 56 46 50 54 Z" fill="url(#gc-ame)" stroke="#f6dfa9" stroke-opacity=".55" stroke-width="1.2"/><path class="hl" d="M46 24 C44 17 50 11 56 13 C52 14 48 18 46 24 Z" fill="#fff" fill-opacity=".45"/></g></g>
+<g transform="rotate(270 50 50)"><g class="petala p4"><path d="M50 54 C44 46 33 39 33 25 A17 17 0 1 1 67 25 C67 39 56 46 50 54 Z" fill="url(#gc-lav2)" stroke="#f6dfa9" stroke-opacity=".55" stroke-width="1.2"/><path class="hl" d="M46 24 C44 17 50 11 56 13 C52 14 48 18 46 24 Z" fill="#fff" fill-opacity=".55"/></g></g>
+</g>
+<circle class="no" cx="50" cy="50" r="5.5" fill="url(#rc-ouro)"/>
+</svg></span>Little Faith</div>
         <button class="group" type="button"><span class="g-av">TT</span><span><b>Turma do trabalho</b><small>10 pessoas</small></span><svg aria-hidden="true"><use href="#i-down"/></svg></button>
         <nav class="nav" aria-label="Principal">
           <a href="#"><svg aria-hidden="true"><use href="#i-home"/></svg>Início</a>

@@ -21,6 +21,14 @@ Direção visual "Noite do sorteio", versão afinada (escolhas dele em 10 e 11/1
   sem prêmio ("Não foi dessa vez.", melhor jogo, próximo sorteio, "Repetir com a mesma turma"); Lotofácil (5×3) e
   Quina; cartão 4:5 para o WhatsApp sem dados de pagamento; formulário em gaveta; computador com barra lateral,
   faixa de etapas no topo e lista da divisão com chave Pix.
+- Marca (12/10, escolha dele entre três, com imagem): o Laço da turma — quatro fitas (ouro, lavanda, lavanda-clara,
+  ametista) amarradas num nó de ouro, em diagonal; pequeno vira um trevo de quatro folhas. Vetor em
+  `apps/web/public/laco.svg` (favicon) e no componente `BrandMark`; ícones 192/512/maskable/apple em `apps/web/public`;
+  o cartão do WhatsApp desenha o mesmo laço (`ui/cartao.ts`). Nome em Sora, sem letra serifada (escolha dele, 12/10). A
+  comparação das três marcas fica em `.tmp/marca/comparacao.html` (apagável; os símbolos em `.tmp/marca/marcas.js`).
+- Capa do Início: a cena 3D feita pelo ChatGPT (`src/assets/inicio-companhia-{900,1536}.jpg`, ~60 e ~170 KB) no canto
+  de cima à direita no celular (capa de até 280 px) e à direita no computador (280 px), esmaecida por máscara; a frase
+  "Faça sua fezinha…" é o título; paralaxe de até 6 px só com mouse, nada no toque nem com movimento reduzido.
 - Movimento: barra enchendo, bolas sorteadas caindo uma a uma, acertos pulsando, prêmio contando até o valor; nada
   ocioso; tudo desligado com movimento reduzido.
 - Linguagem simples do item 9 em toda tela nova.

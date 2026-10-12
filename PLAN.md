@@ -1,0 +1,22 @@
+# PLAN.md — Redesign "Noite em boa companhia" (12/10/2026)
+
+Tarefa: aplicar o plano desenhado pelo ChatGPT (cópia em `.tmp/marca/PLAN-chatgpt.md`; proposta em
+`.tmp/marca/proposta-chatgpt/`) adaptado ao que o app já tem. Branch `redesign/noite-companhia`; nada de
+meio-caminho em `main` (pedido da sessão do piloto, que publica `main` no passo 7). Sessão do piloto é dona de
+`docs/PENDENCIAS.md`, `docs/PILOTO.md`, `.env` e `supabase/`; avisar a ela antes de `npm run done`/Playwright.
+
+Escolhas dele (12/10, com imagem): marca **Laço da turma** (quatro fitas; pequeno vira trevo); letra **só Sora**
+(sem Fraunces; logo sem Inter também: "tudo na letra atual").
+
+Passos:
+1. [x] Comparação de marca fora da produção (`.tmp/marca/comparacao.html`, símbolos em `.tmp/marca/marcas.js`).
+2. [x] Favicon `laco.svg`, ícones 192/512/maskable/apple, manifesto, lista offline (`apps/web/public`, `index.html`, `vite.config.ts`).
+3. [x] `BrandMark` em SVG (ids únicos por instância: a cópia escondida não pinta gradientes) e o mesmo laço no cartão do WhatsApp (`ui/cartao.ts`).
+4. [x] Área ilustrada do Início com a cena 3D do ChatGPT (`src/assets/inicio-companhia-{900,1536}.jpg`), ≤ 280 px no celular, paralaxe ≤ 6 px só com mouse; h1 "Faça sua fezinha…" mantido (teste); `.home-hero` continua no cartão da contagem (teste).
+5. [ ] Movimento: bolas 70 ms entre dezenas (era 180), prêmio contando em 800 ms (era 1200), botões 180 ms, entrada de tela 360 ms escalonada; tudo desligado com movimento reduzido (CSS global já faz).
+6. [ ] Conferir 320/360/390/768/1440 (`scripts/visual/foto.mjs`, `medir.mjs`), fluxos de antes e depois.
+7. [ ] Paleta mais quente/escura como a proposta (fundo #110d1c, painéis em camadas, ouro como destaque): só com antes/depois aprovado por ele.
+8. [ ] `docs/estilo/DIRECAO.md` atualizado; `npm run done` (avisar o piloto); um commit por etapa.
+
+Fora de escopo: APIs, banco, rotas, tokens, formatos financeiros; Sorteio com "Revelar resultado" (o plano proíbe
+esconder informação); Inter e Fraunces; imagem 3D de prêmio (fica para depois, sob demanda).

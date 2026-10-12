@@ -124,7 +124,7 @@ A confirmação de uma ação manual será integrada à própria tela. O organiz
 
 ### Direção visual e acessibilidade
 
-- Tema claro inicial; opção escura.
+- Tema escuro desde o início (direção "Noite do sorteio", escolha dele em 10/10); uma opção clara fica para depois.
 - Violeta como identidade principal e cores próprias das modalidades.
 - Verde para confirmado, âmbar para pendência e vermelho para problema, sempre acompanhados de texto.
 - Uma ação principal por tela.
