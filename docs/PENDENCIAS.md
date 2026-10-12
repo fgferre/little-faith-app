@@ -4,7 +4,7 @@ Lista viva do que está aberto. Leia só a seção O BASTÃO e o item da vez; o 
 Item resolvido sai da lista e vira commit com o número entre parênteses; a história de cada número fica no git (`git log --all --grep="(NNN)"`).
 Número é identidade, não posição: item novo entra no fim da sua seção. **Próximo número livre: 14.**
 
-## O BASTÃO — onde a rodada parou (11/10, tarde) — DIA DO PRÊMIO VISÍVEL E CARTÃO DO PARTICIPANTE; `npm run done` VERDE
+## O BASTÃO — onde a rodada parou (12/10) — DIA DO PRÊMIO, CARTÃO DO PARTICIPANTE E REPETIR COM A MESMA TURMA; `npm run done` VERDE
 
 **Estado:** etapas 1–6 da especificação feitas; app inteiro no estilo "Noite do sorteio" afinado. Itens 6 e 7
 resolvidos nesta rodada: o titular dos bilhetes aparece em Registrar, Sorteio e Dividir, e Dividir avisa que
@@ -12,11 +12,14 @@ imposto e repasse pedem um contador; cada pessoa tem um link pessoal, sem conta 
 (`#/p/<token>`): cotas e pagamento, jogos com acertos, registro e quem guarda o bilhete, resultado, prêmio e a parte
 dela. Servidor: tabela `participant_links` (token só por hash SHA-256), 4 RPCs e a rota pública
 `POST /v1/participant_card`; `verify_jwt=false` na função `api` (ela valida a sessão no próprio middleware). O
-organizador cria e cancela o link por pessoa em Arrecadar. Encerrar/reabrir o bolão continuam para depois.
+organizador cria e cancela o link por pessoa em Arrecadar. Item 8 resolvido em 12/10: "Repetir com a mesma turma"
+(em Sorteio, quando não houve prêmio, e agora também no fim de Dividir) leva as pessoas com suas cotas e os jogos
+(só na mesma modalidade), sugere o concurso seguinte e copia a forma de participação; pagamentos começam do zero;
+a cópia não é atômica (uma falha avisa no formulário e não cria segundo bolão). Encerrar/reabrir ficam para depois.
 
-**Verificado em 11/10, nesta sessão:** `npm run done` verde — tipos, lint, 313 testes, SQL no PGlite (o cartão é
-conferido contra `computeSettlement` do núcleo), 16 testes da API, build e 36 fluxos no navegador (2 novos do
-participante, com as rotas simuladas; a API real do link só é coberta pelos testes Deno e SQL). Capturas em
+**Verificado em 12/10, nesta sessão:** `npm run done` verde — tipos, lint, 313 testes, SQL no PGlite (o cartão é
+conferido contra `computeSettlement` do núcleo), 16 testes da API, build e 37 fluxos no navegador (2 do
+participante com rotas simuladas, 1 do repetir pela interface; a API real do link só é coberta pelos testes Deno e SQL). Capturas em
 `.tmp/b/` (apagável).
 
 **Decisões dele (11/10):** frente (b) antes do piloto; primeiro push autorizado. **Decisões tomadas aqui, que ele
@@ -32,8 +35,7 @@ público (passo 7 do piloto): decisão dele. **Fora daqui:** sem Supabase real, 
 suas apostas e boa sorte!"*.
 
 **A próxima rodada — a ordem é dele:** (a) o piloto (`docs/PILOTO.md`; cada passo com conta ou chave é dele);
-(c) repetir bolão com a mesma turma (8); (d) a demonstração com um bolão inteiro, com prêmio (11); (e) os fluxos
-que oscilam sob carga (13). Depois do piloto: participante com conta e convites; foto do bilhete no cartão por URL
+(d) a demonstração com um bolão inteiro, com prêmio (11); (e) os fluxos que oscilam sob carga (13). Depois do piloto: participante com conta e convites; foto do bilhete no cartão por URL
 temporária; limite de taxa na rota pública (ver BACKLOG).
 
 ## ALTA — bloqueia a entrega ou pode perder trabalho
@@ -56,9 +58,6 @@ PGlite. Conectar pede a palavra dele; o passo a passo está em `docs/PILOTO.md` 
 pausa por inatividade: um bolão mensal pode achar o servidor dormindo no dia do prêmio. Risco a conferir no primeiro
 `supabase functions deploy`: a função importa `packages/core` de fora de `supabase/`; se o empacotador recusar, mover
 o núcleo usado pela função para `supabase/functions/_shared` ou mapear no `deno.json`.
-
-**8. Repetir o bolão com a mesma turma (revisão de 10/10).**
-É a ação mais comum de quem joga toda semana e ficou na entrega B. Uma cópia simples para o próximo concurso basta.
 
 **11. A demonstração para antes do melhor (revisão de 10/10).**
 Registro, resultado e divisão não aparecem no modo de exemplo, e a Revisão some nele. A demonstração devia mostrar um
