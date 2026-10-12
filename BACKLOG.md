@@ -7,6 +7,5 @@
 - (11/10) Saíram das telas: o download em texto do demonstrativo do grupo e a lista de alertas 30/15/7/1 do resgate (o núcleo ainda os calcula).
 - (11/10) `DivisaoPendente` em bolao-dividir-decisao.tsx ficou sem uso depois da Revisão nova; a regra `.pool-card h2` encolhe títulos para 19 px dentro dos cartões do bolão (parece não intencional).
 - (11/10) Na lista de Bolões, "Encerrados" não sabe se ainda há prêmio por pagar (só olha resultado e cotas); cruzar com a divisão.
-- (11/10) Conferir no primeiro deploy se o empacotador da função aceita importar `packages/core` de fora de `supabase/` (item 5).
 - (11/10) A rota pública do cartão do participante (`GET /v1/participant_card`) não tem limite de taxa; o token tem 256 bits, mas convém um limite por IP antes de abrir para muita gente.
 - (11/10) O cartão do participante não mostra a foto do bilhete (spec: imagem original fora de página compartilhada); se o dono quiser, usar URL temporária.
