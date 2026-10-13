@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Link2, QrCode, UserPlus } from "lucide-react";
+import { AnimatePresence } from "motion/react";
 import {
   createResultView,
   formatBRL,
@@ -505,10 +506,11 @@ export function BolaoArrecadar(
       <Card className="pool-card" label="Arrecadação">
         <Eyebrow>Arrecadação</Eyebrow>
         <Money
+          cents={collectedCents}
+          follow
+          format={reais}
           suffix={expectedCents !== null && <>de {reais(expectedCents)}</>}
-        >
-          {reais(collectedCents)}
-        </Money>
+        />
         {total > 0 && (
           <>
             <Bar
@@ -678,19 +680,21 @@ export function BolaoArrecadar(
               conta.
             </p>
           )}
-          {pixPerson && pix && pixMissing && pixPayload && (
-            <Modal title="Cobrar por Pix" onClose={() => setPixId(null)}>
-              <p className="pix-who">
-                <span>{pixPerson.name}</span>
-                <b>{formatBRL(pixMissing)}</b>
-              </p>
-              <PixCode payload={pixPayload} />
-              <p className="ui-sec pix-foot">
-                Mostre o QR ou mande o código. Para {pix.name} ({pix.key}).
-                Quem paga ainda precisa pagar no banco; você marca que recebeu.
-              </p>
-            </Modal>
-          )}
+          <AnimatePresence>
+            {pixPerson && pix && pixMissing && pixPayload && (
+              <Modal title="Cobrar por Pix" onClose={() => setPixId(null)}>
+                <p className="pix-who">
+                  <span>{pixPerson.name}</span>
+                  <b>{formatBRL(pixMissing)}</b>
+                </p>
+                <PixCode payload={pixPayload} />
+                <p className="ui-sec pix-foot">
+                  Mostre o QR ou mande o código. Para {pix.name} ({pix.key}).
+                  Quem paga ainda precisa pagar no banco; você marca que recebeu.
+                </p>
+              </Modal>
+            )}
+          </AnimatePresence>
           <div className="pool-actions">
             <Button
               variant={snapshot.persons.length ? "ghost" : "primary"}

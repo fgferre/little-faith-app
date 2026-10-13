@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
+import { AnimatePresence } from "motion/react";
 import {
   computeSettlement,
   createResultView,
@@ -918,23 +919,26 @@ export function BolaoDividir(
       {!enabled && balance && (
         <p className="ui-sec split-later">{availability}</p>
       )}
-      {request && (
-        <DivisaoDecisao
-          key={"intent" in request ? JSON.stringify(request.intent) : request.idempotencyKey}
-          db={db}
-          groupId={groupId}
-          request={request}
-          enabled={enabled}
-          availability={availability}
-          timeZone={timeZone}
-          onClose={() => setRequest(null)}
-          onNotice={setNotice}
-          goRegistrar={() => {
-            setRequest(null);
-            go("registrar");
-          }}
-        />
-      )}
+      {/* Um pedido novo só abre depois que a janela anterior terminou de sair. */}
+      <AnimatePresence mode="wait">
+        {request && (
+          <DivisaoDecisao
+            key={"intent" in request ? JSON.stringify(request.intent) : request.idempotencyKey}
+            db={db}
+            groupId={groupId}
+            request={request}
+            enabled={enabled}
+            availability={availability}
+            timeZone={timeZone}
+            onClose={() => setRequest(null)}
+            onNotice={setNotice}
+            goRegistrar={() => {
+              setRequest(null);
+              go("registrar");
+            }}
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 }

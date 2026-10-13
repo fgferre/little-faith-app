@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { MotionConfig } from "motion/react";
+import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import type { Session } from "@supabase/supabase-js";
 import {
   AlertTriangle,
@@ -612,7 +612,11 @@ function OrganizerApp() {
                 <Icon aria-hidden="true" />
                 <span>{label}</span>
                 {id === "revisao" && reviewCount > 0 && (
-                  <span className="nav-badge" aria-label={pendingLabel}>
+                  <span
+                    key={reviewCount}
+                    className="nav-badge"
+                    aria-label={pendingLabel}
+                  >
                     {reviewCount}
                   </span>
                 )}
@@ -904,7 +908,11 @@ function OrganizerApp() {
               <span className="bottom-nav-icon">
                 <Icon aria-hidden="true" />
                 {id === "revisao" && reviewCount > 0 && (
-                  <span className="nav-badge" aria-label={pendingLabel}>
+                  <span
+                    key={reviewCount}
+                    className="nav-badge"
+                    aria-label={pendingLabel}
+                  >
                     {reviewCount}
                   </span>
                 )}
@@ -913,85 +921,98 @@ function OrganizerApp() {
             </a>
           ))}
         </nav>
-        {notice && (
-          <div
-            className={`toast ${notice.error ? "error" : ""}`}
-            role={notice.error ? "alert" : "status"}
-          >
-            {notice.error
-              ? <AlertTriangle aria-hidden="true" />
-              : <Check aria-hidden="true" />}
-            <span>{notice.text}</span>
-            <button
-              type="button"
-              aria-label="Dispensar aviso"
-              onClick={() => setNotice(null)}
+        <AnimatePresence>
+          {notice && (
+            <motion.div
+              className={`toast ${notice.error ? "error" : ""}`}
+              role={notice.error ? "alert" : "status"}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              transition={{ duration: 0.22, ease: [0.2, 0.8, 0.2, 1] }}
             >
-              <X aria-hidden="true" />
-            </button>
-          </div>
-        )}
-        {form && (
-          <DraftForm
-            kind={form}
-            group={group}
-            pool={pool}
-            repeatOf={form === "pool" && repeatPool ? pool : undefined}
-            persons={snapshot?.persons ?? []}
-            quotas={poolQuotas}
-            bets={poolBets}
-            onClose={() => {
-              setForm(null);
-              setRepeatPool(false);
-            }}
-            financeEnabled={financeEnabled}
-            onReviewPayment={(id) =>
-              setFinancialRequest({ type: "payment_confirm", proposalId: id })}
-            save={save}
-            saveGenerated={saveGenerated}
-            onPoolCreated={(id) => route.navigate("boloes", id, "montar")}
-          />
-        )}
-        {financialRequest && groupId && (
-          <FinancialDialog
-            key={`${db.name}:${groupId}`}
-            request={financialRequest}
-            db={db}
-            groupId={groupId}
-            enabled={financeEnabled}
-            availability={financeAvailability}
-            onClose={() => setFinancialRequest(null)}
-            onNotice={setNotice}
-          />
-        )}
-        {planningRequest && groupId && (
-          <PlanningDialog
-            key={`planning:${db.name}:${groupId}`}
-            request={planningRequest}
-            db={db}
-            groupId={groupId}
-            enabled={financeEnabled}
-            availability={financeAvailability}
-            onClose={() => setPlanningRequest(null)}
-            onNotice={setNotice}
-          />
-        )}
-        {recordRequest && groupId && (
-          <Suspense fallback={<p className="inline-note">Abrindo revisão…</p>}>
-            <RecordDialog
-              key={`records:${db.name}:${groupId}`}
+              {notice.error
+                ? <AlertTriangle aria-hidden="true" />
+                : <Check aria-hidden="true" />}
+              <span>{notice.text}</span>
+              <button
+                type="button"
+                aria-label="Dispensar aviso"
+                onClick={() => setNotice(null)}
+              >
+                <X aria-hidden="true" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {/* As janelas descem ou somem antes de sair da tela (Modal, usePresence). */}
+        <AnimatePresence>
+          {form && (
+            <DraftForm
+              key="form"
+              kind={form}
+              group={group}
+              pool={pool}
+              repeatOf={form === "pool" && repeatPool ? pool : undefined}
+              persons={snapshot?.persons ?? []}
+              quotas={poolQuotas}
+              bets={poolBets}
+              onClose={() => {
+                setForm(null);
+                setRepeatPool(false);
+              }}
+              financeEnabled={financeEnabled}
+              onReviewPayment={(id) =>
+                setFinancialRequest({ type: "payment_confirm", proposalId: id })}
+              save={save}
+              saveGenerated={saveGenerated}
+              onPoolCreated={(id) => route.navigate("boloes", id, "montar")}
+            />
+          )}
+          {financialRequest && groupId && (
+            <FinancialDialog
+              key={`${db.name}:${groupId}`}
+              request={financialRequest}
               db={db}
               groupId={groupId}
-              request={recordRequest}
-              timeZone={timeZone}
               enabled={financeEnabled}
               availability={financeAvailability}
-              onClose={() =>
-                setRecordRequest(null)}
+              onClose={() => setFinancialRequest(null)}
               onNotice={setNotice}
             />
-          </Suspense>
-        )}
+          )}
+          {planningRequest && groupId && (
+            <PlanningDialog
+              key={`planning:${db.name}:${groupId}`}
+              request={planningRequest}
+              db={db}
+              groupId={groupId}
+              enabled={financeEnabled}
+              availability={financeAvailability}
+              onClose={() => setPlanningRequest(null)}
+              onNotice={setNotice}
+            />
+          )}
+          {recordRequest && groupId && (
+            <Suspense
+              key="records"
+              fallback={<p className="inline-note">Abrindo revisão…</p>}
+            >
+              <RecordDialog
+                key={`records:${db.name}:${groupId}`}
+                db={db}
+                groupId={groupId}
+                request={recordRequest}
+                timeZone={timeZone}
+                enabled={financeEnabled}
+                availability={financeAvailability}
+                onClose={() =>
+                  setRecordRequest(null)}
+                onNotice={setNotice}
+              />
+            </Suspense>
+          )}
+        </AnimatePresence>
       </div>
     </MotionConfig>
   );

@@ -26,6 +26,7 @@ import {
   Money,
   PixCode,
   ProblemBox,
+  unfoldDetails,
 } from "../ui";
 import type { ChipStatus } from "../ui";
 import { hoje, prazoResgate } from "../ui/texto";
@@ -404,7 +405,7 @@ export function CartaoParticipante({ card }: { card: ParticipantCard }) {
           <Eyebrow>Outros bolões</Eyebrow>
           {others.map((pool) => (
             <details className="card-more" key={pool.id}>
-              <summary className="ui-card interactive">
+              <summary className="ui-card interactive" onClick={unfoldDetails}>
                 <span>
                   <PoolHead pool={pool} />
                 </span>

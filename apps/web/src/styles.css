@@ -221,27 +221,7 @@ svg {
   background: transparent;
   color: #f6d7a3;
 }
-/* O destaque do item ativo é uma peça só que desliza até o item clicado (useSlidingIndicator). */
-.nav-indicator {
-  position: absolute;
-  z-index: -1;
-  opacity: 0;
-  pointer-events: none;
-  transition-duration: .22s, .22s;
-  transition-timing-function: cubic-bezier(.2, .8, .2, 1);
-}
-.nav-indicator[data-ready] {
-  opacity: 1;
-}
-/* A borda de trás sai .07s depois: a faixa estica na viagem e volta ao tamanho ao chegar. */
-.nav-indicator[data-dir="down"],
-.nav-indicator[data-dir="right"] {
-  transition-delay: .07s, 0s;
-}
-.nav-indicator[data-dir="up"],
-.nav-indicator[data-dir="left"] {
-  transition-delay: 0s, .07s;
-}
+/* A faixa do item ativo (.nav-indicator, regras gerais em ui.css) desliza até o item clicado. */
 .sidebar .nav-indicator {
   border-radius: 12px;
   background: linear-gradient(105deg, rgba(96, 68, 113, .55), rgba(65, 47, 75, .3));
@@ -261,6 +241,13 @@ svg {
   font-size: 13px;
   font-weight: 800;
   line-height: 1;
+  /* pulinho quando o número muda (o React remonta a bolinha) */
+  animation: badge-pop .35s cubic-bezier(.2, .8, .2, 1) both;
+}
+@keyframes badge-pop {
+  0% { transform: scale(.6); }
+  60% { transform: scale(1.2); }
+  100% { transform: scale(1); }
 }
 .sidebar-bottom {
   display: grid;
@@ -986,7 +973,10 @@ tr:last-child td {
 .toast {
   position: fixed;
   bottom: 26px;
-  left: 50%;
+  left: 16px;
+  right: 16px;
+  margin-inline: auto;
+  width: max-content;
   z-index: 80;
   display: flex;
   align-items: center;
@@ -1000,7 +990,6 @@ tr:last-child td {
   font-size: 15px;
   font-weight: 600;
   line-height: 1.4;
-  transform: translateX(-50%);
 }
 .toast > svg {
   width: 20px;

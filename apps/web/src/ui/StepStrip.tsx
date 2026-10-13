@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Check } from "lucide-react";
 import type { LotteryId } from "@bolao/core";
+import { useSlidingIndicator } from "./useSlidingIndicator";
 
 export interface StepItem<K extends string> {
   key: K;
@@ -19,6 +20,13 @@ export function StepStrip<K extends string>(
   },
 ) {
   const list = useRef<HTMLOListElement>(null);
+  // O fundo da etapa atual é uma peça só que desliza até a etapa escolhida, como no menu.
+  // A chave inclui as etapas feitas: o ✓ alarga o chip no celular e a peça precisa acompanhar.
+  const setBox = useSlidingIndicator(
+    ".nav-indicator",
+    '.ui-step[aria-current="step"]',
+    `${current}|${steps.filter((step) => done.has(step.key)).map((step) => step.key).join()}`,
+  );
 
   useEffect(() => {
     const ol = list.current;
@@ -70,7 +78,13 @@ export function StepStrip<K extends string>(
 
   return (
     <nav className={`ui-steps mod-${modality}`} aria-label={label}>
-      <ol ref={list}>
+      <ol
+        ref={(el) => {
+          list.current = el;
+          setBox(el);
+        }}
+      >
+        <li className="nav-indicator" aria-hidden="true" />
         {steps.map((step) => {
           const isNow = step.key === current;
           const isDone = !isNow && done.has(step.key);

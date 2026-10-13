@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   ButtonHTMLAttributes,
   CSSProperties,
   InputHTMLAttributes,
+  MouseEvent,
   ReactNode,
 } from "react";
 import { useReducedMotion } from "motion/react";
@@ -180,25 +181,41 @@ export function ProblemBox(
   );
 }
 
-/** Centavos subindo de zero até o valor em 1,2 s, depois da espera (conta em bigint; o último quadro é o valor exato). */
-function useCountUp(cents: string | undefined, enabled: boolean, delay: number) {
+/**
+ * Centavos contando depois da espera, em bigint (o último quadro é o valor exato): `countUp` sobe de zero
+ * até o valor em 0,8 s; `follow` aparece direto e, quando o valor muda, conta do último mostrado até o novo em 0,6 s.
+ */
+function useCountUp(
+  cents: string | undefined,
+  countUp: boolean,
+  follow: boolean,
+  delay: number,
+) {
   const reduced = useReducedMotion();
-  const animate = enabled && !reduced && cents !== undefined;
-  const [shown, setShown] = useState(animate ? "0" : cents);
+  const animate = (countUp || follow) && !reduced && cents !== undefined;
+  const [shown, setShown] = useState(countUp && animate ? "0" : cents);
+  const last = useRef(cents);
   useEffect(() => {
-    if (!animate || cents === undefined) return;
+    if (cents === undefined) return;
+    if (!animate) {
+      last.current = cents;
+      return;
+    }
+    const from = countUp ? 0n : BigInt(last.current ?? cents);
     const target = BigInt(cents);
+    const span = from === target ? 0 : countUp ? 800 : 600;
     const start = performance.now() + delay;
     let frame = 0;
     const tick = (now: number) => {
-      const t = Math.min(1, Math.max(0, (now - start) / 800));
+      const t = span ? Math.min(1, Math.max(0, (now - start) / span)) : 1;
       const eased = BigInt(Math.round((1 - (1 - t) ** 3) * 1000));
-      setShown(t >= 1 ? cents : (target * eased / 1000n).toString());
+      last.current = t >= 1 ? cents : (from + (target - from) * eased / 1000n).toString();
+      setShown(last.current);
       if (t < 1) frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [cents, animate, delay]);
+  }, [cents, animate, countUp, delay]);
   return animate ? shown : cents;
 }
 
@@ -212,7 +229,9 @@ export function Money(
     prize = false,
     small = false,
     countUp = false,
+    follow = false,
     delay = 0,
+    format = formatBRL,
     suffix,
     children,
   }: {
@@ -221,13 +240,17 @@ export function Money(
     /** Valor de uma linha (20 px), como o de cada pendência. */
     small?: boolean;
     countUp?: boolean;
+    /** Quando `cents` muda com a tela aberta, conta do valor anterior até o novo. */
+    follow?: boolean;
     /** Espera antes de contar, em ms (as bolas sorteadas caem primeiro). */
     delay?: number;
+    /** Como escrever os centavos (`reais` tira o ",00"). */
+    format?: (cents: string) => string;
     suffix?: ReactNode;
     children?: ReactNode;
   },
 ) {
-  const shown = useCountUp(cents, countUp, delay);
+  const shown = useCountUp(cents, countUp, follow, delay);
   return (
     <span
       className={[
@@ -240,7 +263,7 @@ export function Money(
         ? { "--celebra-delay": `${delay + 800}ms` } as CSSProperties
         : undefined}
     >
-      {shown !== undefined ? formatBRL(shown) : children}
+      {shown !== undefined ? format(shown) : children}
       {suffix && <small>{suffix}</small>}
     </span>
   );
@@ -313,6 +336,59 @@ export function Bar(
   );
 }
 
+/** Altura, respiros, margens e opacidade do corpo agora (no meio de uma animação, o quadro em curso). */
+function bodyFrame(el: HTMLElement): Keyframe {
+  const style = getComputedStyle(el);
+  return {
+    height: style.height,
+    paddingTop: style.paddingTop,
+    paddingBottom: style.paddingBottom,
+    marginTop: style.marginTop,
+    marginBottom: style.marginBottom,
+    opacity: style.opacity,
+  };
+}
+const SHUT: Keyframe = {
+  height: "0px",
+  paddingTop: "0px",
+  paddingBottom: "0px",
+  marginTop: "0px",
+  marginBottom: "0px",
+  opacity: 0,
+};
+
+/**
+ * `onClick` do `summary` de um `<details>`: o corpo (o elemento logo depois do summary) desdobra ao abrir
+ * e recolhe ao fechar; com movimento reduzido, abre e fecha seco. O atributo `open` nativo continua mandando.
+ */
+export function unfoldDetails(event: MouseEvent<HTMLElement>) {
+  const details = event.currentTarget.parentElement;
+  const content = event.currentTarget.nextElementSibling;
+  if (
+    !(details instanceof HTMLDetailsElement) || !(content instanceof HTMLElement)
+    || matchMedia("(prefers-reduced-motion: reduce)").matches
+  ) return;
+  event.preventDefault();
+  // clicar no meio da animação inverte o rumo a partir do quadro em curso
+  const running = content.getAnimations().find((a) => a.id === "abrir" || a.id === "fechar");
+  const open = running ? running.id === "fechar" : !details.open;
+  content.style.overflow = "hidden";
+  const from = details.open ? bodyFrame(content) : SHUT;
+  running?.cancel();
+  details.open = true;
+  const to = open ? bodyFrame(content) : SHUT;
+  const animation = content.animate(
+    [from, to],
+    open
+      ? { id: "abrir", duration: 220, easing: "cubic-bezier(.2, .8, .2, 1)" }
+      : { id: "fechar", duration: 180, easing: "ease-in" },
+  );
+  animation.onfinish = () => {
+    content.style.overflow = "";
+    if (!open) details.open = false;
+  };
+}
+
 /** Algo que fica guardado até a pessoa pedir: "Ver combinados", "Ver cálculo", "Detalhes técnicos". */
 export function Disclosure(
   { summary, className, children }: {
@@ -323,7 +399,7 @@ export function Disclosure(
 ) {
   return (
     <details className={["ui-more", className].filter(Boolean).join(" ")}>
-      <summary>
+      <summary onClick={unfoldDetails}>
         {summary}
         <ChevronDown aria-hidden="true" />
       </summary>

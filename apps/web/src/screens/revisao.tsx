@@ -1,5 +1,6 @@
 import { lazy, Suspense, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
+import { AnimatePresence } from "motion/react";
 import type { EntityKind, LocalRecord } from "@bolao/core";
 import { resolveConflict } from "@bolao/local";
 import type { BolaoDatabase } from "@bolao/local";
@@ -336,19 +337,21 @@ export function RevisaoScreen(
           <div className="review-list">{families("failed")}</div>
         </section>
       )}
-      {divisao && groupId && (
-        <DivisaoDecisao
-          key={`divisao:${db.name}:${groupId}`}
-          db={db}
-          groupId={groupId}
-          request={divisao}
-          enabled={financeEnabled}
-          availability={financeAvailability}
-          timeZone={timeZone}
-          onClose={() => setDivisao(null)}
-          onNotice={setNotice}
-        />
-      )}
+      <AnimatePresence>
+        {divisao && groupId && (
+          <DivisaoDecisao
+            key={`divisao:${db.name}:${groupId}`}
+            db={db}
+            groupId={groupId}
+            request={divisao}
+            enabled={financeEnabled}
+            availability={financeAvailability}
+            timeZone={timeZone}
+            onClose={() => setDivisao(null)}
+            onNotice={setNotice}
+          />
+        )}
+      </AnimatePresence>
       {group && !isDemo && (
         <FinancialReview
           snapshot={snapshot.finances}

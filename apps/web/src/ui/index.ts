@@ -27,6 +27,7 @@ export {
   PageHead,
   ProblemBox,
   ReviewItem,
+  unfoldDetails,
 } from "./basics";
 export type { AvatarStatus, ChipStatus } from "./basics";
 export {

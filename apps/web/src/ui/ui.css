@@ -261,11 +261,34 @@
 /* faixa de etapas: rola com esmaecido de 44 px só do lado em que ainda há etapas escondidas.
    No celular ela vai até a borda da tela (a margem da página é de 16 px ou mais): o esmaecido cai
    na margem e as palavras somem aos poucos, sem corte seco no meio da tela. */
+/* Destaque deslizante: uma peça só que viaja até o item ativo (useSlidingIndicator). O contêiner precisa ser um contexto de empilhamento (position + z-index, ou isolation: isolate) para a peça ficar atrás do texto e à frente do fundo. */
+.nav-indicator {
+  position: absolute;
+  z-index: -1;
+  opacity: 0;
+  pointer-events: none;
+  transition-duration: .22s, .22s;
+  transition-timing-function: cubic-bezier(.2, .8, .2, 1);
+}
+.nav-indicator[data-ready] {
+  opacity: 1;
+}
+/* A borda de trás sai .07s depois: a faixa estica na viagem e volta ao tamanho ao chegar. */
+.nav-indicator[data-dir="down"],
+.nav-indicator[data-dir="right"] {
+  transition-delay: .07s, 0s;
+}
+.nav-indicator[data-dir="up"],
+.nav-indicator[data-dir="left"] {
+  transition-delay: 0s, .07s;
+}
+
 .ui-steps { margin-inline: -16px; }
 .ui-steps ol {
   --fl: 0px;
   --fr: 0px;
   position: relative;
+  isolation: isolate;
   display: flex;
   gap: 4px;
   margin: 0;
@@ -280,6 +303,12 @@
 /* folga no fim: a última etapa para alinhada com o texto da página */
 .ui-steps ol::after { content: ""; flex: 0 0 16px; }
 .ui-steps li { flex: none; }
+/* o fundo da etapa atual desliza de lado até a etapa escolhida */
+.ui-steps .nav-indicator {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--mod) 20%, transparent);
+  transition-property: left, right;
+}
 .ui-step {
   display: inline-flex;
   align-items: center;
@@ -293,10 +322,10 @@
   color: var(--muted);
   font: 600 13px/1 var(--f-titulo);
   white-space: nowrap;
+  transition: color .22s cubic-bezier(.2, .8, .2, 1);
 }
 .ui-step svg { width: 14px; height: 14px; flex: none; }
 .ui-step.now {
-  background: color-mix(in srgb, var(--mod) 20%, transparent);
   color: var(--mod);
   font-weight: 700;
 }
@@ -493,7 +522,11 @@ a:focus-visible > .ui-brandmark img {
   background: repeating-linear-gradient(-45deg, var(--amber) 0 5px, rgba(255, 159, 74, .38) 5px 10px);
 }
 @media (prefers-reduced-motion: no-preference) {
-  .ui-bar i, .ui-bar s { animation: ui-fill 1.2s cubic-bezier(.2, .8, .2, 1) both .2s; }
+  /* enche ao aparecer; depois, desliza quando o valor muda (o enchimento só segura o começo, para não brigar com a transição) */
+  .ui-bar i, .ui-bar s {
+    animation: ui-fill 1.2s cubic-bezier(.2, .8, .2, 1) backwards .2s;
+    transition: width .6s cubic-bezier(.2, .8, .2, 1);
+  }
 }
 @keyframes ui-fill { from { width: 0; } }
 .ui-legend {
@@ -578,6 +611,24 @@ a:focus-visible > .ui-brandmark img {
   .ui-sheet-handle { display: none; }
   .ui-sheet-body { padding: 22px 24px 24px; }
 }
+/* abrir e fechar com movimento: a gaveta sobe de baixo, a janela do computador surge; ao sair
+   (data-closing, posto pelo Modal) o caminho inverso, mais curto. A regra de saída vence a de entrada. */
+@media (prefers-reduced-motion: no-preference) {
+  .ui-sheet[open] { animation: ui-sheet-up .32s cubic-bezier(.2, .8, .2, 1) both; }
+  .ui-sheet[open]::backdrop { animation: ui-fade-in .28s cubic-bezier(.2, .8, .2, 1) both; }
+  .ui-sheet[open][data-closing] { animation: ui-sheet-down .2s ease-in both; }
+  .ui-sheet[open][data-closing]::backdrop { animation: ui-fade-out .2s ease-in both; }
+}
+@media (prefers-reduced-motion: no-preference) and (min-width: 761px) {
+  .ui-sheet[open] { animation-name: ui-sheet-in; animation-duration: .22s; }
+  .ui-sheet[open][data-closing] { animation-name: ui-sheet-out; animation-duration: .2s; }
+}
+@keyframes ui-sheet-up { from { transform: translateY(100%); } }
+@keyframes ui-sheet-down { to { transform: translateY(100%); } }
+@keyframes ui-sheet-in { from { opacity: 0; transform: translateY(12px) scale(.98); } }
+@keyframes ui-sheet-out { to { opacity: 0; transform: translateY(12px) scale(.98); } }
+@keyframes ui-fade-in { from { opacity: 0; } }
+@keyframes ui-fade-out { to { opacity: 0; } }
 .ui-sheet-body { padding: 10px 18px calc(20px + env(safe-area-inset-bottom)); }
 .ui-sheet-handle {
   width: 40px;

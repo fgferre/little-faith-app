@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
+import { AnimatePresence } from "motion/react";
 import {
   CalendarClock,
   Download,
@@ -32,6 +33,7 @@ import {
 } from "@bolao/local";
 import type { BolaoDatabase } from "@bolao/local";
 import { createAccountTransport } from "../auth";
+import { useSheetPresence } from "../components";
 import { downloadText } from "../registration-handoff";
 import type { RecordRequest } from "../record-decision";
 import { rolloverOf } from "../app-shared";
@@ -457,13 +459,18 @@ export function BolaoSorteio(
     { card: ShareCardData; text: string } | null
   >(null);
   const openShare = () => setShare({ card: shareCard(), text: message() });
-  const sheet = share && (
-    <ShareSheet
-      card={share.card}
-      text={share.text}
-      setNotice={setNotice}
-      onClose={() => setShare(null)}
-    />
+  const sheet = (
+    <AnimatePresence>
+      {share && (
+        <ShareSheet
+          key="share"
+          card={share.card}
+          text={share.text}
+          setNotice={setNotice}
+          onClose={() => setShare(null)}
+        />
+      )}
+    </AnimatePresence>
   );
   const tellButton = (
     <Button
@@ -983,6 +990,7 @@ function ShareSheet(
   const titleId = useId();
   const [image, setImage] = useState<{ blob: Blob; url: string } | null>(null);
   const [failed, setFailed] = useState(false);
+  useSheetPresence(ref);
   useEffect(() => {
     const dialog = ref.current!;
     const previous = document.activeElement as HTMLElement | null;
