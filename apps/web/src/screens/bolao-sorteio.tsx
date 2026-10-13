@@ -732,7 +732,11 @@ export function BolaoSorteio(
         )
         : <p className="pool-prize-pending">Valor a confirmar</p>}
       <p className="ui-sec">
-        {prizeCents !== null ? "prêmio calculado" : assessment!.skippedTicketKeys.length
+        {prizeCents !== null
+          ? "prêmio calculado"
+          : !assessment
+          ? "O registro ainda não foi conferido; o valor sai depois da conferência."
+          : assessment.skippedTicketKeys.length
           ? "Há cartelas sem conferência; o valor sai quando todas forem conferidas."
           : "O valor de cada faixa ainda não foi publicado."}
       </p>
