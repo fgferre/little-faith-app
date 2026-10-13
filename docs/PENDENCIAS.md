@@ -52,8 +52,10 @@ melhorar a UX, nunca diremos não". Piloto começado em 12/10 com ele presente (
 
 **A FILA (12/10, uma lista só, nesta ordem; quem pegar a próxima conversa começa pelo primeiro item aberto e
 marca aqui o que fechar):**
-1. Testar no servidor real o comprovante do registro e o link do participante, com o grupo "Turma de teste" (~1 h).
-2. Aviso semanal automático para o Supabase não pausar (GitHub Actions chamando a API uma vez por semana) (~30 min).
+1. ~~Testar no servidor real o comprovante e o link do participante~~ FEITO em 12/10 (ver item 5; relatório em
+   `.tmp/piloto/item1.md`). O "Bolão de teste" ficou travado e registrado, sem sorteio.
+2. ~~Aviso semanal automático para o Supabase não pausar~~ FEITO em 12/10 (`.github/workflows/manter-acordado.yml`,
+   segunda e quinta); conferir a primeira execução à mão depois do push.
 3. Encerrar o bolão: a tela de Dividir fecha a conta (sobras, devoluções, pendências); `pool_settle`/`pool_reopen`
    já existem no núcleo e no servidor (~2 h).
 4. Pix na cobrança e no cartão: chave de quem faz o caixa no cadastro do grupo; "Pix copia e cola" e QR com o valor
@@ -98,9 +100,10 @@ teste" gravado em `groups` e lido de volta no outro aparelho; `/v1/groups` sem s
 → 404. Falta: (a) o app do Google está em "Testando": só os e-mails cadastrados como usuário de teste entram; para
 outros organizadores, publicar o app do Google ("Em produção") ou cadastrá-los; (b) nenhum cron do coletor de
 resultados (`results-collector` não publicado; resultado entra à mão ou pela busca no app); (c) o plano grátis pausa
-o projeto por inatividade (passo 9 do piloto, decisão dele); (d) o link do participante e o comprovante ainda não
-foram exercitados no servidor real; (e) a chave de serviço chega à função sozinha, mas ninguém conferiu o
-`evidence_upload` real.
+o projeto por inatividade (passo 9 do piloto, decisão dele); (d) feito em 12/10 à noite no app publicado, com o "Bolão de teste" da "Turma de teste":
+link pessoal (201/200/410), cartão sem login, pagamento e cota confirmados (4 `review_decide` 200), plano e trava,
+comprovante enviado (`evidence_upload` 200, "Original verificado", hash igual) e conferência "Registro completo";
+só o download do original pelo servidor ficou sem teste (o aparelho usa a cópia local; precisa de outro aparelho).
 
 ## BAIXA — dívida interna, ninguém vê
 
