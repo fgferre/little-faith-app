@@ -3,6 +3,7 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
 } from "react";
@@ -171,6 +172,7 @@ function OrganizerApp() {
   >(null);
   const [online, setOnline] = useState(navigator.onLine);
   const [syncing, setSyncing] = useState(false);
+  const [syncQueued, setSyncQueued] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [storageUsage, setStorageUsage] = useState<string | null>(null);
   const [persistent, setPersistent] = useState(false);
@@ -305,12 +307,18 @@ function OrganizerApp() {
     }
   }, [db, isDemo, session, mode]);
 
-  useEffect(() => {
+  // Layout effect: o sinal de sincronização marcada não pisca "idle" entre a mudança e o agendamento.
+  useLayoutEffect(() => {
     if (mode !== "account" || !online || !session) return;
+    setSyncQueued(true);
     const timeout = setTimeout(() => {
+      setSyncQueued(false);
       void synchronize();
     }, 1_200);
-    return () => clearTimeout(timeout);
+    return () => {
+      clearTimeout(timeout);
+      setSyncQueued(false);
+    };
   }, [mode, online, session, db, snapshot?.summary.pending, synchronize]);
 
   useEffect(() => {
@@ -668,6 +676,10 @@ function OrganizerApp() {
                 className={`connection-pill ${
                   !online ? "offline" : isDemo || mode === "local" ? "local" : ""
                 }`}
+                // Sinal para os testes: há sincronização rodando, marcada ou alteração por enviar.
+                data-sync={syncing || syncQueued || !!snapshot?.summary.pending
+                  ? "busy"
+                  : "idle"}
                 onClick={() => route.navigate("dados")}
               >
                 {!online

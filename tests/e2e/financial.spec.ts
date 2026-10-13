@@ -64,9 +64,20 @@ async function step(page: Page, name: string) {
     .getByRole("button", { name, exact: true }).click();
 }
 
+/**
+ * No sync running, scheduled or waiting to send. A review opened before this joins the app's
+ * own sync, which may predate the last change, and fails on a stale copy under load.
+ */
+async function settled(page: Page) {
+  await expect(page.getByRole("button", { name: "Conectado", exact: true }))
+    .toHaveAttribute("data-sync", "idle", { timeout: 15_000 });
+}
+
 async function approve(page: Page) {
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByRole("checkbox").last()).toBeEnabled();
+  await expect(dialog.getByRole("checkbox").last()).toBeEnabled({
+    timeout: 15_000,
+  });
   await dialog.getByRole("checkbox").last().check();
   await dialog.getByRole("button", {
     name: "Confirmar no servidor",
@@ -76,6 +87,7 @@ async function approve(page: Page) {
 }
 
 async function publishAndAccept(page: Page) {
+  await settled(page);
   await page.getByRole("button", { name: "Publicar combinados", exact: true })
     .click();
   await expect(
@@ -84,6 +96,7 @@ async function publishAndAccept(page: Page) {
     }),
   ).toBeVisible();
   await approve(page);
+  await settled(page);
   await page.getByRole("button", { name: "Registrar aceite", exact: true })
     .click();
   await page.getByLabel("Evidência do aceite").fill(
@@ -102,6 +115,7 @@ test.beforeEach(async ({ request }) => {
 test("a human confirms cash, allocates across pools, confirms a fully paid quota and reverses without deleting history", async ({ page, request }) => {
   await login(page);
   await publishAndAccept(page);
+  await settled(page);
   await page.getByRole("button", { name: "Conferir", exact: true })
     .click();
   await page.getByLabel("Referência bancária").fill("transferencia-parcial-1");
@@ -125,6 +139,7 @@ test("a human confirms cash, allocates across pools, confirms a fully paid quota
   await page.getByRole("checkbox", {
     name: "Conferir o recebimento agora, depois de sincronizar.",
   }).check();
+  await settled(page);
   await page.getByRole("button", { name: "Salvar para revisão" }).click();
   await expect(
     page.getByRole("dialog").getByRole("heading", {
@@ -135,6 +150,7 @@ test("a human confirms cash, allocates across pools, confirms a fully paid quota
   await page.getByLabel("Valor a destinar").fill("30,00");
   await approve(page);
   await page.goto("http://127.0.0.1:4182/#/revisao");
+  await settled(page);
   await page.getByRole("button", { name: "Destinar saldo", exact: true }).and(
     page.locator(":enabled"),
   ).click();
@@ -144,6 +160,7 @@ test("a human confirms cash, allocates across pools, confirms a fully paid quota
   await page.getByLabel("Valor a destinar").fill("30,00");
   await approve(page);
   await expect(balance.getByText("R$ 90,00", { exact: true })).toHaveCount(2);
+  await settled(page);
   await page.getByRole("button", { name: "Conferir participação", exact: true })
     .click();
   await expect(
@@ -155,6 +172,7 @@ test("a human confirms cash, allocates across pools, confirms a fully paid quota
   const firstPayment = page.getByRole("row").filter({
     hasText: "transferencia-parcial-1",
   });
+  await settled(page);
   await firstPayment.getByRole("button", { name: "Estornar", exact: true })
     .click();
   await page.getByLabel("Motivo do estorno").fill(
@@ -613,11 +631,12 @@ async function openPlanner(page: Page) {
   await expect(
     page.getByRole("region", { name: "Plano Espalhada", exact: true }),
   ).toBeVisible();
+  await settled(page);
 }
 
 async function approvePlan(page: Page) {
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByRole("checkbox")).toBeEnabled();
+  await expect(dialog.getByRole("checkbox")).toBeEnabled({ timeout: 15_000 });
   await dialog.getByRole("checkbox").check();
   await dialog.getByRole("button", {
     name: "Confirmar plano no servidor",
@@ -641,6 +660,7 @@ test("planning preserves fixed bets, applies the budget, locks rights and downlo
       exact: true,
     }),
   ).toBeVisible();
+  await settled(page);
   await confirmed.getByRole("button", {
     name: "Revisar trava do bolão",
     exact: true,
@@ -847,8 +867,7 @@ test("a lock review rejects records from an older server head", async ({ page, r
     exact: true,
   }).click();
   await approvePlan(page);
-  await expect(page.getByRole("button", { name: "Conectado", exact: true }))
-    .toBeVisible();
+  await settled(page);
   let changed = false;
   await page.route("**/sync_pull", async (route) => {
     const response = await route.fetch();
@@ -879,7 +898,9 @@ test("a lock review rejects records from an older server head", async ({ page, r
     exact: true,
   }).click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByRole("alert")).toContainText("mesma versão");
+  await expect(dialog.getByRole("alert")).toContainText("mesma versão", {
+    timeout: 15_000,
+  });
   await expect(dialog.getByRole("checkbox")).toBeDisabled();
   expect((await fixturePost(request, "plan_pull", { groupId })).manifests)
     .toHaveLength(0);
@@ -946,6 +967,7 @@ async function lockRegistrationFixture(
     exact: true,
   }).click();
   await approvePlan(page);
+  await settled(page);
   await page.locator('[aria-label="Plano confirmado"]').getByRole("button", {
     name: "Revisar trava do bolão",
     exact: true,
@@ -1003,6 +1025,11 @@ async function fillObserved(
   partial = false,
 ) {
   const plan = manifest.content.plan;
+  // The field keeps whole seconds: "now" rounded down can fall before the lock instant, and the
+  // server rightly rejects the ticket as registered before the lock. Use the first second after it.
+  const registeredAt = new Date(
+    Math.ceil(Date.parse(manifest.lockedAt) / 1000) * 1000,
+  );
   for (let index = 0; index < (partial ? 1 : plan.tickets.length); index++) {
     const ticket = plan.tickets[index];
     await page.getByLabel("Cartela a conferir").selectOption(String(index));
@@ -1030,7 +1057,7 @@ async function fillObserved(
       );
       await page.getByLabel("Taxa externa lida (R$)").fill("0,00");
       await page.getByLabel("Horário lido no recibo (Brasília)").fill(
-        brasiliaCivil(new Date()),
+        brasiliaCivil(registeredAt),
       );
     } else {await page.getByLabel("Observação da cartela").fill(
         "Valores e horário não legíveis no original sintético.",
@@ -1041,6 +1068,9 @@ async function fillObserved(
       ? "Conferência parcial sintética; demais dados continuam pendentes."
       : "Todos os dados sintéticos foram lidos e conferidos pelo organizador.",
   );
+  // Nor may the receipt time be later than the human review.
+  await expect.poll(() => Date.now()).toBeGreaterThan(registeredAt.getTime());
+  await settled(page);
   await page.getByRole("button", {
     name: "Revisar conferência do registro",
     exact: true,
@@ -1048,7 +1078,7 @@ async function fillObserved(
 }
 async function approveRecord(page: Page) {
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByRole("checkbox")).toBeEnabled();
+  await expect(dialog.getByRole("checkbox")).toBeEnabled({ timeout: 15_000 });
   await dialog.getByRole("checkbox").check();
   await dialog.getByRole("button", {
     name: "Confirmar conferência no servidor",
@@ -1153,7 +1183,7 @@ test("an accepted partial registration with a lost response is recovered without
     await route.abort("failed");
   });
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByRole("checkbox")).toBeEnabled();
+  await expect(dialog.getByRole("checkbox")).toBeEnabled({ timeout: 15_000 });
   await dialog.getByRole("checkbox").check();
   await dialog.getByRole("button", {
     name: "Confirmar conferência no servidor",
@@ -1218,6 +1248,7 @@ test("manual results, official conflicts, failed collection and contest times pr
   await page.getByLabel("Motivo do resultado manual").fill(
     "Conferência humana sintética para testar a apuração.",
   );
+  await settled(page);
   await page.getByRole("button", {
     name: "Revisar resultado informado",
     exact: true,
@@ -1353,11 +1384,15 @@ test("repeating with the same group carries the games, suggests the next contest
   await page.getByLabel("Prêmio de 4 acertos (R$)").fill("10,00");
   await page.getByLabel("Fonte do resultado", { exact: true }).fill("Publicação sintética de integração.");
   await page.getByLabel("Motivo do resultado manual").fill("Conferência humana sintética para testar a repetição.");
+  await settled(page);
   await page.getByRole("button", { name: "Revisar resultado informado", exact: true }).click();
   await approveRecord(page);
+  await expect(page.locator('[aria-label="Resultado"]').getByRole("heading", { name: "Não foi dessa vez." }))
+    .toBeVisible({ timeout: 15_000 });
   await page.getByRole("button", { name: "Repetir com a mesma turma", exact: true }).click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByText(`Vão junto: ${games.length} ${games.length === 1 ? "jogo" : "jogos"}. As pessoas entram em Arrecadar conforme responderem.`)).toBeVisible();
+  await expect(dialog).toBeVisible({ timeout: 15000 });
+  await expect(dialog.getByText(`Vão junto: ${games.length} ${games.length === 1 ? "jogo" : "jogos"}. As pessoas entram em Arrecadar conforme responderem.`)).toBeVisible({ timeout: 15000 });
   await expect(dialog.getByLabel(/^Concurso/)).toHaveValue("1235");
   await expect(dialog.getByLabel("Forma de participação")).toHaveValue("internal");
   await dialog.getByRole("button", { name: "Salvar neste aparelho" }).click();
