@@ -12,3 +12,6 @@
 - (12/10) Em Sorteio a 1440 px, `medir.mjs` acusa seis bolas de jogos com texto #1b1446 em contraste 1,15 (as de "Ver mais jogos"?); já acontecia antes do redesign; conferir se é bola dobrada/escondida ou cor de fato.
 - (12/10) Visto no teste real: a Revisão diz "Nada para revisar" no topo enquanto há "Combinados pendentes" logo abaixo; as revisões de trava e conferência mostram horário cru ("2026-10-14T01:00:00.000Z"); "1 jogos em 1 cartela" sem singular; o formulário de pagamento não tem a opção "Pix" (vai nas observações).
 - (12/10) Editar a chave Pix do grupo sobe a versão do grupo e deixa "Publicar nova versão" dos combinados clicável sem mudança de texto; o servidor recusa. Também: num bolão encerrado, os outros botões de Dividir continuam ligados e só o servidor recusa.
+- (13/10) Ao repetir, o formulário sugere "concurso anterior + 1" enquanto o botão do Sorteio e a chamada usam o número que a CAIXA publicou; podem divergir quando a CAIXA pula número.
+- (13/10) A mensagem "Avisar a turma" do Sorteio só mostra a parte de cada pessoa quando as cotas são iguais; o núcleo já calcula o direito de cada um (usado em Dividir).
+- (13/10) O teste SQL do cartão do participante confere `redemptionDeadlineDate`/`prizeRedeemed` só no caso já resgatado; falta o caso com prêmio por resgatar, e o conferidor PGlite não cruza esses campos com o núcleo.

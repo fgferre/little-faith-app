@@ -4,82 +4,60 @@ Lista viva do que está aberto. Leia só a seção O BASTÃO e o item da vez; o 
 Item resolvido sai da lista e vira commit com o número entre parênteses; a história de cada número fica no git (`git log --all --grep="(NNN)"`).
 Número é identidade, não posição: item novo entra no fim da sua seção. **Próximo número livre: 14.**
 
-## O BASTÃO — onde a rodada parou (12/10) — DIA DO PRÊMIO, CARTÃO, REPETIR E A DEMONSTRAÇÃO INTEIRA; `npm run done` VERDE
+## O BASTÃO — onde a rodada parou (13/10) — PRAZO DO PRÊMIO, ENVIO COM UM TOQUE E O MODO SOMBRA DO PRIMEIRO BOLÃO DE VERDADE
 
-**Estado:** etapas 1–6 da especificação feitas; app inteiro no estilo "Noite do sorteio" afinado. Itens 6 e 7
-resolvidos nesta rodada: o titular dos bilhetes aparece em Registrar, Sorteio e Dividir, e Dividir avisa que
-imposto e repasse pedem um contador; cada pessoa tem um link pessoal, sem conta e revogável, que abre o cartão
-(`#/p/<token>`): cotas e pagamento, jogos com acertos, registro e quem guarda o bilhete, resultado, prêmio e a parte
-dela. Servidor: tabela `participant_links` (token só por hash SHA-256), 4 RPCs e a rota pública
-`POST /v1/participant_card`; `verify_jwt=false` na função `api` (ela valida a sessão no próprio middleware). O
-organizador cria e cancela o link por pessoa em Arrecadar. Item 8 resolvido em 12/10: "Repetir com a mesma turma"
-(em Sorteio, quando não houve prêmio, e agora também no fim de Dividir) leva as pessoas com suas cotas e os jogos
-(só na mesma modalidade), sugere o concurso seguinte e copia a forma de participação; pagamentos começam do zero;
-a cópia não é atômica (uma falha avisa no formulário e não cria segundo bolão). Item 11 resolvido em 12/10: a
-demonstração ganhou o bolão "Mega da sexta" (Mega-Sena 2999), travado, registrado com comprovante, com quadra
-premiada (R$ 1.287,20), prêmio confirmado e resgatado e 6 de 8 repasses feitos; semeado em `demo-sorteado.ts` com as
-funções do núcleo e validado pelo núcleo; quem já tinha a demo recebe só o bolão novo. Bolões, Histórico e a tela do
-bolão passam a ler a liquidação também na demo. Encerrar/reabrir ficam para depois.
+**Estado:** etapas 1–6 da especificação feitas; fila 1–6 feitas em 12–13/10. Em 13/10: fila 8 feita (prazo de resgate com
+contagem de dias e tom de aviso em Dividir e no cartão da pessoa; migração `20261013020000_participant_card_deadline.sql`
+expõe `redemptionDeadlineDate`/`prizeRedeemed` no cartão); "Acumulou! Prêmio estimado" entra na chamada da turma (uma
+leitura só, `rolloverOf`, para Sorteio e Arrecadar); "Enviar no WhatsApp" + "Copiar" em todas as mensagens prontas
+(cobrança, chamada, link pessoal, repasse ao registrador, resultado), pelo link oficial `wa.me`, sem telefone por pessoa.
+`main` = 4b52fea, enviado ao GitHub. **Verificado em 13/10:** `npm run done` verde duas vezes (tipos, lint, 320 testes,
+SQL no PGlite, 16 da API, build, 40 fluxos no navegador); capturas em `.tmp/visual/` (apagável).
 
-**Verificado em 12/10, nesta sessão:** `npm run done` verde — tipos, lint, 313 testes, SQL no PGlite (o cartão é
-conferido contra `computeSettlement` do núcleo), 16 testes da API, build e 39 fluxos no navegador (2 do
-participante com rotas simuladas, 1 da chamada ao repetir, 1 do acumulado, 1 da demonstração inteira; a API real do link só é
-coberta pelos testes Deno e SQL). Capturas em
-`.tmp/b/` (apagável).
+**PENDENTE DE PRODUÇÃO (ordem obrigatória):** 1) migração `20261013020000` ainda NÃO aplicada no servidor
+(`npx -y supabase@2 db push --yes`); 2) app ainda NÃO republicado com os três commits de 13/10 (`gh workflow run
+deploy.yml --ref main`). O classificador do modo automático barrou os dois (e alguns "Salvar" no app publicado) mesmo
+depois de ele criar `.claude/settings.local.json` com as regras de allow: em modo automático a regra não vale; vale em
+modo padrão (ele troca o modo na própria janela) ou ele roda os comandos à mão. Quem pegar a próxima conversa confere
+`npx -y supabase@2 migration list` e `gh run list --workflow=deploy.yml --limit 1` antes de qualquer coisa.
 
-**Decisões dele (11/10):** frente (b) antes do piloto; primeiro push autorizado. **Decisões tomadas aqui, que ele
-pode virar:** o cartão não mostra a foto do bilhete (spec: imagem original fora de página compartilhada); cancelar o
-link não pede confirmação; um link por pessoa serve a todos os bolões da turma.
+**Item 7 em andamento = MODO SOMBRA (decisão dele, 13/10):** a turma não sabe do app, é surpresa. Nada vai ao grupo
+pela nossa mão; o app espelha o que acontece no grupo de WhatsApp e a revelação vem depois do sorteio, com os links
+pessoais enviados por ele. No app publicado, na conta dele: grupo "Mega da Virada (Confraria)" (sem Pix), bolão
+"Mega 14/10 150MM" (Mega-Sena 3070, cota R$ 50, pagar até 14/10 18h Brasília; o fuso do grupo ficou America/Chicago,
+o do navegador dele — conferir), 6 pessoas da rodada passada com 1 cota prevista cada (R$ 300), nenhum pagamento.
+Regra dele (13/10): todo mundo do grupo pode entrar e quem está dentro é quem paga (comprovante = confirmação); falta
+cadastrar o resto do grupo sem cota (ele passa os nomes) e, se ele quiser, uma enquete nativa do WhatsApp feita por ele.
+Quem é quem, papéis e o que o grupo já disse estão em `.tmp/bastao/confraria.md` (fora do git de propósito: nomes de
+terceiros; nunca CPF, chave Pix ou id de transação no repositório). Próximos passos do sombra: marcar "entrou"/pago
+conforme o grupo (leitura do WhatsApp do Mac dele por computer-use; imagens vêm borradas), digitar os jogos das fotos de
+quem compra, travar e registrar com a foto, resultado na quarta 14/10 à noite, conferir a divisão; depois, revelar.
+A passagem da conversa anterior (contas, CLI, ordem de publicar) está em `.tmp/bastao/passagem-13-10.md`.
 
-**Git:** remoto `origin` = github.com/fgferre/little-faith-app, **privado**, criado com o primeiro push em 11/10;
-a rodada foi enviada com a palavra dele (11/10, tarde); visual do cartão aprovado por ele. GitHub Pages grátis exige repositório
-público (passo 7 do piloto): decisão dele. **Fora daqui:** sem Supabase real, OAuth Google, cron ou deploy
-(item 5). **Mudou em 12/10:** piloto feito até o passo 7 com ele presente; app publicado em
-https://fgferre.github.io/little-faith-app/ ligado ao Supabase real; o que falta está no item 5. Repositório agora
-**público** por decisão dele (12/10). O redesign visual ("Noite em boa companhia") já está em `main` desde 12/10 (aprovado por ele na sessão do
-redesign, juntado por fast-forward com suíte verde) e **publicado** em 12/10 à noite no GitHub Pages (main 5bb6678);
-quem tinha o app aberto antes vê o visual novo ao fechar e reabrir a aba (o service worker troca na reabertura). Nenhum subagente ativo. Não há `PLAN.md`.
+**Decisões dele (13/10):** "não quero esse trabalho, quero automático" — envio por WhatsApp sem mão humana só existe
+pela API oficial (empresa verificada, grupos só criados pelo robô, 8 pessoas) ou por robô não oficial (risco de
+bloqueio); nenhum dos dois entra. O caminho é tirar trabalho do organizador no app: envio com um toque (feito),
+pagamento confirmado por provedor de Pix, jogos lidos da foto. **Git:** `origin` = github.com/fgferre/little-faith-app,
+público; app em https://fgferre.github.io/little-faith-app/ ligado ao Supabase real; login Google só para o e-mail dele.
 
-**Textos pedidos por ele, já aplicados:** marca *"Seu bolão em boa companhia"*; início *"Faça sua fezinha, organize
-suas apostas e boa sorte!"*.
-
-**Pesquisa de mercado (12/10):** `docs/PESQUISA-MERCADO.md` — Caixa, 14 apps, ~340 avaliações lidas, cruzamento com o
-app e 12 oportunidades. **Feito em 12/10 por decisão dele:** repetir não copia cotas; leva os jogos e abre a "Chamada" em Arrecadar (quem
-estava na rodada passada, "Entrou" por pessoa, "Todos entraram", "N ainda não responderam", mensagem pronta); o
-Sorteio lê do resultado oficial (texto bruto da Caixa, sem campo novo) que acumulou e o prêmio estimado do próximo
-concurso, e o botão vira "Chamar a turma: concurso N+1". Regra dele (12/10): "sempre que houver oportunidade para
-melhorar a UX, nunca diremos não". Piloto começado em 12/10 com ele presente (passo 1, Supabase).
-
-**A FILA (12/10, uma lista só, nesta ordem; quem pegar a próxima conversa começa pelo primeiro item aberto e
-marca aqui o que fechar):**
-1. ~~Testar no servidor real o comprovante e o link do participante~~ FEITO em 12/10 (ver item 5; relatório em
-   `.tmp/piloto/item1.md`). O "Bolão de teste" ficou travado e registrado, sem sorteio.
-2. ~~Aviso semanal automático para o Supabase não pausar~~ FEITO em 12/10 (`.github/workflows/manter-acordado.yml`,
-   segunda e quinta; primeira execução à mão verde).
-3. ~~Encerrar o bolão~~ FEITO em 12/10 à noite: o servidor recusava de propósito; a migração
-   `20261013010000_settlement_close.sql` passa a aceitar `pool_settle`/`pool_reopen` espelhando o núcleo (testes de
-   paridade em settlement.sql), e Dividir ganhou o cartão "Encerrar o bolão"/"Reabrir o bolão".
-4. ~~Pix na cobrança e no cartão~~ FEITO em 12/10 à noite: `pix` opcional no grupo (migração
-   `20261013000000_group_pix.sql` + núcleo `pix.ts` com BR Code e CRC conferidos contra o manual do BC), "Cobrar por
-   Pix" em Arrecadar (QR + copia e cola, `uqr`), cartão "Pagar sua cota" no cartão pessoal; confirmação continua manual.
-5. ~~Juntar o redesign em `main` e republicar~~ FEITO em 12/10 (main = 5bb6678 publicado). O worktree
-   `…/Little Faith App-redesign` pode ser removido (`git worktree remove`), com a palavra dele.
-6. ~~Fluxos de navegador que oscilam sob carga (item 13)~~ FEITO em 13/10: o badge "Conectado" ganhou `data-sync`
-   (idle/busy) e os fluxos esperam o app ficar ocioso (`settled`) antes de abrir revisões; o horário do comprovante
-   no teste passou a ser depois da trava (a "oscilação" (d)/(e) era um registro antes da trava, recusado com razão).
-   Prova: `--repeat-each 2` 80/80 e suíte 40/40. De brinde, um erro real corrigido: o Sorteio apagava a tela inteira
-   quando havia resultado sem conferência do registro aceita; agora explica que o valor sai depois da conferência.
-7. O primeiro bolão de verdade, pequeno, com ele presente e acompanhado de perto.
-8. Avisos de prazo do prêmio (30/15/7/1 dias) de volta na tela do bolão e no cartão (~1 h).
-9. Mensagens prontas para o grupo: resultado do sorteio e chamada quando acumula com "Acumulou!" (~1 h).
-10. Busca automática do resultado no horário (publicar `results-collector`, segredo e agendamento) (~2 h + conta dele).
-11. "Estou dentro" e "paguei" (com comprovante) pelo cartão do participante (~3 h).
-12. Outros organizadores entrando com Google: publicar o app do Google "em produção" ou cadastrar e-mails (conta dele).
-13. Backup completo com senha (etapa 8 da especificação) (~4 h).
-14. Teimosinha e série de concursos paga adiantado (~1 dia).
-15. Pesquisa, rodada 2: ele abre o Loterias Online (maioridade) e conversa com 5 organizadores; eu cruzo.
-16. O assistente que lê o WhatsApp (etapa do agente, depois do piloto por decisão dele). Depois do piloto: participante com conta e convites; foto do bilhete no cartão por URL
-temporária; limite de taxa na rota pública (ver BACKLOG).
+**A FILA (13/10, uma lista só, nesta ordem; quem pegar a próxima conversa começa pelo primeiro item aberto e marca
+aqui o que fechar):**
+1. Aplicar a migração e republicar (ver PENDENTE DE PRODUÇÃO).
+2. Modo sombra do bolão "Mega 14/10 150MM" até a divisão (ver acima); cadastrar o resto do grupo; conferir o fuso.
+3. ~~Avisos de prazo do prêmio~~ FEITO em 13/10.
+4. ~~Enviar no WhatsApp com um toque~~ FEITO em 13/10.
+5. Telefone por pessoa (cadastro e servidor, nunca no cartão) para o link pessoal abrir direto na conversa (~3 h).
+6. Pagamento confirmado sozinho por provedor de Pix (provedor e conta são dele; tarifa por transação) (~1 dia).
+7. Jogos lidos da foto do bilhete, para o organizador só conferir (~1 dia).
+8. Revelação: depois do sorteio, links pessoais e a mensagem do resultado; anotar o que a turma estranhar.
+9. Busca automática do resultado no horário (publicar `results-collector`, segredo e agendamento) (~2 h + conta dele).
+10. "Estou dentro" e "paguei" (com comprovante) pelo cartão do participante (~3 h).
+11. Outros organizadores entrando com Google: publicar o app do Google "em produção" ou cadastrar e-mails (conta dele).
+12. Backup completo com senha (etapa 8 da especificação) (~4 h).
+13. Teimosinha e série de concursos paga adiantado (~1 dia).
+14. Pesquisa, rodada 2: ele abre o Loterias Online (maioridade) e conversa com 5 organizadores; eu cruzo.
+15. O assistente que lê o WhatsApp (etapa do agente). Depois: participante com conta e convites; foto do bilhete no
+cartão por URL temporária; limite de taxa na rota pública (ver BACKLOG).
 
 ## ALTA — bloqueia a entrega ou pode perder trabalho
 
