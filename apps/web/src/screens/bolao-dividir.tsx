@@ -28,6 +28,7 @@ import {
   Money,
   ProblemBox,
 } from "../ui";
+import { hoje, prazoResgate } from "../ui/texto";
 import { DivisaoDecisao } from "./bolao-dividir-decisao";
 import type { Intencao, PedidoDivisao } from "./bolao-dividir-decisao";
 
@@ -351,15 +352,20 @@ export function BolaoDividir(
       return <p className="ui-sec pool-empty">Sem prêmio para resgatar.</p>;
     }
     const deadline = prize.redemptionDeadline &&
-      positive(balance.unredeemedPrizeCents)
-      ? prize.redemptionDeadline.exception?.deadlineDate ??
-        prize.redemptionDeadline.deadlineDate
+        positive(balance.unredeemedPrizeCents)
+      ? prazoResgate(prize.redemptionDeadline.deadlineDate, hoje())
       : null;
-    const deadlineLine = deadline && (
-      <p className="ui-sec pool-note">
-        Resgatar até {deadline.split("-").reverse().join("/")}.
-      </p>
-    );
+    const deadlineLine = deadline && (deadline.tone === "overdue"
+      ? <ProblemBox title={deadline.text} />
+      : (
+        <p
+          className={deadline.tone === "alert"
+            ? "split-wait pool-note"
+            : "ui-sec pool-note"}
+        >
+          {deadline.text}
+        </p>
+      ));
     if (balance.participationMode === "official") {
       const rights = balance.persons.filter((person) =>
         positive(person.prizeRightCents)

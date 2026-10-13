@@ -30,7 +30,17 @@ export interface ParticipantCardPool {
   games: { numbers: number[] }[];
   /** Null until the pool is locked; 'planned' while no registration was confirmed. */
   registration: { status: 'planned' | 'registered' | 'partial' | 'divergent'; ticketHolderName: string | null } | null;
-  result: { drawnNumbers: number[]; prizeCalculatedCents: string | null; prizeConfirmedCents: string | null } | null;
+  /**
+   * redemptionDeadlineDate is the confirmed prize's official deadline (Brasília civil date, YYYY-MM-DD), null without one;
+   * prizeRedeemed is true once nothing is left to redeem, as unredeemedPrizeCents in Dividir. Absent in cards served before them.
+   */
+  result: {
+    drawnNumbers: number[];
+    prizeCalculatedCents: string | null;
+    prizeConfirmedCents: string | null;
+    redemptionDeadlineDate?: string | null;
+    prizeRedeemed?: boolean;
+  } | null;
   /** Null until the pool is locked with this person in its settlement; paidByName is the ticket holder in the internal agreement. */
   share: {
     rightCents: string | null;

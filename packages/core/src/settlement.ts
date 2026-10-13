@@ -2,7 +2,7 @@ import type { LotteryId } from './types';
 import type { PoolManifest } from './planning-types';
 import type { RegistrationReport } from './registration-types';
 import type { ResultSnapshot } from './result-types';
-import type { ExpenseConfirmation, OfficialPrizeEntitlement, PoolSettlement, PoolSettlementBalance, PrizeConfirmation, PrizeRedemption, RedemptionAlert, RedemptionDeadline, SettlementAction, SettlementCommand, SettlementDistribution, SettlementFact, SettlementFinance, SettlementPersonBalance, SettlementReceipt, SettlementRight, SettlementSnapshot, SettlementStatement } from './settlement-types';
+import type { ExpenseConfirmation, OfficialPrizeEntitlement, PoolSettlement, PoolSettlementBalance, PrizeConfirmation, PrizeRedemption, RedemptionAlert, RedemptionCountdown, RedemptionDeadline, SettlementAction, SettlementCommand, SettlementDistribution, SettlementFact, SettlementFinance, SettlementPersonBalance, SettlementReceipt, SettlementRight, SettlementSnapshot, SettlementStatement } from './settlement-types';
 import { canonicalJSON } from './canonical';
 import { createFinancialView, validateFinancialSnapshot } from './financial';
 import { LOTTERIES } from './lotteries';
@@ -16,6 +16,7 @@ import { sourceDate, sourceTime } from './source-validation';
 
 export const MAX_SETTLEMENT_COMMAND_BYTES = 1_048_576;
 export const REDEMPTION_RULE_VERSION = 'caixa-redemption-90-days-2026-10-08-v1';
+const REDEMPTION_ALERT_DAYS = [30, 15, 7, 1] as const;
 const BASE = ['id', 'groupId', 'poolId', 'version', 'groupRevision', 'poolVersion', 'confirmedAt', 'receiptId'] as const;
 const NULL_ID = (value: unknown, field: string): string | null => value === null ? null : planningUid(value, field);
 const max0 = (value: bigint): bigint => value > 0n ? value : 0n;
@@ -51,7 +52,13 @@ export function validateRedemptionDeadline(input: unknown): RedemptionDeadline {
 /** Prepared local calendar alerts only. No messages, timers, or hidden current clock. */
 export function redemptionAlerts(input: RedemptionDeadline, todayBrasiliaDate: string): RedemptionAlert[] {
   const rule = validateRedemptionDeadline(input), today = sourceDate(todayBrasiliaDate, 'todayBrasiliaDate');
-  return ([30, 15, 7, 1] as const).map((daysBefore) => { const alertDate = addDays(rule.deadlineDate, -daysBefore); return { daysBefore, alertDate, status: today < alertDate ? 'upcoming' : today === alertDate ? 'due' : 'overdue' }; });
+  return REDEMPTION_ALERT_DAYS.map((daysBefore) => { const alertDate = addDays(rule.deadlineDate, -daysBefore); return { daysBefore, alertDate, status: today < alertDate ? 'upcoming' : today === alertDate ? 'due' : 'overdue' }; });
+}
+/** Days left to the official deadline, counted on Brasília civil dates; the caller passes today, like redemptionAlerts. */
+export function redemptionCountdown(deadlineDate: string, todayBrasiliaDate: string): RedemptionCountdown {
+  const deadline = sourceDate(deadlineDate, 'deadlineDate'), today = sourceDate(todayBrasiliaDate, 'todayBrasiliaDate');
+  const daysLeft = Math.round((Date.parse(`${deadline}T00:00:00.000Z`) - Date.parse(`${today}T00:00:00.000Z`)) / 86_400_000);
+  return { deadlineDate: deadline, daysLeft, tone: daysLeft < 0 ? 'overdue' : daysLeft <= REDEMPTION_ALERT_DAYS[0] ? 'alert' : 'normal' };
 }
 function officialEntitlements(input: unknown): OfficialPrizeEntitlement[] {
   return unique(planningList(input, 'officialEntitlements', 100_000).map((value) => {

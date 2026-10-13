@@ -1,4 +1,9 @@
-import { formatBRL, LOTTERIES, officialPoolRule } from "@bolao/core";
+import {
+  formatBRL,
+  LOTTERIES,
+  officialPoolRule,
+  redemptionCountdown,
+} from "@bolao/core";
 import type { LotteryId } from "@bolao/core";
 
 /** Dinheiro grande sem centavos quando eles são zero: "R$ 240"; senão "R$ 240,50". */
@@ -72,6 +77,35 @@ export function diaMes(value: string, timeZone: string) {
     month: "2-digit",
     timeZone,
   }).format(new Date(value));
+}
+
+/** Hoje no calendário de Brasília, "AAAA-MM-DD": a data civil dos prazos e dos registros. */
+export const hoje = () =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+
+/**
+ * O prazo oficial de resgate (AAAA-MM-DD) contado a partir de hoje (Brasília), com o tom do aviso:
+ * "Prazo para resgatar: 06/01/2027 (84 dias)." · "Faltam 7 dias para resgatar: até 06/01/2027." ·
+ * "Último dia para resgatar: hoje, 06/01/2027." · "O prazo para resgatar venceu em 06/01/2027."
+ */
+export function prazoResgate(deadlineDate: string, today: string) {
+  const { daysLeft, tone } = redemptionCountdown(deadlineDate, today);
+  const date = deadlineDate.split("-").reverse().join("/");
+  const text = tone === "overdue"
+    ? `O prazo para resgatar venceu em ${date}.`
+    : daysLeft === 0
+    ? `Último dia para resgatar: hoje, ${date}.`
+    : tone === "alert"
+    ? `${
+      daysLeft === 1 ? "Falta 1 dia" : `Faltam ${daysLeft} dias`
+    } para resgatar: até ${date}.`
+    : `Prazo para resgatar: ${date} (${daysLeft} dias).`;
+  return { text, tone };
 }
 
 /** A regra da autoria, uma vez sob "Nossos jogos". */

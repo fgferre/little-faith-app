@@ -16,6 +16,13 @@ export interface RedemptionAlert {
   alertDate: string;
   status: 'upcoming' | 'due' | 'overdue';
 }
+export interface RedemptionCountdown {
+  deadlineDate: string;
+  /** Whole Brasília civil days until the deadline: 0 on the last day, negative once it has passed. */
+  daysLeft: number;
+  /** 'alert' from the day the first prepared alert (30 days before) is due. */
+  tone: 'normal' | 'alert' | 'overdue';
+}
 export interface SettlementFact {
   id: string;
   groupId: string;

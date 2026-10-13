@@ -34,6 +34,7 @@ import { createAccountTransport } from "../auth";
 import { Modal, SectionTitle } from "../components";
 import { readReviewSnapshot } from "../review-snapshot";
 import { Button, Chip, Disclosure, formatInstant, ProblemBox } from "../ui";
+import { hoje } from "../ui/texto";
 import type { Notice } from "../app-shared";
 
 /** O que a pessoa quer fazer; a janela monta o pedido com os dados atuais do servidor. */
@@ -88,13 +89,6 @@ const texto = (value: unknown, fallback: string) =>
 /** Centavos para o campo de valor: "1.000,00". */
 const campo = (cents: string | null) =>
   cents === null ? "" : formatBRL(cents).slice(3);
-const hoje = () =>
-  new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Sao_Paulo",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
 const depois = (a: string, b: string) => a > b ? a : b;
 const latest = <T extends { poolId: string; version: number }>(
   facts: T[],

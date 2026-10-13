@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { OfficialPrizeEntitlement, SettlementAction, SettlementRecord, SettlementSnapshot } from './index';
-import { buildSettlementFact, canonicalManifest, computeSettlement,createRedemptionDeadline, createSettlementView, redemptionAlerts, settlementStatement, sha256Hex, validateRedemptionDeadline, validateSettlementActionContext, validateSettlementCommand, validateSettlementReceipt, validateSettlementSnapshot } from './index';
+import { buildSettlementFact, canonicalManifest, computeSettlement,createRedemptionDeadline, createSettlementView, redemptionAlerts, redemptionCountdown, settlementStatement, sha256Hex, validateRedemptionDeadline, validateSettlementActionContext, validateSettlementCommand, validateSettlementReceipt, validateSettlementSnapshot } from './index';
 import { fixtureId, manualResult, REG_GROUP, REG_POOL, registrationManifest, registrationSnapshot, resultSnapshot } from './registration.test-fixtures';
 
 type Act<T extends SettlementAction['type']> = Extract<SettlementAction, { type: T }>;
@@ -292,5 +292,14 @@ describe('redemption deadline and alerts', () => {
       { daysBefore: 1, alertDate: '2027-01-05', status: 'upcoming' },
     ]);
     expect(() => redemptionAlerts(createRedemptionDeadline('mega-sena', '2026-10-08'), '2026-12-22T02:00:00.000Z')).toThrow();
+  });
+  it('counts whole civil days to the deadline and alerts from the 30-day alert on', () => {
+    const { deadlineDate } = createRedemptionDeadline('mega-sena', '2026-10-08');
+    expect(redemptionCountdown(deadlineDate, '2026-10-14')).toEqual({ deadlineDate: '2027-01-06', daysLeft: 84, tone: 'normal' });
+    expect([redemptionCountdown(deadlineDate, '2026-12-06').tone, redemptionCountdown(deadlineDate, '2026-12-07').tone]).toEqual(['normal', 'alert']);
+    expect(redemptionCountdown(deadlineDate, '2026-12-30')).toEqual({ deadlineDate: '2027-01-06', daysLeft: 7, tone: 'alert' });
+    expect(redemptionCountdown(deadlineDate, '2027-01-06')).toEqual({ deadlineDate: '2027-01-06', daysLeft: 0, tone: 'alert' });
+    expect(redemptionCountdown(deadlineDate, '2027-01-08')).toEqual({ deadlineDate: '2027-01-06', daysLeft: -2, tone: 'overdue' });
+    expect(() => redemptionCountdown(deadlineDate, '2026-12-22T02:00:00.000Z')).toThrow();
   });
 });

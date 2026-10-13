@@ -25,8 +25,10 @@ import {
   formatWhen,
   Money,
   PixCode,
+  ProblemBox,
 } from "../ui";
 import type { ChipStatus } from "../ui";
+import { hoje, prazoResgate } from "../ui/texto";
 import { cotas } from "./bolao-arrecadar";
 
 type Share = NonNullable<Pool["share"]>;
@@ -281,10 +283,18 @@ function ResultCard({ pool }: { pool: Pool }) {
 }
 
 function ShareCard(
-  { share, internal }: { share: Share; internal: boolean },
+  { share, internal, result }: {
+    share: Share;
+    internal: boolean;
+    result: Pool["result"];
+  },
 ) {
   const pending = positive(share.pendingCents);
   const refund = positive(share.refundRightCents);
+  const deadline = result && positive(result.prizeConfirmedCents) &&
+      result.redemptionDeadlineDate && result.prizeRedeemed !== true
+    ? prazoResgate(result.redemptionDeadlineDate, hoje())
+    : null;
   return (
     <Card className="pool-card" label="Sua parte">
       <div className="pool-card-head">
@@ -327,6 +337,17 @@ function ShareCard(
             : `Repassado por ${share.paidByName}.`}
         </p>
       )}
+      {deadline && (deadline.tone === "overdue"
+        ? <ProblemBox title={deadline.text} />
+        : (
+          <p
+            className={deadline.tone === "alert"
+              ? "split-wait pool-note"
+              : "ui-sec pool-note"}
+          >
+            {deadline.text}
+          </p>
+        ))}
     </Card>
   );
 }
@@ -343,6 +364,7 @@ function PoolCards({ pool, pix }: { pool: Pool; pix: PixReceiver | null }) {
         <ShareCard
           share={pool.share}
           internal={pool.participationMode === "internal"}
+          result={pool.result}
         />
       )}
     </div>

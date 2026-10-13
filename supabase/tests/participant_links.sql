@@ -247,7 +247,8 @@ begin
   perform pg_temp.assert_true(pool -> 'quota' = '{"units":100,"dueCents":"1000","paidCents":"1000","paid":true}','B quota paid in full');
   perform pg_temp.assert_true(jsonb_array_length(pool -> 'games') = 4 and pool -> 'games' -> 0 = '{"numbers":[1,2,3,4,5,6]}'
     and pool -> 'registration' = '{"status":"registered","ticketHolderName":"Pessoa A"}'
-    and pool -> 'result' = '{"drawnNumbers":[1,2,3,4,5,7],"prizeCalculatedCents":"100000","prizeConfirmedCents":"100000"}','B games, registration and result');
+    and pool -> 'result' = '{"drawnNumbers":[1,2,3,4,5,7],"prizeCalculatedCents":"100000","prizeConfirmedCents":"100000",
+      "redemptionDeadlineDate":"2027-01-06","prizeRedeemed":true}','B games, registration, result and the official deadline of a prize already redeemed');
   perform pg_temp.assert_true(pool -> 'share' = '{"rightCents":"25000","receivedCents":"25000","pendingCents":"0","paidByName":"Pessoa A","refundRightCents":"400","refundedCents":"400"}','B share received');
   perform pg_temp.assert_true(b::text not like '%Pessoa C%' and b::text not like '%Pessoa D%' and b::text not like '%Apelido%' and b::text not like '%authorIds%'
     and b::text not like '%.pdf%' and b::text not like '%c3000000-0000-4000-8000-000000000003%' and b::text not like '%c8000000%','card carries only B and the ticket holder name');
