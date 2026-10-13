@@ -34,7 +34,11 @@ link não pede confirmação; um link por pessoa serve a todos os bolões da tur
 **Git:** remoto `origin` = github.com/fgferre/little-faith-app, **privado**, criado com o primeiro push em 11/10;
 a rodada foi enviada com a palavra dele (11/10, tarde); visual do cartão aprovado por ele. GitHub Pages grátis exige repositório
 público (passo 7 do piloto): decisão dele. **Fora daqui:** sem Supabase real, OAuth Google, cron ou deploy
-(item 5). Nenhum subagente ativo. Não há `PLAN.md`.
+(item 5). **Mudou em 12/10:** piloto feito até o passo 7 com ele presente; app publicado em
+https://fgferre.github.io/little-faith-app/ ligado ao Supabase real; o que falta está no item 5. Repositório agora
+**público** por decisão dele (12/10). O redesign visual está no branch `redesign/noite-companhia` (worktree
+`…/Little Faith App-redesign`, outra sessão), com `npm run done` verde e à espera da palavra dele para entrar em
+`main`; depois de juntar, publicar de novo pelo fluxo (um clique). Nenhum subagente ativo. Não há `PLAN.md`.
 
 **Textos pedidos por ele, já aplicados:** marca *"Seu bolão em boa companhia"*; início *"Faça sua fezinha, organize
 suas apostas e boa sorte!"*.
@@ -46,16 +50,35 @@ Sorteio lê do resultado oficial (texto bruto da Caixa, sem campo novo) que acum
 concurso, e o botão vira "Chamar a turma: concurso N+1". Regra dele (12/10): "sempre que houver oportunidade para
 melhorar a UX, nunca diremos não". Piloto começado em 12/10 com ele presente (passo 1, Supabase).
 
-**A próxima rodada — a ordem é dele:** (a) o piloto (`docs/PILOTO.md`; cada passo com conta ou chave é dele;
-ele pensa em criar um Gmail só do projeto, 12/10); (e) os fluxos que oscilam sob carga (13). Depois do piloto: participante com conta e convites; foto do bilhete no cartão por URL
+**A FILA (12/10, uma lista só, nesta ordem; quem pegar a próxima conversa começa pelo primeiro item aberto e
+marca aqui o que fechar):**
+1. Testar no servidor real o comprovante do registro e o link do participante, com o grupo "Turma de teste" (~1 h).
+2. Aviso semanal automático para o Supabase não pausar (GitHub Actions chamando a API uma vez por semana) (~30 min).
+3. Encerrar o bolão: a tela de Dividir fecha a conta (sobras, devoluções, pendências); `pool_settle`/`pool_reopen`
+   já existem no núcleo e no servidor (~2 h).
+4. Pix na cobrança e no cartão: chave de quem faz o caixa no cadastro do grupo; "Pix copia e cola" e QR com o valor
+   de cada pessoa em Arrecadar e no cartão pessoal; confirmação continua manual (~2 h; pede uma peça pequena para
+   desenhar o QR).
+5. Juntar o redesign (`redesign/noite-companhia`, 7 commits verificados) em `main` e republicar (palavra dele + ~1 h).
+6. O primeiro bolão de verdade, pequeno, com ele presente e acompanhado de perto.
+7. Fluxos de navegador que oscilam sob carga (item 13): trocar esperas por tempo por esperas por estado (~2 h).
+8. Avisos de prazo do prêmio (30/15/7/1 dias) de volta na tela do bolão e no cartão (~1 h).
+9. Mensagens prontas para o grupo: resultado do sorteio e chamada quando acumula com "Acumulou!" (~1 h).
+10. Busca automática do resultado no horário (publicar `results-collector`, segredo e agendamento) (~2 h + conta dele).
+11. "Estou dentro" e "paguei" (com comprovante) pelo cartão do participante (~3 h).
+12. Outros organizadores entrando com Google: publicar o app do Google "em produção" ou cadastrar e-mails (conta dele).
+13. Backup completo com senha (etapa 8 da especificação) (~4 h).
+14. Teimosinha e série de concursos paga adiantado (~1 dia).
+15. Pesquisa, rodada 2: ele abre o Loterias Online (maioridade) e conversa com 5 organizadores; eu cruzo.
+16. O assistente que lê o WhatsApp (etapa do agente, depois do piloto por decisão dele). Depois do piloto: participante com conta e convites; foto do bilhete no cartão por URL
 temporária; limite de taxa na rota pública (ver BACKLOG).
 
 ## ALTA — bloqueia a entrega ou pode perder trabalho
 
 **13. Fluxos de navegador oscilam por corridas de sincronização (11/10).**
 Sob carga, `financial.spec.ts` abre diálogos antes de a sincronização terminar (linhas ~97/102, 626, 1060, 1144,
-1199; em 12/10 também a linha 842, "a lock review rejects…", que espera o aviso "mesma versão") e falha em ~1 de 4
-rodadas; sozinho passa. A parte do planejador (página pulando durante a simulação) foi
+1199; em 12/10 também a linha 842, "a lock review rejects…", que espera o aviso "mesma versão"; e, relatado pela sessão do redesign em 12/10, a linha ~1335, "repeating with the
+same group…", esperou 2 min pelo botão "Repetir com a mesma turma") e falha em ~1 de 4 rodadas; sozinho passa. A parte do planejador (página pulando durante a simulação) foi
 resolvida na E5b-1. Resolver trocando esperas por tempo por esperas por estado ("Sincronizado" visível) nesses pontos.
 
 ## MÉDIA — afeta o produto
@@ -64,13 +87,19 @@ resolvida na E5b-1. Resolver trocando esperas por tempo por esperas por estado (
 O export atual é `bolao-emergency-v5`, sem criptografia; não apresentar como backup completo. `@zip.js/zip.js@2.23.0`
 já está instalado no web; codec e interface do backup (etapa 8) não foram escritos.
 
-**5. Nada foi conferido contra o Supabase real (10/10).**
-Sem projeto conectado, OAuth Google, dois aparelhos, cron do coletor (`results-collector` preparado, nenhum cron
-instalado) nem deploy; as credenciais não estão neste checkout. Os testes usam Auth/Storage simulados e RPCs reais no
-PGlite. Conectar pede a palavra dele; o passo a passo está em `docs/PILOTO.md` (11/10). O plano grátis do Supabase
-pausa por inatividade: um bolão mensal pode achar o servidor dormindo no dia do prêmio. Risco a conferir no primeiro
-`supabase functions deploy`: a função importa `packages/core` de fora de `supabase/`; se o empacotador recusar, mover
-o núcleo usado pela função para `supabase/functions/_shared` ou mapear no `deno.json`.
+**5. O piloto está no ar; faltam o cron, a produção do login e o lembrete da pausa (12/10).**
+Feito em 12/10 com ele presente: projeto Supabase `little-faith` (São Paulo), seis migrations aplicadas pela CLI
+(`npx -y supabase@2 … db push`, sem senha), função `api` publicada importando `packages/core` sem queixa, segredo
+`API_ALLOWED_ORIGINS`, login Google (projeto Google Cloud `little-faith`, cliente web, usuário de teste = ele), URLs
+de retorno, `.env` local, repositório público e GitHub Pages em https://fgferre.github.io/little-faith-app/ (fluxo
+"Publicar no GitHub Pages", por clique). Conferido: login no preview local e no endereço público; grupo "Turma de
+teste" gravado em `groups` e lido de volta no outro aparelho; `/v1/groups` sem sessão → 401; cartão com token falso
+→ 404. Falta: (a) o app do Google está em "Testando": só os e-mails cadastrados como usuário de teste entram; para
+outros organizadores, publicar o app do Google ("Em produção") ou cadastrá-los; (b) nenhum cron do coletor de
+resultados (`results-collector` não publicado; resultado entra à mão ou pela busca no app); (c) o plano grátis pausa
+o projeto por inatividade (passo 9 do piloto, decisão dele); (d) o link do participante e o comprovante ainda não
+foram exercitados no servidor real; (e) a chave de serviço chega à função sozinha, mas ninguém conferiu o
+`evidence_upload` real.
 
 ## BAIXA — dívida interna, ninguém vê
 
