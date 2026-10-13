@@ -64,8 +64,11 @@ marca aqui o que fechar):**
    Pix" em Arrecadar (QR + copia e cola, `uqr`), cartão "Pagar sua cota" no cartão pessoal; confirmação continua manual.
 5. ~~Juntar o redesign em `main` e republicar~~ FEITO em 12/10 (main = 5bb6678 publicado). O worktree
    `…/Little Faith App-redesign` pode ser removido (`git worktree remove`), com a palavra dele.
-6. Fluxos de navegador que oscilam sob carga (item 13): trocar esperas por tempo por esperas por estado (~2 h).
-   (Puxado para antes do bolão real por decisão dele, 12/10: cada rodada perde ~3 reexecuções por causa disso.)
+6. ~~Fluxos de navegador que oscilam sob carga (item 13)~~ FEITO em 13/10: o badge "Conectado" ganhou `data-sync`
+   (idle/busy) e os fluxos esperam o app ficar ocioso (`settled`) antes de abrir revisões; o horário do comprovante
+   no teste passou a ser depois da trava (a "oscilação" (d)/(e) era um registro antes da trava, recusado com razão).
+   Prova: `--repeat-each 2` 80/80 e suíte 40/40. De brinde, um erro real corrigido: o Sorteio apagava a tela inteira
+   quando havia resultado sem conferência do registro aceita; agora explica que o valor sai depois da conferência.
 7. O primeiro bolão de verdade, pequeno, com ele presente e acompanhado de perto.
 8. Avisos de prazo do prêmio (30/15/7/1 dias) de volta na tela do bolão e no cartão (~1 h).
 9. Mensagens prontas para o grupo: resultado do sorteio e chamada quando acumula com "Acumulou!" (~1 h).
@@ -79,12 +82,6 @@ marca aqui o que fechar):**
 temporária; limite de taxa na rota pública (ver BACKLOG).
 
 ## ALTA — bloqueia a entrega ou pode perder trabalho
-
-**13. Fluxos de navegador oscilam por corridas de sincronização (11/10).**
-Sob carga, `financial.spec.ts` abre diálogos antes de a sincronização terminar (linhas ~97/102, 626, 1060, 1144,
-1199; em 12/10 também a linha 842, "a lock review rejects…", que espera o aviso "mesma versão"; e, relatado pela sessão do redesign em 12/10, a linha ~1335, "repeating with the
-same group…", esperou 2 min pelo botão "Repetir com a mesma turma") e falha em ~1 de 4 rodadas; sozinho passa. A parte do planejador (página pulando durante a simulação) foi
-resolvida na E5b-1. Resolver trocando esperas por tempo por esperas por estado ("Sincronizado" visível) nesses pontos.
 
 ## MÉDIA — afeta o produto
 
