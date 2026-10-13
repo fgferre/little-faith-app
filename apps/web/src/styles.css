@@ -207,6 +207,7 @@ svg {
   color: var(--muted);
   font-size: 15px;
   font-weight: 600;
+  transition: color .22s cubic-bezier(.2, .8, .2, 1), background-color .15s;
 }
 .nav-item svg {
   width: 20px;
@@ -215,10 +216,37 @@ svg {
 .nav-item:hover {
   background: rgba(72, 48, 82, .6);
 }
-.nav-item.active {
-  background: linear-gradient(105deg, rgba(96, 68, 113, .55), rgba(65, 47, 75, .3));
+.nav-item.active,
+.nav-item.active:hover {
+  background: transparent;
   color: #f6d7a3;
+}
+/* O destaque do item ativo é uma peça só que desliza até o item clicado (useSlidingIndicator). */
+.nav-indicator {
+  position: absolute;
+  z-index: -1;
+  opacity: 0;
+  pointer-events: none;
+  transition-duration: .22s, .22s;
+  transition-timing-function: cubic-bezier(.2, .8, .2, 1);
+}
+.nav-indicator[data-ready] {
+  opacity: 1;
+}
+/* A borda de trás sai .07s depois: a faixa estica na viagem e volta ao tamanho ao chegar. */
+.nav-indicator[data-dir="down"],
+.nav-indicator[data-dir="right"] {
+  transition-delay: .07s, 0s;
+}
+.nav-indicator[data-dir="up"],
+.nav-indicator[data-dir="left"] {
+  transition-delay: 0s, .07s;
+}
+.sidebar .nav-indicator {
+  border-radius: 12px;
+  background: linear-gradient(105deg, rgba(96, 68, 113, .55), rgba(65, 47, 75, .3));
   box-shadow: inset 3px 0 0 #d9b478;
+  transition-property: top, bottom;
 }
 .nav-badge {
   display: grid;
@@ -2206,6 +2234,7 @@ tr:last-child td {
     color: var(--muted);
     font-size: 13px;
     font-weight: 600;
+    transition: color .22s cubic-bezier(.2, .8, .2, 1);
   }
   .bottom-nav-icon {
     position: relative;
@@ -2214,6 +2243,7 @@ tr:last-child td {
     width: 56px;
     height: 30px;
     border-radius: 999px;
+    transition: color .22s cubic-bezier(.2, .8, .2, 1);
   }
   .bottom-nav-icon svg {
     width: 22px;
@@ -2223,8 +2253,12 @@ tr:last-child td {
     color: var(--text);
   }
   .bottom-nav a.active .bottom-nav-icon {
-    background: rgba(96, 68, 113, .6);
     color: #f6d7a3;
+  }
+  .bottom-nav .nav-indicator {
+    border-radius: 999px;
+    background: rgba(96, 68, 113, .6);
+    transition-property: left, right;
   }
   .bottom-nav .nav-badge {
     position: absolute;

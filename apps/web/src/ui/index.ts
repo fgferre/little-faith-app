@@ -12,6 +12,7 @@ export { EnviarWhatsApp } from "./EnviarWhatsApp";
 export { codigoPix, PixCode } from "./PixCode";
 export { StepStrip } from "./StepStrip";
 export type { StepItem } from "./StepStrip";
+export { useSlidingIndicator } from "./useSlidingIndicator";
 export {
   Avatars,
   Bar,

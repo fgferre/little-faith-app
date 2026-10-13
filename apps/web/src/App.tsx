@@ -39,7 +39,7 @@ import {
 } from "@bolao/core";
 import type { EntityDataMap, EntityKind } from "@bolao/core";
 import { createLocalStore, listRecords, saveDraft, sync } from "@bolao/local";
-import { BrandMark, Button, initials } from "./ui";
+import { BrandMark, Button, initials, useSlidingIndicator } from "./ui";
 import { createAccountTransport, supabase } from "./auth";
 import { seedDemo } from "./demo";
 import { saveLocalDraft } from "./repository";
@@ -539,11 +539,22 @@ function OrganizerApp() {
   const profileName = isDemo
     ? "Organizador exemplo"
     : session?.user.user_metadata.name as string || "Seu espaço";
+  const sidebarRef = useSlidingIndicator(
+    ".nav-indicator",
+    ".nav-item[aria-current='page']",
+    route.screen,
+  );
+  const bottomNavRef = useSlidingIndicator(
+    ".nav-indicator",
+    "[aria-current='page'] .bottom-nav-icon",
+    route.screen,
+  );
 
   return (
     <MotionConfig reducedMotion="user">
       <div className="app-shell">
-        <aside className="sidebar">
+        <aside className="sidebar" ref={sidebarRef}>
+          <span className="nav-indicator" aria-hidden="true" />
           <a
             className="brand"
             href="#/inicio"
@@ -877,7 +888,12 @@ function OrganizerApp() {
           </main>
         </div>
 
-        <nav className="bottom-nav" aria-label="Navegação no celular">
+        <nav
+          className="bottom-nav"
+          aria-label="Navegação no celular"
+          ref={bottomNavRef}
+        >
+          <span className="nav-indicator" aria-hidden="true" />
           {navigation.map(({ id, label, icon: Icon }) => (
             <a
               key={id}
