@@ -55,7 +55,7 @@ marca aqui o que fechar):**
 1. ~~Testar no servidor real o comprovante e o link do participante~~ FEITO em 12/10 (ver item 5; relatório em
    `.tmp/piloto/item1.md`). O "Bolão de teste" ficou travado e registrado, sem sorteio.
 2. ~~Aviso semanal automático para o Supabase não pausar~~ FEITO em 12/10 (`.github/workflows/manter-acordado.yml`,
-   segunda e quinta); conferir a primeira execução à mão depois do push.
+   segunda e quinta; primeira execução à mão verde).
 3. ~~Encerrar o bolão~~ FEITO em 12/10 à noite: o servidor recusava de propósito; a migração
    `20261013010000_settlement_close.sql` passa a aceitar `pool_settle`/`pool_reopen` espelhando o núcleo (testes de
    paridade em settlement.sql), e Dividir ganhou o cartão "Encerrar o bolão"/"Reabrir o bolão".
@@ -106,6 +106,8 @@ o projeto por inatividade (passo 9 do piloto, decisão dele); (d) feito em 12/10
 link pessoal (201/200/410), cartão sem login, pagamento e cota confirmados (4 `review_decide` 200), plano e trava,
 comprovante enviado (`evidence_upload` 200, "Original verificado", hash igual) e conferência "Registro completo";
 só o download do original pelo servidor ficou sem teste (o aparelho usa a cópia local; precisa de outro aparelho).
+Em 12/10 à noite: migrações `group_pix` e `settlement_close` aplicadas no projeto real (`db push --yes`), função `api`
+republicada, app republicado (main 19f5e94) e o fluxo "Manter o Supabase acordado" rodou verde à mão.
 
 ## BAIXA — dívida interna, ninguém vê
 
