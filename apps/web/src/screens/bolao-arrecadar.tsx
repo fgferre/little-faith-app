@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Link2, MessageCircle, QrCode, UserPlus } from "lucide-react";
+import { Link2, QrCode, UserPlus } from "lucide-react";
 import {
   createResultView,
   formatBRL,
@@ -32,6 +32,7 @@ import {
   codigoPix,
   copiar,
   diaMes,
+  EnviarWhatsApp,
   Eyebrow,
   formatWhen,
   Money,
@@ -274,22 +275,20 @@ export function BolaoArrecadar(
   );
   const [busy, setBusy] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
-  // Mensagem com link criado que não deu para copiar (o navegador pediu outro toque); some ao sair da tela.
-  const [unsent, setUnsent] = useState<Record<string, string>>({});
+  // Mensagem de cada link criado nesta visita, para o WhatsApp e o Copiar (o token não volta do
+  // servidor depois); some ao sair da tela ou ao cancelar o link.
+  const [messages, setMessages] = useState<Record<string, string>>({});
   const activeLinks = (personId: string) =>
     (links ?? []).filter((link) => link.personId === personId && !link.revokedAt)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
   async function copyLink(person: PoolPerson, text: string) {
     const copied = await copiar(text);
-    setUnsent(({ [person.id]: _, ...rest }) =>
-      copied ? rest : { ...rest, [person.id]: text }
-    );
     setNotice(
       copied
         ? { text: `Mensagem copiada. Cole na conversa com ${person.name}.` }
         : {
-          text: "O link foi criado. Toque em Copiar mensagem para enviar.",
+          text: "O link foi criado. Toque em Enviar no WhatsApp ou em Copiar.",
           error: true,
         },
     );
@@ -306,7 +305,9 @@ export function BolaoArrecadar(
         createdAt: created.createdAt,
         revokedAt: null,
       }]);
-      await copyLink(person, linkText(person.name, groupName, created.token));
+      const text = linkText(person.name, groupName, created.token);
+      setMessages((list) => ({ ...list, [person.id]: text }));
+      await copyLink(person, text);
     } catch (error) {
       setNotice({ text: errorMessage(error), error: true });
     } finally {
@@ -328,7 +329,7 @@ export function BolaoArrecadar(
           )
         );
       }
-      setUnsent(({ [person.id]: _, ...rest }) => rest);
+      setMessages(({ [person.id]: _, ...rest }) => rest);
       setNotice({ text: `Link de ${person.name} cancelado. Ele não abre mais.` });
     } catch (error) {
       setNotice({ text: errorMessage(error), error: true });
@@ -339,7 +340,7 @@ export function BolaoArrecadar(
 
   const linkRow = (person: PoolPerson) => {
     const active = activeLinks(person.id)[0];
-    const text = unsent[person.id];
+    const text = messages[person.id];
     const off = !ready || busy !== null;
     return (
       <div className="pool-person-link">
@@ -348,17 +349,7 @@ export function BolaoArrecadar(
             Link enviado em {diaMes(active.createdAt, browserTimeZone)}
           </span>
         )}
-        {text
-          ? (
-            <Button
-              small
-              disabled={busy !== null}
-              onClick={() => void copyLink(person, text)}
-            >
-              Copiar mensagem
-            </Button>
-          )
-          : active
+        {active
           ? (
             <Button
               variant="ghost"
@@ -369,7 +360,7 @@ export function BolaoArrecadar(
               Cancelar link
             </Button>
           )
-          : (
+          : !text && (
             <Button
               variant="ghost"
               small
@@ -380,6 +371,19 @@ export function BolaoArrecadar(
               Enviar link pessoal
             </Button>
           )}
+        {text && (
+          <div className="ui-pair">
+            <EnviarWhatsApp small text={text} />
+            <Button
+              variant="ghost"
+              small
+              disabled={busy !== null}
+              onClick={() => void copyLink(person, text)}
+            >
+              Copiar
+            </Button>
+          </div>
+        )}
       </div>
     );
   };
@@ -554,12 +558,14 @@ export function BolaoArrecadar(
                 )}
               {owing.length
                 ? (
-                  <Button
-                    icon={<MessageCircle aria-hidden="true" />}
-                    onClick={() => void charge()}
-                  >
-                    Cobrar no WhatsApp
-                  </Button>
+                  <div className="pool-actions">
+                    <div className="ui-pair">
+                      <EnviarWhatsApp text={chargeText(view, pix)} />
+                      <Button variant="ghost" onClick={() => void charge()}>
+                        Copiar
+                      </Button>
+                    </div>
+                  </div>
                 )
                 : <Button onClick={goPlay}>Escolher os jogos</Button>}
             </>
@@ -582,14 +588,16 @@ export function BolaoArrecadar(
                 : "Estavam na rodada passada."}
             </p>
             <div className="pool-call-action">
-              <Button
-                variant="ghost"
-                small
-                icon={<MessageCircle aria-hidden="true" />}
-                onClick={() => void callMessage()}
-              >
-                Mensagem da chamada
-              </Button>
+              <div className="ui-pair">
+                <EnviarWhatsApp small text={callText(view, rollover)} />
+                <Button
+                  variant="ghost"
+                  small
+                  onClick={() => void callMessage()}
+                >
+                  Copiar
+                </Button>
+              </div>
             </div>
             <ul className="pool-people">
               {call.map((entry) => (

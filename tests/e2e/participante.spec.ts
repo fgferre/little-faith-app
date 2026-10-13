@@ -94,6 +94,11 @@ async function sendLink(browser: Browser) {
   const message = await page.evaluate(() => navigator.clipboard.readText());
   server.name = message.match(/^Oi (.+)! Seu cartão/)![1];
   const link = message.match(/https?:\/\/\S+#\/p\/[\w-]+/)![0];
+  await expect(
+    page.locator(".pool-person-link").getByRole("link", {
+      name: "Enviar no WhatsApp",
+    }),
+  ).toHaveAttribute("href", `https://wa.me/?text=${encodeURIComponent(message)}`);
   return { page, context, link, server };
 }
 

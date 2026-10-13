@@ -202,6 +202,13 @@
   outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
+/* par "Enviar no WhatsApp" + "Copiar": numa linha só, a dele, sem quebrar o texto. Botões normais dividem
+   a largura (como os vizinhos de largura cheia); pequenos ficam com a largura do texto, alinhados como a fileira. */
+.ui-pair { display: flex; flex: 1 1 100%; justify-content: inherit; gap: 10px; }
+.ui-pair > .ui-btn { flex: 1 1 0; width: auto; white-space: nowrap; }
+.ui-pair > .ui-btn.sm { flex: none; }
+/* abaixo de 390 px o par não cabe com o ícone: o ícone sai, o texto fica inteiro */
+@media (max-width: 389px) { .ui-pair > .ui-btn svg { display: none; } }
 
 /* selos: modalidade (com ponto), etapa atual (sem ponto) e estados */
 .ui-chip {

@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
-  Copy,
   Download,
   FileCheck2,
   Paperclip,
@@ -45,6 +44,7 @@ import {
   Chip,
   copiar,
   Disclosure,
+  EnviarWhatsApp,
   Eyebrow,
   GameGroups,
   porAutor,
@@ -186,6 +186,22 @@ export function BolaoRegistrar(
   const latest = reports[0];
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  // O WhatsApp abre por link, sem esperar o toque: a lista é conferida antes, como no Copiar.
+  const [handoff, setHandoff] = useState<{ id: string; text: string } | null>(
+    null,
+  );
+  useEffect(() => {
+    if (!manifest) return;
+    let alive = true;
+    void verifyManifest(manifest).then((ok) => {
+      if (alive) {
+        setHandoff(ok ? { id: manifest.id, text: handoffText(manifest) } : null);
+      }
+    });
+    return () => {
+      alive = false;
+    };
+  }, [manifest]);
   const operation = useRef(false);
   const mounted = useRef(true);
   useEffect(() => {
@@ -518,14 +534,21 @@ export function BolaoRegistrar(
           row={game}
         />
         <div className="pool-actions">
-          <Button
-            variant={verified ? "ghost" : "primary"}
-            icon={<Copy aria-hidden="true" />}
-            disabled={!!busy}
-            onClick={() => void copyList(list)}
-          >
-            Copiar lista
-          </Button>
+          <div className="ui-pair">
+            {handoff?.id === list.id && (
+              <EnviarWhatsApp
+                variant={verified ? "ghost" : "primary"}
+                text={handoff.text}
+              />
+            )}
+            <Button
+              variant="ghost"
+              disabled={!!busy}
+              onClick={() => void copyList(list)}
+            >
+              Copiar
+            </Button>
+          </div>
           <Button
             variant="ghost"
             icon={<Download aria-hidden="true" />}

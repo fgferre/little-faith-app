@@ -2,7 +2,6 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
   CalendarClock,
-  Copy,
   Download,
   MessageCircle,
   RefreshCw,
@@ -48,6 +47,7 @@ import {
   copiar,
   Countdown,
   Disclosure,
+  EnviarWhatsApp,
   Eyebrow,
   formatWhen,
   GameGroups,
@@ -967,8 +967,9 @@ export function BolaoSorteio(
 }
 
 /**
- * "Avisar a turma": gaveta com a prévia do cartão (PNG 4:5) e duas saídas. No celular, a imagem vai
- * pelo compartilhar do sistema (WhatsApp aparece lá); no computador, ela é baixada.
+ * "Avisar a turma": gaveta com a prévia do cartão (PNG 4:5), a imagem e o texto. No celular, a imagem vai
+ * pelo compartilhar do sistema (WhatsApp aparece lá); no computador, ela é baixada. O texto vai pelo
+ * WhatsApp (o link leva só texto) ou copiado.
  */
 function ShareSheet(
   { card, text, setNotice, onClose }: {
@@ -1095,13 +1096,12 @@ function ShareSheet(
           >
             Compartilhar imagem
           </Button>
-          <Button
-            variant="ghost"
-            icon={<Copy aria-hidden="true" />}
-            onClick={() => void copyText()}
-          >
-            Copiar mensagem
-          </Button>
+          <div className="ui-pair">
+            <EnviarWhatsApp variant="ghost" text={text} />
+            <Button variant="ghost" onClick={() => void copyText()}>
+              Copiar
+            </Button>
+          </div>
         </div>
         <p className="ui-sec ui-sheet-note">
           Ninguém vê dados de pagamento na imagem.
