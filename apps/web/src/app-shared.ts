@@ -1,4 +1,6 @@
+import { readCaixaExtras } from "@bolao/core";
 import type {
+  CurrentResultView,
   EntityDataMap,
   EntityKind,
   LocalRecord,
@@ -72,6 +74,26 @@ export const errorMessage = (error: unknown) =>
   error instanceof Error
     ? error.message
     : "Não foi possível salvar. Tente novamente.";
+
+/**
+ * O concurso acumulou: só o resultado oficial da CAIXA, já sorteado e sem conflito, diz isso; com o
+ * resultado informado à mão, ou se a turma acertou a faixa principal, nada muda. O Sorteio e a
+ * chamada do bolão seguinte leem daqui. O número é o do próximo concurso que a CAIXA publicou.
+ */
+export function rolloverOf(
+  current: CurrentResultView | null,
+  jackpot: boolean,
+): { nextContestNumber: number; nextEstimatedPrizeCents: string | null } | null {
+  const result = current?.status === "conflict" ? null : current?.result;
+  if (jackpot || result?.source !== "caixa" || !result.drawnNumbers) return null;
+  const caixa = readCaixaExtras(result.rawText);
+  return caixa.accumulated === true
+    ? {
+      nextContestNumber: caixa.nextContestNumber ?? result.contestNumber + 1,
+      nextEstimatedPrizeCents: caixa.nextEstimatedPrizeCents,
+    }
+    : null;
+}
 
 export async function readSnapshot(db: BolaoDatabase, groupId: string | null) {
   const [

@@ -17,7 +17,6 @@ import {
   formatBRL,
   LOTTERIES,
   parseBRL,
-  readCaixaExtras,
 } from "@bolao/core";
 import type {
   ContestResultVersion,
@@ -36,6 +35,7 @@ import type { BolaoDatabase } from "@bolao/local";
 import { createAccountTransport } from "../auth";
 import { downloadText } from "../registration-handoff";
 import type { RecordRequest } from "../record-decision";
+import { rolloverOf } from "../app-shared";
 import type { Notice, PoolStep, Snapshot } from "../app-shared";
 import {
   ampliado,
@@ -326,13 +326,12 @@ export function BolaoSorteio(
     Date.parse(item.expectedDrawAt) > Date.now()
   ).sort((a, b) => a.expectedDrawAt!.localeCompare(b.expectedDrawAt!))[0];
   // Só o resultado oficial diz se acumulou; com o resultado informado à mão nada muda.
-  const caixa = useMemo(
-    () => result?.source === "caixa" ? readCaixaExtras(result.rawText) : null,
-    [result],
+  const rolledOver = useMemo(
+    () => rolloverOf(view, top >= prizeHits[lotteryId][0]),
+    [view, top, lotteryId],
   );
-  const rolled = !!drawn && caixa?.accumulated === true &&
-    top < prizeHits[lotteryId][0];
-  const nextNumber = caixa?.nextContestNumber ?? (result?.contestNumber ?? 0) + 1;
+  const rolled = rolledOver !== null;
+  const nextNumber = rolledOver?.nextContestNumber;
 
   // Divisão igual só no acordo interno, com as mesmas cotas para todos e centavos exatos.
   const split = (() => {
@@ -707,9 +706,9 @@ export function BolaoSorteio(
   // Espaço sem quebra no valor: "R$" não fica numa linha e o número na outra.
   const rollover = rolled && (
     <h2 className="pool-card-title sorteio-titulo">
-      {caixa!.nextEstimatedPrizeCents !== null
+      {rolledOver!.nextEstimatedPrizeCents !== null
         ? `Acumulou! Próximo prêmio estimado ${
-          formatBRL(caixa!.nextEstimatedPrizeCents).replace(" ", "\u00a0")
+          formatBRL(rolledOver!.nextEstimatedPrizeCents).replace(" ", "\u00a0")
         }`
         : "Acumulou!"}
     </h2>

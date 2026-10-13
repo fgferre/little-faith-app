@@ -1,9 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
 import { Link2, MessageCircle, QrCode, UserPlus } from "lucide-react";
-import { formatBRL, formatQuotaUnits, LOTTERIES, sumCents } from "@bolao/core";
+import {
+  createResultView,
+  formatBRL,
+  formatQuotaUnits,
+  LOTTERIES,
+  sumCents,
+} from "@bolao/core";
 import type { PixReceiver } from "@bolao/core";
+import { getResultSnapshot } from "@bolao/local";
 import type { BolaoDatabase } from "@bolao/local";
-import { browserTimeZone, errorMessage } from "../app-shared";
+import { browserTimeZone, errorMessage, rolloverOf } from "../app-shared";
 import { Modal } from "../components";
 import type { FormKind, Notice, Snapshot } from "../app-shared";
 import { latestManifest } from "../planning";
@@ -98,8 +106,11 @@ function chargeText(view: PoolView, pix: PixReceiver | null) {
   ].join("\n");
 }
 
-/** O convite da chamada: quem continua no bolão novo responde no grupo. */
-function callText(view: PoolView) {
+/**
+ * O convite da chamada: quem continua no bolão novo responde no grupo. Se o concurso do bolão passado
+ * acumulou, vai junto o prêmio estimado do concurso seguinte que a CAIXA publicou.
+ */
+function callText(view: PoolView, rollover?: ReturnType<typeof rolloverOf>) {
   const { title, contestNumber, quotaPriceCents, deadlineAt } = view.pool.data;
   const contest = contestNumber === null
     ? "o próximo concurso"
@@ -107,9 +118,18 @@ function callText(view: PoolView) {
   const until = deadlineAt
     ? `, pagar até ${diaMes(deadlineAt, "America/Sao_Paulo")}`
     : "";
-  return `${title} para ${contest}! Quem continua? Cota ${
+  const call = `${title} para ${contest}! Quem continua? Cota ${
     formatBRL(quotaPriceCents)
   }${until}. Responde aqui: dentro ou fora.`;
+  if (!rollover) return call;
+  const { nextContestNumber, nextEstimatedPrizeCents } = rollover;
+  return `${call}\n${
+    nextEstimatedPrizeCents === null
+      ? "Acumulou!"
+      : `Acumulou! Prêmio estimado para o concurso ${nextContestNumber}: ${
+        formatBRL(nextEstimatedPrizeCents)
+      }.`
+  }`;
 }
 
 /**
@@ -228,6 +248,21 @@ export function BolaoArrecadar(
   const groupId = snapshot.groupId;
   const group = snapshot.groups.find((group) => group.id === groupId);
   const groupName = group?.data.name ?? "";
+  // Se o concurso do bolão passado acumulou, a chamada diz, pela mesma leitura do Sorteio. Sem a
+  // conferência dos jogos aqui: quando a CAIXA diz que acumulou, ninguém acertou a faixa principal.
+  const previousId = previous?.id;
+  const results = useLiveQuery(
+    async () =>
+      previousId && groupId ? await getResultSnapshot(db, groupId) : null,
+    [db, groupId, previousId],
+  );
+  const rollover = useMemo(
+    () =>
+      results && previousId
+        ? rolloverOf(createResultView(results).currentResult(previousId), false)
+        : null,
+    [results, previousId],
+  );
   const pix = group?.data.pix ?? null;
   // Quem está no painel "Cobrar por Pix"; o código é montado com o que falta agora.
   const [pixId, setPixId] = useState<string | null>(null);
@@ -359,7 +394,7 @@ export function BolaoArrecadar(
   }
 
   async function callMessage() {
-    const copied = await copiar(callText(view));
+    const copied = await copiar(callText(view, rollover));
     setNotice(
       copied
         ? { text: "Mensagem copiada. Cole no grupo do WhatsApp." }
