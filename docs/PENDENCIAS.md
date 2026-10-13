@@ -36,9 +36,8 @@ a rodada foi enviada com a palavra dele (11/10, tarde); visual do cartão aprova
 público (passo 7 do piloto): decisão dele. **Fora daqui:** sem Supabase real, OAuth Google, cron ou deploy
 (item 5). **Mudou em 12/10:** piloto feito até o passo 7 com ele presente; app publicado em
 https://fgferre.github.io/little-faith-app/ ligado ao Supabase real; o que falta está no item 5. Repositório agora
-**público** por decisão dele (12/10). O redesign visual está no branch `redesign/noite-companhia` (worktree
-`…/Little Faith App-redesign`, outra sessão), com `npm run done` verde e à espera da palavra dele para entrar em
-`main`; depois de juntar, publicar de novo pelo fluxo (um clique). Nenhum subagente ativo. Não há `PLAN.md`.
+**público** por decisão dele (12/10). O redesign visual ("Noite em boa companhia") já está em `main` desde 12/10 (aprovado por ele na sessão do
+redesign, juntado por fast-forward com suíte verde); o site publicado ainda é o anterior até republicar (um clique). Nenhum subagente ativo. Não há `PLAN.md`.
 
 **Textos pedidos por ele, já aplicados:** marca *"Seu bolão em boa companhia"*; início *"Faça sua fezinha, organize
 suas apostas e boa sorte!"*.
@@ -59,7 +58,8 @@ marca aqui o que fechar):**
 4. Pix na cobrança e no cartão: chave de quem faz o caixa no cadastro do grupo; "Pix copia e cola" e QR com o valor
    de cada pessoa em Arrecadar e no cartão pessoal; confirmação continua manual (~2 h; pede uma peça pequena para
    desenhar o QR).
-5. Juntar o redesign (`redesign/noite-companhia`, 7 commits verificados) em `main` e republicar (palavra dele + ~1 h).
+5. ~~Juntar o redesign em `main`~~ FEITO em 12/10 (main = bab6985, suíte verde). Falta só republicar o GitHub Pages
+   (um clique, com a palavra dele). O worktree `…/Little Faith App-redesign` pode ser removido.
 6. O primeiro bolão de verdade, pequeno, com ele presente e acompanhado de perto.
 7. Fluxos de navegador que oscilam sob carga (item 13): trocar esperas por tempo por esperas por estado (~2 h).
 8. Avisos de prazo do prêmio (30/15/7/1 dias) de volta na tela do bolão e no cartão (~1 h).
