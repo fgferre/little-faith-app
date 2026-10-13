@@ -1,0 +1,29 @@
+name: Manter o Supabase acordado
+
+# O plano grátis do Supabase pausa o projeto após uma semana sem uso (item 5 das pendências).
+# Duas visitas por semana ao banco bastam. O GitHub desliga agendamentos em repositório parado
+# por 60 dias: se isso acontecer, basta rodar à mão ("Run workflow") que ele volta.
+
+on:
+  schedule:
+    - cron: "17 9 * * 1,4" # segunda e quinta, 09:17 UTC (06:17 em Brasília)
+  workflow_dispatch:
+
+jobs:
+  visitar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Uma consulta no banco pela função api
+        env:
+          URL: ${{ vars.VITE_SUPABASE_URL }}
+          KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          set -eu
+          test -n "$URL" && test -n "$KEY"
+          rest=$(curl -s -o /dev/null -w '%{http_code}' -H "apikey: $KEY" -H "Authorization: Bearer $KEY" "$URL/rest/v1/")
+          api=$(curl -s -o /dev/null -w '%{http_code}' -H "apikey: $KEY" -H 'Content-Type: application/json' \
+            -d '{"token":"acordar"}' "$URL/functions/v1/api/v1/participant_card")
+          echo "rest=$rest api=$api"
+          # A função responde 404 (link desconhecido) só depois de consultar o banco: é essa visita que conta.
+          # A chamada REST é só um toque a mais no gateway; o código dela não decide o resultado.
+          test "$api" = "404"

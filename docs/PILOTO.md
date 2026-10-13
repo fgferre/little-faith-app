@@ -73,6 +73,7 @@ Entre com Google **antes** de criar o grupo (cada conta tem seu próprio espaço
 
 ## 9. Projeto pausado e lembrete antes do sorteio [SUA CONTA]
 - **Se pausou (plano gratuito):** o Supabase pausa projeto parado por alguns dias (hoje, cerca de uma semana). No painel aparece **Project paused**; toque em **Restore project** e espere alguns minutos. Abra o app online: o que ficou pendente no aparelho é reenviado, e uma resposta perdida é consultada antes de repetir. Confira no painel o prazo para restaurar.
+- **Feito em 12/10:** o fluxo "Manter o Supabase acordado" (Actions) visita o banco segunda e quinta, para o projeto não pausar. Se o GitHub desligar o agendamento por falta de atividade (60 dias), rode-o à mão uma vez.
 - **Antes do sorteio (2 a 3 dias antes):**
   - Abra o app online com seu login, para acordar o projeto e ver tudo sincronizado.
   - Confira no painel que o projeto está ativo (se o bolão for importante, considere o plano pago na semana do prêmio; decisão e custo seus).
