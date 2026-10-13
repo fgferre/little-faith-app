@@ -56,15 +56,17 @@ marca aqui o que fechar):**
    `.tmp/piloto/item1.md`). O "Bolão de teste" ficou travado e registrado, sem sorteio.
 2. ~~Aviso semanal automático para o Supabase não pausar~~ FEITO em 12/10 (`.github/workflows/manter-acordado.yml`,
    segunda e quinta); conferir a primeira execução à mão depois do push.
-3. Encerrar o bolão: a tela de Dividir fecha a conta (sobras, devoluções, pendências); `pool_settle`/`pool_reopen`
-   já existem no núcleo e no servidor (~2 h).
-4. Pix na cobrança e no cartão: chave de quem faz o caixa no cadastro do grupo; "Pix copia e cola" e QR com o valor
-   de cada pessoa em Arrecadar e no cartão pessoal; confirmação continua manual (~2 h; pede uma peça pequena para
-   desenhar o QR).
+3. ~~Encerrar o bolão~~ FEITO em 12/10 à noite: o servidor recusava de propósito; a migração
+   `20261013010000_settlement_close.sql` passa a aceitar `pool_settle`/`pool_reopen` espelhando o núcleo (testes de
+   paridade em settlement.sql), e Dividir ganhou o cartão "Encerrar o bolão"/"Reabrir o bolão".
+4. ~~Pix na cobrança e no cartão~~ FEITO em 12/10 à noite: `pix` opcional no grupo (migração
+   `20261013000000_group_pix.sql` + núcleo `pix.ts` com BR Code e CRC conferidos contra o manual do BC), "Cobrar por
+   Pix" em Arrecadar (QR + copia e cola, `uqr`), cartão "Pagar sua cota" no cartão pessoal; confirmação continua manual.
 5. ~~Juntar o redesign em `main` e republicar~~ FEITO em 12/10 (main = 5bb6678 publicado). O worktree
    `…/Little Faith App-redesign` pode ser removido (`git worktree remove`), com a palavra dele.
-6. O primeiro bolão de verdade, pequeno, com ele presente e acompanhado de perto.
-7. Fluxos de navegador que oscilam sob carga (item 13): trocar esperas por tempo por esperas por estado (~2 h).
+6. Fluxos de navegador que oscilam sob carga (item 13): trocar esperas por tempo por esperas por estado (~2 h).
+   (Puxado para antes do bolão real por decisão dele, 12/10: cada rodada perde ~3 reexecuções por causa disso.)
+7. O primeiro bolão de verdade, pequeno, com ele presente e acompanhado de perto.
 8. Avisos de prazo do prêmio (30/15/7/1 dias) de volta na tela do bolão e no cartão (~1 h).
 9. Mensagens prontas para o grupo: resultado do sorteio e chamada quando acumula com "Acumulou!" (~1 h).
 10. Busca automática do resultado no horário (publicar `results-collector`, segredo e agendamento) (~2 h + conta dele).

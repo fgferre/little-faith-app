@@ -12,7 +12,8 @@ export default defineConfig({
   },
   webServer: [{
     command:
-      "npm run build && npm run preview --workspace @bolao/web -- --port 4173 --strictPort",
+      // O build da suíte é sempre "sem servidor", mesmo com um .env real na máquina (piloto).
+      "VITE_SUPABASE_URL= VITE_SUPABASE_ANON_KEY= npm run build && npm run preview --workspace @bolao/web -- --port 4173 --strictPort",
     url: "http://127.0.0.1:4173",
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,
