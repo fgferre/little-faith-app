@@ -15,3 +15,4 @@
 - (13/10) Ao repetir, o formulário sugere "concurso anterior + 1" enquanto o botão do Sorteio e a chamada usam o número que a CAIXA publicou; podem divergir quando a CAIXA pula número.
 - (13/10) A mensagem "Avisar a turma" do Sorteio só mostra a parte de cada pessoa quando as cotas são iguais; o núcleo já calcula o direito de cada um (usado em Dividir).
 - (13/10) O teste SQL do cartão do participante confere `redemptionDeadlineDate`/`prizeRedeemed` só no caso já resgatado; falta o caso com prêmio por resgatar, e o conferidor PGlite não cruza esses campos com o núcleo.
+- (13/10) Movimento: a seta de "Ver conta" só gira de volta quando o recolher termina (open sai no fim); em Dividir, "ir para Registrar" troca de tela e a janela some seca; na gaveta "Avisar a turma", compartilhar/copiar/baixar fecham seco de propósito (o aviso tem que aparecer por cima).
