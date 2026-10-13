@@ -60,6 +60,26 @@ try {
     const { rows } = await db.query('select private.planning_catalog_json($1) as catalog', [lottery]);
     if (canonicalJSON(rows[0].catalog) !== canonicalJSON(catalog)) throw new Error(`SQL/core catalog differs: ${lottery}`);
   }
+  // Pix receiver of the group: the SQL check accepts exactly what the core's validateEntityData accepts.
+  const { validateEntityData } = await import(pathToFileURL(resolve(compiledCore, 'validation.js')).href);
+  const pix = { key: 'chave@exemplo.com', keyType: 'email', name: 'Ana Claudia', city: 'Niteroi' };
+  const keys = [['cpf','12345678909'],['cpf','12345678900'],['cpf','11111111111'],['cpf','123.456.789-09'],['cnpj','11222333000181'],['cnpj','12ABC34501DE35'],
+    ['cnpj','12ABC34501DE36'],['cnpj','12abc34501de35'],['cnpj','00000000000000'],['email','chave@exemplo.com.br'],['email','chave@exemplo'],['email','Chave@Exemplo.com'],
+    ['phone','+5511912345678'],['phone','+551131234567'],['phone','5511912345678'],['random','123e4567-e12b-12d1-a456-426655440000'],
+    ['random','123E4567-E12B-12D1-A456-426655440000'],['evp','123e4567-e12b-12d1-a456-426655440000']];
+  const pixSamples = [undefined, null, pix, 'chave@exemplo.com', { ...pix, name: 'Ana Cláudia' }, { ...pix, name: ' Ana' }, { ...pix, name: 'Ana  Claudia' },
+    { ...pix, name: 'x'.repeat(26) }, { ...pix, city: 'Sao Jose dos Campos' }, { ...pix, city: '' }, { ...pix, bank: '001' }, { key: pix.key, keyType: 'email', name: 'Ana' },
+    ...keys.map(([keyType, key]) => ({ ...pix, keyType, key }))];
+  let pixAccepted = 0;
+  for (const sample of pixSamples) {
+    const data = sample === undefined ? { name: 'Grupo', statute: '' } : { name: 'Grupo', statute: '', pix: sample };
+    let core = true;
+    try { validateEntityData('group', data); } catch { core = false; }
+    const { rows } = await db.query("select private.draft_validation_error('group',$1::jsonb) is null as ok", [JSON.stringify(data)]);
+    if (rows[0].ok !== core) throw new Error(`SQL/core Pix receiver differs: ${JSON.stringify(sample)} core=${core}`);
+    if (core) pixAccepted++;
+  }
+  if (pixAccepted !== 9) throw new Error(`Pix parity sweep expected 9 accepted samples, got ${pixAccepted}.`);
   await db.exec(await readFile(new URL('./foundation.sql', import.meta.url), 'utf8'));
   const financialResults = await db.exec(await readFile(new URL('./financial.sql', import.meta.url), 'utf8'));
   const samples = financialResults.flatMap(result => result.rows).filter(row => typeof row.label === 'string' && row.data && row.kind);

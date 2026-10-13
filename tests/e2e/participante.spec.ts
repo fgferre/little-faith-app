@@ -102,6 +102,7 @@ async function openCard(
   browser: Browser,
   link: string,
   server: { token: string; name: string; revoked: boolean },
+  changes: { group?: object; pool?: object } = {},
 ) {
   const context = await browser.newContext();
   const page = await context.newPage();
@@ -117,7 +118,7 @@ async function openCard(
     return reply(route, 200, {
       version: 1,
       generatedAt: "2026-10-11T15:00:00.000Z",
-      group: { name: "Grupo de teste" },
+      group: { name: "Grupo de teste", pix: null, ...changes.group },
       person: { id: "p-1", name: server.name },
       pools: [{
         id: "pool-mega",
@@ -133,6 +134,7 @@ async function openCard(
         result: null,
         share: null,
         closed: false,
+        ...changes.pool,
       }],
     });
   });
@@ -177,4 +179,79 @@ test("cancelling the personal link closes the participant's card", async ({ brow
   ).toBeVisible();
   await participant.context.close();
   await organizer.context.close();
+});
+
+test("the group's Pix key gives a Pix code in Arrecadar and on the participant's card", async ({ browser }) => {
+  // Arrecadar on the demo (data only on this device), so registering the key touches no shared fixture server.
+  const demo = "http://127.0.0.1:4173";
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+  });
+  await context.grantPermissions(["clipboard-read", "clipboard-write"], {
+    origin: demo,
+  });
+  const page = await context.newPage();
+  await page.goto(`${demo}/`);
+  await expect(
+    page.getByText("Um gostinho do app: estes são dados de exemplo."),
+  ).toBeVisible();
+  await page.goto(`${demo}/#/boloes/d0000000-0000-4000-8000-000000000011/arrecadar`);
+  await page.getByRole("button", { name: "Preparar cota" }).click();
+  await page.getByRole("dialog").getByRole("button", {
+    name: "Salvar neste aparelho",
+  }).click();
+  await page.getByRole("button", { name: "Cadastrar chave Pix do grupo" })
+    .click();
+  const form = page.getByRole("dialog");
+  await form.getByLabel("Tipo de chave").selectOption("email");
+  await form.getByLabel("Chave Pix").fill("Chave@Exemplo.com");
+  await form.getByLabel("Nome de quem recebe").fill("Ana Cláudia");
+  await form.getByLabel("Cidade").fill("Niterói");
+  await form.getByRole("button", { name: "Salvar neste aparelho" }).click();
+  await page.getByRole("button", { name: "Cobrar por Pix" }).click();
+  const panel = page.getByRole("dialog", { name: "Cobrar por Pix" });
+  const code = panel.getByText(/^000201/);
+  await expect(code).toHaveText(
+    /^000201.+0117chave@exemplo\.com.+540535\.00.+5911Ana Claudia6007Niteroi.+6304[0-9A-F]{4}$/,
+  );
+  await expect(panel.getByRole("img", { name: "QR code do Pix" }))
+    .toBeVisible();
+  await panel.getByRole("button", { name: "Copiar código Pix" }).click();
+  await expect(panel.getByRole("button", { name: "Código copiado" }))
+    .toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+    await code.textContent(),
+  );
+  await context.close();
+
+  const server = { token: "tok_Pix0-card_123", name: "Camila", revoked: false };
+  const participant = await openCard(
+    browser,
+    `${origin}/#/p/${server.token}`,
+    server,
+    {
+      group: {
+        pix: {
+          key: "chave@exemplo.com",
+          keyType: "email",
+          name: "Ana Claudia",
+          city: "Niteroi",
+        },
+      },
+      pool: {
+        status: "draft",
+        quota: { units: 100, dueCents: "6000", paidCents: "2000", paid: false },
+        registration: null,
+      },
+    },
+  );
+  const pay = participant.page.getByRole("region", { name: "Pagar sua cota" });
+  await expect(pay).toContainText("R$ 40,00");
+  await expect(pay.getByText(/^000201/)).toHaveText(/540540\.00.+6304[0-9A-F]{4}$/);
+  await expect(pay.getByRole("button", { name: "Copiar código Pix" }))
+    .toBeVisible();
+  await expect(pay).toContainText(
+    "Pague no seu banco; o organizador confirma quando o dinheiro cair.",
+  );
+  await participant.context.close();
 });

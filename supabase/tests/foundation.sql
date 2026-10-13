@@ -312,6 +312,24 @@ begin
   perform pg_temp.assert_true((select revision = v_revision from public.groups where id = v_group), 'rejected move creates no revision');
 end; $$;
 
+-- Pix receiver of the group: optional, and only the core's normal form is accepted (parity sweep in run-pglite.mjs).
+do $$ declare v_group uuid := '10000000-0000-4000-8000-0000000000f1'; v_result jsonb;
+  v_pix jsonb := '{"key":"chave@exemplo.com","keyType":"email","name":"Ana Claudia","city":"Niteroi"}';
+begin
+  v_result := public.sync_push(pg_temp.operation(gen_random_uuid(),v_group,v_group,'group',jsonb_build_object('name','Grupo Pix','statute','','pix',v_pix)));
+  perform pg_temp.assert_true(v_result ->> 'status' = 'accepted' and v_result -> 'record' -> 'data' -> 'pix' = v_pix, 'group with Pix receiver accepted');
+  v_result := public.sync_push(pg_temp.operation(gen_random_uuid(),v_group,v_group,'group',
+    jsonb_build_object('name','Grupo Pix','statute','','pix',jsonb_set(v_pix,'{key}','"Chave@Exemplo.com"')),1));
+  perform pg_temp.assert_true(v_result ->> 'status' = 'rejected', 'Pix key outside the normal form rejected');
+  v_result := public.sync_push(pg_temp.operation(gen_random_uuid(),v_group,v_group,'group',
+    jsonb_build_object('name','Grupo Pix','statute','','pix',jsonb_build_object('key','12345678900','keyType','cpf','name','Ana','city','Niteroi')),1));
+  perform pg_temp.assert_true(v_result ->> 'status' = 'rejected', 'CPF key with wrong check digits rejected');
+  v_result := public.sync_push(pg_temp.operation(gen_random_uuid(),v_group,v_group,'group','{"name":"Grupo Pix","statute":"","pix":null}',1));
+  perform pg_temp.assert_true(v_result ->> 'status' = 'accepted' and v_result -> 'record' -> 'data' -> 'pix' = 'null', 'Pix receiver removed with null');
+  v_result := public.sync_push(pg_temp.operation(gen_random_uuid(),v_group,v_group,'group','{"name":"Grupo Pix","statute":""}',2));
+  perform pg_temp.assert_true(v_result ->> 'status' = 'accepted', 'group without the pix field still accepted');
+end; $$;
+
 set local role anon;
 do $$ begin
   begin perform public.sync_groups(); raise exception 'anonymous RPC accepted'; exception when insufficient_privilege then null; end;

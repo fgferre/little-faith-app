@@ -1,5 +1,6 @@
-import type { DraftOperation, EntityDataMap, EntityKind, LotteryId } from './types';
+import type { DraftOperation, EntityDataMap, EntityKind, LotteryId, PixReceiver } from './types';
 import { CATALOG_VERSION, LOTTERIES, validateBet } from './lotteries';
+import { validatePixReceiver } from './pix';
 import { centsValue } from './money';
 import { GENERATION_ALGORITHM_VERSION } from './generation';
 
@@ -23,9 +24,11 @@ export function validateEntityData<K extends EntityKind>(kind: K, input: unknown
 export function validateEntityData(kind: EntityKind, input: unknown): EntityDataMap[EntityKind] {
   const data = object(input, 'data');
   switch (kind) {
-    case 'group':
-      keys(data, ['name', 'statute']);
-      return { name: text(data.name, 'name', 120, true), statute: text(data.statute, 'statute', 12_000) };
+    case 'group': {
+      keys(data, ['name', 'statute'], ['pix']);
+      const group = { name: text(data.name, 'name', 120, true), statute: text(data.statute, 'statute', 12_000) };
+      return Object.hasOwn(data, 'pix') ? { ...group, pix: data.pix === null ? null : pixReceiver(data.pix) } : group;
+    }
     case 'person':
       keys(data, ['name', 'nickname', 'adultDeclared']);
       return { name: text(data.name, 'name', 120, true), nickname: text(data.nickname, 'nickname', 80), adultDeclared: boolean(data.adultDeclared, 'adultDeclared') };
@@ -110,14 +113,29 @@ function object(value: unknown, field: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-function keys(value: Record<string, unknown>, expected: readonly string[]): void {
-  const allowed = new Set(expected);
+function keys(value: Record<string, unknown>, expected: readonly string[], optional: readonly string[] = []): void {
+  const allowed = new Set([...expected, ...optional]);
   for (const key of Object.keys(value)) {
     if (!allowed.has(key)) fail(key, `Campo não suportado: ${key}.`);
   }
   for (const key of expected) {
     if (!Object.hasOwn(value, key)) fail(key, `Campo obrigatório ausente: ${key}.`);
   }
+}
+
+/** Groups store the Pix receiver only in normal form, so the code built on any device is the same. */
+function pixReceiver(value: unknown): PixReceiver {
+  const pix = object(value, 'pix');
+  keys(pix, ['key', 'keyType', 'name', 'city']);
+  const input = { key: text(pix.key, 'pix.key', 77, true), keyType: text(pix.keyType, 'pix.keyType', 10, true), name: text(pix.name, 'pix.name', 25, true), city: text(pix.city, 'pix.city', 15, true) };
+  let receiver: PixReceiver;
+  try { receiver = validatePixReceiver(input); }
+  catch (error) { return fail('pix', error instanceof Error ? error.message : 'Chave Pix inválida.'); }
+  // The SQL check accepts only this normal form too (private.pix_receiver_valid).
+  if (receiver.key !== input.key || receiver.name !== input.name || receiver.city !== input.city) {
+    fail('pix', 'A chave Pix precisa estar no formato normalizado.');
+  }
+  return receiver;
 }
 
 function text(value: unknown, field: string, maximum: number, required = false): string {

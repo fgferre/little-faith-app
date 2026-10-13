@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
-import { Link2, MessageCircle, UserPlus } from "lucide-react";
+import { Link2, MessageCircle, QrCode, UserPlus } from "lucide-react";
 import { formatBRL, formatQuotaUnits, LOTTERIES, sumCents } from "@bolao/core";
+import type { PixReceiver } from "@bolao/core";
 import type { BolaoDatabase } from "@bolao/local";
 import { browserTimeZone, errorMessage } from "../app-shared";
+import { Modal } from "../components";
 import type { FormKind, Notice, Snapshot } from "../app-shared";
 import { latestManifest } from "../planning";
 import { saveLocalDraft } from "../repository";
@@ -19,11 +21,13 @@ import {
   Button,
   Card,
   Chip,
+  codigoPix,
   copiar,
   diaMes,
   Eyebrow,
   formatWhen,
   Money,
+  PixCode,
   ProblemBox,
   reais,
 } from "../ui";
@@ -56,17 +60,30 @@ const missingCents = (person: PoolPerson) =>
 export const cotas = (units: number) =>
   `${formatQuotaUnits(units)} ${units < 200 ? "cota" : "cotas"}`;
 
-/** Mensagem curta para o grupo: quem ainda deve, quanto e até quando. */
-function chargeText(view: PoolView) {
+/**
+ * Mensagem curta para o grupo: quem ainda deve, quanto e até quando. Com chave Pix no grupo, o código
+ * copia e cola de cada pessoa vai sozinho na linha de baixo do nome, para dar para copiar só ele.
+ */
+function chargeText(view: PoolView, pix: PixReceiver | null) {
   const { pool } = view;
-  const lines = view.owing.map((person) => {
+  const lines = view.owing.flatMap((person) => {
     const missing = missingCents(person);
-    return `• ${person.name}${missing ? ` — ${formatBRL(missing)}` : ""}`;
+    const code = codigoPix(pix, missing);
+    return [
+      `• ${person.name}${missing ? ` — ${formatBRL(missing)}` : ""}`,
+      ...(code ? [code] : []),
+    ];
   });
+  const coded = lines.length > view.owing.length;
   return [
     `${pool.data.title} (${LOTTERIES[pool.data.lotteryId].label})`,
     "Falta pagar a cota:",
     ...lines,
+    ...(coded && pix
+      ? [
+        `Pix para ${pix.name}: copie o código abaixo do seu nome e cole no app do banco, em Pix copia e cola.`,
+      ]
+      : []),
     ...(pool.data.deadlineAt
       ? [
         `Pagar até ${
@@ -209,8 +226,14 @@ export function BolaoArrecadar(
   );
 
   const groupId = snapshot.groupId;
-  const groupName =
-    snapshot.groups.find((group) => group.id === groupId)?.data.name ?? "";
+  const group = snapshot.groups.find((group) => group.id === groupId);
+  const groupName = group?.data.name ?? "";
+  const pix = group?.data.pix ?? null;
+  // Quem está no painel "Cobrar por Pix"; o código é montado com o que falta agora.
+  const [pixId, setPixId] = useState<string | null>(null);
+  const pixPerson = people.find((person) => person.id === pixId) ?? null;
+  const pixMissing = pixPerson && missingCents(pixPerson);
+  const pixPayload = codigoPix(pix, pixMissing);
   const { links, setLinks, ready, hidden, problem } = useParticipantLinks(
     groupId,
   );
@@ -327,7 +350,7 @@ export function BolaoArrecadar(
   };
 
   async function charge() {
-    const copied = await copiar(chargeText(view));
+    const copied = await copiar(chargeText(view, pix));
     setNotice(
       copied
         ? { text: "Mensagem copiada. Cole no grupo do WhatsApp." }
@@ -387,7 +410,33 @@ export function BolaoArrecadar(
     if (state === "review") {
       return <Chip status="pending">Pagamento em conferência</Chip>;
     }
-    if (state === "owe") return <Chip status="pending">Ainda não pagou</Chip>;
+    if (state === "owe") {
+      return (
+        <div className="pix-owe">
+          <Chip status="pending">Ainda não pagou</Chip>
+          {pix
+            ? (
+              <Button
+                variant="ghost"
+                small
+                icon={<QrCode aria-hidden="true" />}
+                onClick={() => setPixId(person.id)}
+              >
+                Cobrar por Pix
+              </Button>
+            )
+            : (
+              <button
+                type="button"
+                className="pool-link"
+                onClick={() => openForm("edit-group")}
+              >
+                Cadastrar chave Pix do grupo
+              </button>
+            )}
+        </div>
+      );
+    }
     if (state === "fix") {
       return (
         <ProblemBox title="A cota precisa de ajuste">
@@ -585,6 +634,19 @@ export function BolaoArrecadar(
               Basta um nome e a declaração de maioridade. Ninguém precisa criar
               conta.
             </p>
+          )}
+          {pixPerson && pix && pixMissing && pixPayload && (
+            <Modal title="Cobrar por Pix" onClose={() => setPixId(null)}>
+              <p className="pix-who">
+                <span>{pixPerson.name}</span>
+                <b>{formatBRL(pixMissing)}</b>
+              </p>
+              <PixCode payload={pixPayload} />
+              <p className="ui-sec pix-foot">
+                Mostre o QR ou mande o código. Para {pix.name} ({pix.key}).
+                Quem paga ainda precisa pagar no banco; você marca que recebeu.
+              </p>
+            </Modal>
           )}
           <div className="pool-actions">
             <Button

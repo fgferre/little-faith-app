@@ -20,5 +20,6 @@ export * from './money';
 export * from './lotteries';
 export * from './generation';
 export * from './validation';
+export * from './pix';
 export * from './financial';
 export * from './settlement';

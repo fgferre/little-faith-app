@@ -9,9 +9,21 @@ export type EntityKind =
   | "payment-proposal";
 export type LocalState = "local" | "queued" | "synced" | "conflict";
 
+export type PixKeyType = "cpf" | "cnpj" | "email" | "phone" | "random";
+/** Who receives the group's money by Pix, in normal form (see validatePixReceiver). The app only builds the code; payment happens at the payer's bank. */
+export interface PixReceiver {
+  key: string;
+  keyType: PixKeyType;
+  /** Printable ASCII without accents, up to 25 characters: field 59 of the BR Code. */
+  name: string;
+  /** Printable ASCII without accents, up to 15 characters: field 60 of the BR Code. */
+  city: string;
+}
 export interface GroupData {
   name: string;
   statute: string;
+  /** Absent in groups saved before the Pix receiver existed, which means the same as null. */
+  pix?: PixReceiver | null;
 }
 export interface PersonData {
   name: string;

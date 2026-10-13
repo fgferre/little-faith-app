@@ -238,7 +238,7 @@ begin
   perform pg_temp.assert_true(public.participant_card(pg_temp.hash('token-unknown')) = '{"error":"link_unknown"}'::jsonb
     and public.participant_card('not-a-hash') = '{"error":"link_unknown"}'::jsonb and public.participant_card(null) = '{"error":"link_unknown"}'::jsonb,'unknown link');
   perform pg_temp.assert_true(public.participant_card(pg_temp.hash('token-old')) = '{"error":"link_revoked"}'::jsonb,'revoked link closes at once');
-  perform pg_temp.assert_true(b -> 'version' = '1' and b -> 'group' = '{"name":"Bolão da firma"}' and b -> 'person' = '{"id":"c3000000-0000-4000-8000-000000000002","name":"Pessoa B"}'
+  perform pg_temp.assert_true(b -> 'version' = '1' and b -> 'group' = '{"name":"Bolão da firma","pix":null}' and b -> 'person' = '{"id":"c3000000-0000-4000-8000-000000000002","name":"Pessoa B"}'
     and jsonb_array_length(b -> 'pools') = 1 and b ->> 'generatedAt' ~ '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$','card header');
   pool := b -> 'pools' -> 0;
   perform pg_temp.assert_true(pool ->> 'id' = 'c4000000-0000-4000-8000-000000000002' and pool ->> 'title' = 'Mega da virada' and pool ->> 'modality' = 'mega-sena'
@@ -265,6 +265,22 @@ begin
   perform pg_temp.assert_true(jsonb_array_length(d -> 'pools') = 1 and pool ->> 'id' = 'c4000000-0000-4000-8000-000000000001'
     and pool -> 'quota' = '{"units":100,"dueCents":"1000","paidCents":"500","paid":false}' and pool -> 'share' = 'null','D paid 500 of 1000, quota not confirmed');
   insert into participant_samples values('card A','participant-card',a),('card B','participant-card',b),('card C','participant-card',c),('card D','participant-card',d);
+end; $$;
+
+-- The group's Pix receiver reaches the personal card (owner's decision of 2026-10-12); the amount and code are built on the device.
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000981","role":"authenticated","session_id":"00000000-0000-4000-8000-100000000981","app_metadata":{}}',true);
+do $$ declare g uuid := 'c1000000-0000-4000-8000-000000000001'; v_version bigint; begin
+  select version into v_version from public.draft_records where group_id = g and id = g;
+  perform pg_temp.assert_true(public.sync_push(pg_temp.draft(g,g,'group','{"name":"Bolão da firma","statute":"Regras privadas de rateio 🙂",
+    "pix":{"key":"chave@exemplo.com","keyType":"email","name":"Pessoa A","city":"Sao Paulo"}}',v_version)) ->> 'status' = 'accepted','organizer registers the Pix receiver');
+end; $$;
+set local role service_role;
+select set_config('request.jwt.claims','{"role":"service_role"}',true);
+do $$ begin
+  perform pg_temp.assert_true(public.participant_card(pg_temp.hash('token-2')) -> 'group'
+    = '{"name":"Bolão da firma","pix":{"key":"chave@exemplo.com","keyType":"email","name":"Pessoa A","city":"Sao Paulo"}}','card carries the group Pix receiver');
+  perform pg_temp.assert_true(public.participant_card(pg_temp.hash('token-old')) = '{"error":"link_revoked"}'::jsonb,'revoked link still closed');
 end; $$;
 select label,kind,data from participant_samples order by label;
 rollback;

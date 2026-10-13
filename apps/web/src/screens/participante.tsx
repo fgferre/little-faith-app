@@ -6,6 +6,7 @@ import type {
   LotteryId,
   ParticipantCard,
   ParticipantCardPool as Pool,
+  PixReceiver,
 } from "@bolao/core";
 import {
   fetchParticipantCard,
@@ -19,9 +20,11 @@ import {
   Button,
   Card,
   Chip,
+  codigoPix,
   Eyebrow,
   formatWhen,
   Money,
+  PixCode,
 } from "../ui";
 import type { ChipStatus } from "../ui";
 import { cotas } from "./bolao-arrecadar";
@@ -132,6 +135,29 @@ function QuotaCard({ quota }: { quota: Pool["quota"] }) {
           <dd>{formatBRL(quota.paidCents)}</dd>
         </div>
       </dl>
+    </Card>
+  );
+}
+
+/** O Pix do que falta, enquanto o bolão ainda arrecada e o grupo tem chave cadastrada. */
+function PayCard({ pool, pix }: { pool: Pool; pix: PixReceiver | null }) {
+  const { dueCents, paidCents, paid } = pool.quota;
+  const missing = dueCents === null || paid === true
+    ? null
+    : (BigInt(dueCents) - BigInt(paidCents)).toString();
+  const payload = pool.status === "draft" && !pool.closed
+    ? codigoPix(pix, missing)
+    : null;
+  if (!payload || !pix || !missing) return null;
+  return (
+    <Card className="pool-card" label="Pagar sua cota">
+      <Eyebrow>Pagar sua cota</Eyebrow>
+      <Money cents={missing} />
+      <p className="ui-sec pix-to">Pix para {pix.name}</p>
+      <PixCode payload={payload} />
+      <p className="ui-sec pix-foot">
+        Pague no seu banco; o organizador confirma quando o dinheiro cair.
+      </p>
     </Card>
   );
 }
@@ -305,10 +331,11 @@ function ShareCard(
   );
 }
 
-function PoolCards({ pool }: { pool: Pool }) {
+function PoolCards({ pool, pix }: { pool: Pool; pix: PixReceiver | null }) {
   return (
     <div className="card-grid">
       <QuotaCard quota={pool.quota} />
+      <PayCard pool={pool} pix={pix} />
       <GamesCard pool={pool} />
       <RegistrationCard pool={pool} />
       <ResultCard pool={pool} />
@@ -325,6 +352,8 @@ function PoolCards({ pool }: { pool: Pool }) {
 /** O cartão da pessoa: os bolões do grupo em que ela tem cota, o mais novo aberto e os outros recolhidos. */
 export function CartaoParticipante({ card }: { card: ParticipantCard }) {
   const [first, ...others] = card.pools;
+  // Servidor anterior à chave Pix no cartão: sem o campo, sem o cartão de pagar.
+  const pix = card.group.pix ?? null;
   const you = (
     <p className="card-you">
       Você: <b>{card.person.name}</b>
@@ -340,7 +369,7 @@ export function CartaoParticipante({ card }: { card: ParticipantCard }) {
               <PoolHead pool={first} as="h1" />
               {you}
             </div>
-            <PoolCards pool={first} />
+            <PoolCards pool={first} pix={pix} />
           </section>
         )
         : (
@@ -361,7 +390,7 @@ export function CartaoParticipante({ card }: { card: ParticipantCard }) {
               </summary>
               <div className="card-pool">
                 {you}
-                <PoolCards pool={pool} />
+                <PoolCards pool={pool} pix={pix} />
               </div>
             </details>
           ))}

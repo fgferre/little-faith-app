@@ -2464,3 +2464,73 @@ tr:last-child td {
     transform: none;
   }
 }
+
+/* pix */
+/* "Ainda não pagou" à esquerda e "Cobrar por Pix" (ou o link para cadastrar a chave) à direita, com a largura do texto;
+   em 390 px os dois não cabem lado a lado, então a ação desce para a linha de baixo, ainda à direita (não quebra nem estica) */
+.pool-person-state > .pix-owe {
+  justify-self: stretch;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.pix-owe > * {
+  flex: none;
+  white-space: nowrap;
+}
+.pix-owe > :last-child {
+  margin-left: auto;
+}
+.pix-owe > .pool-link {
+  padding: 0;
+}
+/* formulário do grupo: o título da seção "Quem recebe o dinheiro" */
+.modal form > .pix-head {
+  margin-top: 8px;
+  font: 600 15px/1.3 var(--f-texto);
+}
+/* painel e cartão: o QR branco no meio, o código em fonte fixa quebrando em qualquer ponto e o copiar com a largura do texto */
+.pix-code {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+.pix-qr {
+  display: block;
+  width: min(240px, 100%);
+  height: auto;
+  border-radius: 12px;
+}
+.pix-code > .pix-text {
+  justify-self: stretch;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .04);
+  font: 500 12px/1.45 ui-monospace, Menlo, monospace;
+  word-break: break-all;
+  user-select: all;
+}
+.pix-code > .ui-btn {
+  white-space: nowrap;
+}
+.pix-who {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.pix-who > b {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.pix-to {
+  margin: 2px 0 0;
+}
+.pix-foot {
+  margin: 12px 0 0;
+}

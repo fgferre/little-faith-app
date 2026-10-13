@@ -1,14 +1,16 @@
-import type { LotteryId } from './types';
+import type { LotteryId, PixReceiver } from './types';
 
 /**
  * Personal card opened from the participant link (`GET /v1/participant_card`), assembled by the server at every opening.
- * Only this person's values: games carry no owner, and no phone, document, Pix key or file path is ever included.
+ * Only this person's values: games carry no owner, and no phone, document or file path is ever included. The one Pix key
+ * is the group's receiver (owner's decision of 2026-10-12), so the person can pay; the code is built on the device.
  * Money is a string of cents; share values mirror the person's row of computeSettlement for that pool.
  */
 export interface ParticipantCard {
   version: 1;
   generatedAt: string;
-  group: { name: string };
+  /** pix is null while the group has no receiver registered. */
+  group: { name: string; pix: PixReceiver | null };
   person: { id: string; name: string };
   /** Pools of the group where this person has a quota, newest first. */
   pools: ParticipantCardPool[];

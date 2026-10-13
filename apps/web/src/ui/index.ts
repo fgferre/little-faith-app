@@ -8,6 +8,7 @@ export {
   shareCardImage,
 } from "./cartao";
 export type { ShareCardData, ShareCardGame } from "./cartao";
+export { codigoPix, PixCode } from "./PixCode";
 export { StepStrip } from "./StepStrip";
 export type { StepItem } from "./StepStrip";
 export {

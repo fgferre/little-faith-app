@@ -8,6 +8,7 @@
     "../../../packages/core/src/money": "../../../packages/core/src/money.ts",
     "../../../packages/core/src/generation": "../../../packages/core/src/generation.ts",
     "../../../packages/core/src/validation": "../../../packages/core/src/validation.ts",
+    "../../../packages/core/src/pix": "../../../packages/core/src/pix.ts",
     "../../../packages/core/src/financial-types": "../../../packages/core/src/financial-types.ts",
     "../../../packages/core/src/financial": "../../../packages/core/src/financial.ts",
     "../../../packages/core/src/planning-types": "../../../packages/core/src/planning-types.ts",

@@ -11,8 +11,9 @@ import {
   quotaCost,
   quotaUnits,
   validateBet,
+  validatePixReceiver,
 } from "@bolao/core";
-import type { LocalRecord, LotteryId } from "@bolao/core";
+import type { LocalRecord, LotteryId, PixKeyType } from "@bolao/core";
 import { Modal } from "../components";
 import { createSeed, generateInWorker } from "../generation";
 import { errorMessage } from "../app-shared";
@@ -28,6 +29,14 @@ const localDateInput = (value: string | null) => {
 
 const plural = (n: number, one: string, many: string) =>
   `${n} ${n === 1 ? one : many}`;
+
+const PIX_KEY_LABELS: Record<PixKeyType, string> = {
+  phone: "Celular",
+  cpf: "CPF",
+  email: "E-mail",
+  random: "Chave aleatória",
+  cnpj: "CNPJ",
+};
 
 export function DraftForm(
   {
@@ -114,9 +123,18 @@ export function DraftForm(
     try {
       if (entityFormKind === "group") {
         if (!text("name")) throw new Error("Dê um nome ao grupo.");
+        // Sem chave, o grupo fica sem recebedor Pix; com chave, os quatro campos valem juntos.
+        const pix = text("pixKey")
+          ? validatePixReceiver({
+            keyType: text("pixKeyType"),
+            key: text("pixKey"),
+            name: text("pixName"),
+            city: text("pixCity"),
+          })
+          : null;
         await save(
           "group",
-          { name: text("name"), statute: text("statute") },
+          { name: text("name"), statute: text("statute"), pix },
           editing ? group?.id : undefined,
         );
       } else if (entityFormKind === "pool") {
@@ -329,6 +347,54 @@ export function DraftForm(
                 : "Participação válida após pagamento integral confirmado no prazo. Autoria dos números não altera o direito ao prêmio. Sobras permanecem identificadas até destino autorizado."}
             />
           </label>
+        )}
+        {entityFormKind === "group" && (
+          <>
+            <h3 className="pix-head">
+              Quem recebe o dinheiro <span className="muted">(opcional)</span>
+            </h3>
+            <p className="ui-sec form-note">
+              O app monta o código Pix com o valor de cada um. Quem paga ainda
+              precisa pagar no banco; você marca que recebeu.
+            </p>
+            <label>
+              Tipo de chave<select
+                name="pixKeyType"
+                defaultValue={editing ? group?.data.pix?.keyType : undefined}
+              >
+                {Object.entries(PIX_KEY_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Chave Pix<input
+                name="pixKey"
+                maxLength={77}
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
+                defaultValue={editing ? group?.data.pix?.key : ""}
+                placeholder="Deixe vazio para não usar Pix"
+              />
+            </label>
+            <label>
+              Nome de quem recebe<input
+                name="pixName"
+                maxLength={25}
+                defaultValue={editing ? group?.data.pix?.name : ""}
+                placeholder="Como está no banco"
+              />
+            </label>
+            <label>
+              Cidade<input
+                name="pixCity"
+                maxLength={15}
+                defaultValue={editing ? group?.data.pix?.city : ""}
+                placeholder="Ex.: São Paulo"
+              />
+            </label>
+          </>
         )}
         {kind === "person" && (
           <>
