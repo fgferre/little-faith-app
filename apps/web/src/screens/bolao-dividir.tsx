@@ -9,6 +9,7 @@ import {
 import type {
   LocalRecord,
   PoolManifest,
+  PoolSettlement,
   PoolSettlementBalance,
   SettlementPersonBalance,
   SettlementSnapshot,
@@ -38,6 +39,16 @@ const latest = <T extends { poolId: string; version: number }>(
     b.version - a.version
   )[0];
 const positive = (cents: string | null) => cents !== null && BigInt(cents) > 0n;
+/** O mesmo critério do núcleo: qualquer conta aberta precisa ficar explicada no encerramento. */
+const pendente = (balance: PoolSettlementBalance) =>
+  balance.expenseConfirmationPending || balance.confirmedPrizeCents === null ||
+  balance.resultConflict || balance.registrationIncomplete ||
+  [
+    balance.cashDeficitCents,
+    balance.unredeemedPrizeCents,
+    balance.unpaidPrizeCents,
+    balance.refundPendingCents,
+  ].some((cents) => cents !== null && BigInt(cents) !== 0n);
 
 /** A divisão confirmada do grupo, lida do aparelho; o cálculo nunca vira dinheiro sozinho. */
 export function useSettlement(db: BolaoDatabase, groupId: string | null) {
@@ -127,6 +138,10 @@ export function BolaoDividir(
 ) {
   const { snapshot, finance } = settlement;
   const [request, setRequest] = useState<PedidoDivisao | null>(null);
+  const [leftoverChoice, setLeftoverChoice] = useState<
+    PoolSettlement["leftoverDisposition"] | null
+  >(null);
+  const [pendingText, setPendingText] = useState("");
   const balance = finance?.pools[pool.id] ?? null;
   const report = snapshot
     ? latest(snapshot.registration.reports, pool.id)
@@ -143,6 +158,7 @@ export function BolaoDividir(
   );
   const prize = snapshot ? latest(snapshot.prizes, pool.id) : undefined;
   const expense = snapshot ? latest(snapshot.expenses, pool.id) : undefined;
+  const closure = snapshot ? latest(snapshot.closures, pool.id) : undefined;
   const ask = (intent: Intencao) => setRequest({ intent });
   const day = (iso: string) => diaMes(iso, timeZone);
 
@@ -671,6 +687,125 @@ export function BolaoDividir(
     );
   }
 
+  function closingCard(balance: PoolSettlementBalance) {
+    if (balance.closed && closure) {
+      return (
+        <>
+          <h2 className="pool-card-title">
+            Bolão encerrado em {day(closure.confirmedAt)}
+          </h2>
+          <dl className="pool-facts">
+            <div>
+              <dt>Sobra das cotas</dt>
+              <dd>
+                {closure.leftoverDisposition === "group-reserve"
+                  ? "Fica no caixa do grupo"
+                  : "Volta para as pessoas"}
+              </dd>
+            </div>
+          </dl>
+          {closure.pendingExplanation.trim() && (
+            <p className="ui-sec">
+              Ficou pendente: {closure.pendingExplanation}
+            </p>
+          )}
+          <div className="pool-actions">
+            <Button
+              variant="ghost"
+              small
+              disabled={!enabled}
+              onClick={() =>
+                ask({
+                  type: "pool_reopen",
+                  poolId: pool.id,
+                  closureId: closure.id,
+                })}
+            >
+              Reabrir o bolão
+            </Button>
+          </div>
+        </>
+      );
+    }
+    const leftover = leftoverChoice ??
+      (manifest?.content.plan.leftoverPolicy === "refund-pro-rata"
+        ? "pending-refund"
+        : "group-reserve");
+    const missing = pendente(balance) && !pendingText.trim();
+    const amount = (cents: string | null) =>
+      cents === null ? "a confirmar" : formatBRL(cents);
+    return (
+      <div className="pool-form">
+        <dl className="pool-facts">
+          <div>
+            <dt>Sobra das cotas</dt>
+            <dd>{amount(balance.contributionSurplusCents)}</dd>
+          </div>
+          <div>
+            <dt>Prêmio a pagar</dt>
+            <dd>{amount(balance.unpaidPrizeCents)}</dd>
+          </div>
+          <div>
+            <dt>Devoluções pendentes</dt>
+            <dd>{amount(balance.refundPendingCents)}</dd>
+          </div>
+          <div>
+            <dt>Prêmio não resgatado</dt>
+            <dd>{amount(balance.unredeemedPrizeCents)}</dd>
+          </div>
+        </dl>
+        <fieldset className="pool-fieldset">
+          <legend>O que fazer com a sobra</legend>
+          <label className="pool-choice">
+            <input
+              type="radio"
+              name={`sobra-${pool.id}`}
+              checked={leftover === "group-reserve"}
+              onChange={() => setLeftoverChoice("group-reserve")}
+            />
+            <span>Fica no caixa do grupo</span>
+          </label>
+          <label className="pool-choice">
+            <input
+              type="radio"
+              name={`sobra-${pool.id}`}
+              checked={leftover === "pending-refund"}
+              onChange={() => setLeftoverChoice("pending-refund")}
+            />
+            <span>Devolver às pessoas</span>
+          </label>
+        </fieldset>
+        <label>
+          O que fica pendente
+          <textarea
+            rows={2}
+            value={pendingText}
+            onChange={(event) => setPendingText(event.target.value)}
+          />
+        </label>
+        {missing && (
+          <p className="split-wait">
+            Ainda há conta aberta: explique o que fica pendente.
+          </p>
+        )}
+        <Button
+          disabled={!enabled || missing}
+          onClick={() =>
+            ask({
+              type: "pool_settle",
+              poolId: pool.id,
+              leftoverDisposition: leftover,
+              pendingExplanation: pendingText.trim(),
+            })}
+        >
+          Encerrar o bolão
+        </Button>
+      </div>
+    );
+  }
+  const released = !!balance && !!report && !balance.registrationIncomplete &&
+    !!result?.result?.drawnNumbers;
+
   const facts = snapshot
     ? [
       ...snapshot.expenses.map((fact) => ({
@@ -696,6 +831,10 @@ export function BolaoDividir(
             ? "Pagamento"
             : "Devolução"
         } ${formatBRL(fact.amountCents)} · ${name(manifest, fact.personId)}`,
+      })),
+      ...snapshot.closures.map((fact) => ({
+        fact,
+        label: fact.direction === "closed" ? "Encerramento" : "Reabertura",
       })),
     ].filter((item) => item.fact.poolId === pool.id).sort((a, b) =>
       b.fact.groupRevision - a.fact.groupRevision
@@ -743,10 +882,20 @@ export function BolaoDividir(
                 </p>
               )}
           </Card>
+          {balance && (balance.closed || released) && (
+            <Card
+              className="pool-card"
+              label={balance.closed ? "Encerramento" : "Encerrar o bolão"}
+            >
+              <Eyebrow>
+                {balance.closed ? "Encerramento" : "Encerrar o bolão"}
+              </Eyebrow>
+              {closingCard(balance)}
+            </Card>
+          )}
           <div className="pool-actions">
             <Button onClick={repeat}>Repetir com a mesma turma</Button>
           </div>
-          <p className="ui-sec split-later">Encerrar o bolão entra depois.</p>
           {!!facts.length && (
             <Disclosure summary="Detalhes técnicos" className="split-tech">
               {facts.map(({ fact, label }) => (

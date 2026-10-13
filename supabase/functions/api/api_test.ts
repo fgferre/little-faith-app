@@ -359,7 +359,7 @@ Deno.test('settlement HTTP routes forward human decisions, recover receipts and 
     action: { type: 'pool_settle', poolId: id, poolVersion: 2, registrationReportId: id, prizeConfirmationId: null,
       expenseConfirmationId: null, leftoverDisposition: 'group-reserve', pendingExplanation: '', reason: 'Encerramento.' } };
   const receipt = { apiVersion: 'v1', idempotencyKey: id, receiptId: null, groupId: id, status: 'rejected',
-    groupRevision: 0, message: 'Encerramento e reabertura ainda não estão disponíveis.', confirmedAt: null, snapshot };
+    groupRevision: 0, message: 'Encerramento exige as versões atuais de registro, despesas e prêmio.', confirmedAt: null, snapshot };
   const calls: { name: string; parameters: unknown }[] = [];
   let invalidBackend = false;
   let missingReceipt = false;

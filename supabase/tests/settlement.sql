@@ -157,7 +157,7 @@ end; $$;
 do $$ declare g uuid := 'a1000000-0000-4000-8000-000000000001'; p1 uuid := 'a4000000-0000-4000-8000-000000000001'; p2 uuid := 'a4000000-0000-4000-8000-000000000002';
   ev1 uuid := 'a8000000-0000-4000-8000-000000000001'; ev2 uuid := 'a8000000-0000-4000-8000-000000000002';
   person1 uuid := 'a3000000-0000-4000-8000-000000000001'; person2 uuid := 'a3000000-0000-4000-8000-000000000002'; holder uuid := 'a3000000-0000-4000-8000-000000000003';
-  report1 uuid; report2 uuid; result1 uuid; result2 uuid; prize1 uuid; prize2 uuid; paid uuid; redeemed uuid; cmd jsonb; r jsonb; original jsonb; rev bigint; entitlements jsonb; deadline jsonb;
+  report1 uuid; report2 uuid; result1 uuid; result2 uuid; prize1 uuid; prize2 uuid; paid uuid; redeemed uuid; cmd jsonb; r jsonb; original jsonb; rev bigint; entitlements jsonb; deadline jsonb; closure1 uuid; expense1 uuid; payment jsonb;
 begin
   insert into settlement_contract_samples values('registered before settlement','snapshot',public.settlement_pull(g));
   select id into report1 from public.registration_reports where pool_id = p1 order by version desc limit 1;
@@ -277,18 +277,66 @@ begin
     where x.value ->> 'reversesId' = redeemed::text and x.value ->> 'amountCents' = '-3333334'),'redemption reversal recorded');
   insert into settlement_contract_samples values('redemption reversed','receipt',r);
 
-  -- Stale observation, unavailable closure and a recovered receipt.
+  -- Stale observation and a recovered receipt.
   r := public.settlement_decide(pg_temp.settle(jsonb_build_object('type','expense_confirm','poolId',p2,'poolVersion',pg_temp.pool_version(p2),
     'registrationReportId',report2,'supersedesId',null,'betCostCents','2400','feeCents','0','evidenceIds',jsonb_build_array(ev2),
     'sourceReference','Comprovantes originais conferidos','reason',''),gen_random_uuid(),0));
   perform pg_temp.assert_true(r ->> 'status' = 'conflict' and r ->> 'receiptId' is null,'stale expected revision is an explicit conflict');
   insert into settlement_contract_samples values('stale revision conflict','receipt',r);
+  -- Closing mirrors the core: current ids, open items explained, and only a human reopening unlocks the pool again.
+  select id into expense1 from public.settlement_expenses where pool_id = p1 order by version desc limit 1;
+  cmd := jsonb_build_object('type','pool_settle','poolId',p1,'poolVersion',pg_temp.pool_version(p1),'registrationReportId',report1,
+    'prizeConfirmationId',prize1,'expenseConfirmationId',expense1,'leftoverDisposition','group-reserve','pendingExplanation','','reason','Encerramento do bolão.');
+  r := public.settlement_decide(pg_temp.settle(cmd));
+  perform pg_temp.assert_true(r ->> 'status' = 'rejected' and r ->> 'message' = 'Pendências, reserva, prêmio ausente ou despesa desconhecida precisam permanecer explicados.'
+    and (select count(*) from public.settlement_closures) = 0,'closing with a prize still to pay needs an explanation');
+  insert into settlement_contract_samples values('pool settle unexplained','receipt',r);
+  r := public.settlement_decide(pg_temp.settle(cmd || jsonb_build_object('prizeConfirmationId',null,'pendingExplanation','Prêmio a pagar.')));
+  perform pg_temp.assert_true(r ->> 'status' = 'rejected' and r ->> 'message' = 'Encerramento exige as versões atuais de registro, despesas e prêmio.'
+    and (select count(*) from public.settlement_closures) = 0,'closing needs the current prize');
+  r := public.settlement_decide(pg_temp.settle(jsonb_build_object('type','pool_settle','poolId',p2,'poolVersion',pg_temp.pool_version(p2),'registrationReportId',report2,
+    'prizeConfirmationId',prize2,'expenseConfirmationId',null,'leftoverDisposition','pending-refund','pendingExplanation','Custo e resgates ainda abertos.','reason','Pausa da apuração.')));
+  perform pg_temp.assert_true(r ->> 'status' = 'accepted' and exists (select 1 from public.settlement_closures where pool_id = p2 and direction = 'closed'
+    and leftover_disposition = 'pending-refund' and pending_explanation = 'Custo e resgates ainda abertos.' and reconciliation ->> 'expenseConfirmationPending' = 'true'),
+    'an explained pending closure keeps its explanation');
+  insert into settlement_contract_samples values('pool settled with pending','receipt',r);
+  -- Pay the remaining prize and refunds so pool 1 has nothing open.
+  for payment in select value from jsonb_array_elements(jsonb_build_array(
+      jsonb_build_object('personId',person1,'kind','prize-payment','amountCents','3333333'),jsonb_build_object('personId',person2,'kind','prize-payment','amountCents','1666667'),
+      jsonb_build_object('personId',person1,'kind','contribution-refund','amountCents','967'),jsonb_build_object('personId',person2,'kind','contribution-refund','amountCents','33'))) loop
+    r := public.settlement_decide(pg_temp.settle(payment || jsonb_build_object('type','distribution_record','poolId',p1,'poolVersion',pg_temp.pool_version(p1),
+      'evidenceIds',jsonb_build_array(ev1),'sourceReference','Transferência identificada','eventAt',pg_temp.now_json(),'reason','Acerto final.')));
+    perform pg_temp.assert_true(r ->> 'status' = 'accepted','final payment before closing accepted');
+  end loop;
+  cmd := pg_temp.settle(cmd || jsonb_build_object('poolVersion',pg_temp.pool_version(p1)));
+  r := public.settlement_decide(cmd); original := r;
+  select id into closure1 from public.settlement_closures where pool_id = p1;
+  perform pg_temp.assert_true(r ->> 'status' = 'accepted' and closure1 is not null and exists (select 1 from public.settlement_closures where id = closure1
+    and direction = 'closed' and version = 1 and previous_closure_id is null and leftover_disposition = 'group-reserve' and pending_explanation = ''
+    and expense_confirmation_id = expense1 and reconciliation ->> 'closed' = 'false' and reconciliation ->> 'refundPendingCents' = '0'),'closing without open items accepted');
+  insert into settlement_contract_samples values('pool settled','receipt',r);
+  perform pg_temp.assert_true(public.settlement_decide(cmd) = original and (select count(*) from public.settlement_closures where pool_id = p1) = 1,
+    'repeating the closing returns the original receipt');
+  r := public.settlement_decide(pg_temp.settle(jsonb_build_object('type','expense_confirm','poolId',p1,'poolVersion',pg_temp.pool_version(p1),
+    'registrationReportId',report1,'supersedesId',expense1,'betCostCents','2300','feeCents','0','evidenceIds',jsonb_build_array(ev1),
+    'sourceReference','Comprovantes originais conferidos','reason','Revisão depois do encerramento.')));
+  perform pg_temp.assert_true(r ->> 'status' = 'rejected' and r ->> 'message' = 'Bolão encerrado exige reabertura humana antes de nova alteração financeira.','a closed pool takes no new money fact');
+  cmd := jsonb_build_object('type','pool_reopen','poolId',p1,'poolVersion',pg_temp.pool_version(p1),'closureId',gen_random_uuid(),'reason','Correção do custo.');
+  r := public.settlement_decide(pg_temp.settle(cmd));
+  perform pg_temp.assert_true(r ->> 'status' = 'rejected' and r ->> 'message' = 'Reabertura exige o encerramento ativo observado.'
+    and (select count(*) from public.settlement_closures where pool_id = p1) = 1,'reopening needs the active closure');
+  r := public.settlement_decide(pg_temp.settle(cmd || jsonb_build_object('closureId',closure1)));
+  perform pg_temp.assert_true(r ->> 'status' = 'accepted' and exists (select 1 from public.settlement_closures where pool_id = p1 and direction = 'reopened'
+    and version = 2 and previous_closure_id = closure1 and leftover_disposition = 'group-reserve' and reconciliation ->> 'closed' = 'true'),'reopening the active closure accepted');
+  insert into settlement_contract_samples values('pool reopened','receipt',r);
+  r := public.settlement_decide(pg_temp.settle(cmd || jsonb_build_object('poolVersion',pg_temp.pool_version(p1),'closureId',closure1)));
+  perform pg_temp.assert_true(r ->> 'status' = 'rejected' and r ->> 'message' = 'Reabertura exige o encerramento ativo observado.','an open pool cannot be reopened');
   r := public.settlement_decide(pg_temp.settle(jsonb_build_object('type','pool_settle','poolId',p1,'poolVersion',pg_temp.pool_version(p1),'registrationReportId',report1,
-    'prizeConfirmationId',prize1,'expenseConfirmationId',(select id from public.settlement_expenses where pool_id = p1 order by version desc limit 1),'leftoverDisposition','group-reserve',
-    'pendingExplanation','','reason','Encerramento do bolão.')));
-  perform pg_temp.assert_true(r ->> 'status' = 'rejected' and r ->> 'message' = 'Encerramento e reabertura ainda não estão disponíveis.'
-    and (select count(*) from public.settlement_closures) = 0,'closing is not available yet');
-  insert into settlement_contract_samples values('pool settle unavailable','receipt',r);
+    'prizeConfirmationId',prize1,'expenseConfirmationId',expense1,'leftoverDisposition','pending-refund','pendingExplanation','','reason','Encerramento revisado.')));
+  perform pg_temp.assert_true(r ->> 'status' = 'accepted' and exists (select 1 from public.settlement_closures where pool_id = p1 and direction = 'closed'
+    and version = 3 and previous_closure_id = (select id from public.settlement_closures where pool_id = p1 and version = 2) and leftover_disposition = 'pending-refund'),
+    'closing again after a reopening accepted');
+  insert into settlement_contract_samples values('pool settled again','receipt',r);
   perform pg_temp.assert_true(public.settlement_command_status(gen_random_uuid()) is null,'unknown key has no receipt');
   insert into settlement_contract_samples values('final settlement','snapshot',public.settlement_pull(g));
   r := public.sync_pull(g,0);

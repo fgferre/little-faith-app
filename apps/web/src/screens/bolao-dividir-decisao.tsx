@@ -15,6 +15,7 @@ import type {
   LocalRecord,
   OfficialPrizeEntitlement,
   PoolManifest,
+  PoolSettlement,
   PoolSettlementBalance,
   SettlementAction,
   SettlementCommand,
@@ -47,7 +48,14 @@ export type Intencao =
     personId: string;
     kind: "prize-payment" | "contribution-refund";
   }
-  | { type: "distribution_reverse"; poolId: string; distributionId: string };
+  | { type: "distribution_reverse"; poolId: string; distributionId: string }
+  | {
+    type: "pool_settle";
+    poolId: string;
+    leftoverDisposition: PoolSettlement["leftoverDisposition"];
+    pendingExplanation: string;
+  }
+  | { type: "pool_reopen"; poolId: string; closureId: string };
 export type PedidoDivisao = { intent: Intencao } | { idempotencyKey: string };
 
 interface Resumo {
@@ -111,7 +119,11 @@ function oficiais(snapshot: SettlementSnapshot, poolId: string) {
 const chaveOficial = (row: { plannedTicketKey: string; quotaId: string }) =>
   `${row.plannedTicketKey}:${row.quotaId}`;
 
+/** Encerrar e reabrir não movem dinheiro: sem comprovante, referência ou data. */
+const fechamento = (intent: Intencao) =>
+  intent.type === "pool_settle" || intent.type === "pool_reopen";
 function evidenciaObrigatoria(intent: Intencao, campos: Campos) {
+  if (fechamento(intent)) return false;
   if (intent.type !== "prize_confirm") return true;
   try {
     return BigInt(parseBRL(campos.amount)) > 0n;
@@ -122,7 +134,7 @@ function evidenciaObrigatoria(intent: Intencao, campos: Campos) {
 const motivoObrigatorio = (intent: Intencao) =>
   intent.type === "distribution_record" ||
   intent.type === "redemption_reverse" ||
-  intent.type === "distribution_reverse";
+  intent.type === "distribution_reverse" || fechamento(intent);
 
 function inicial(intent: Intencao, ctx: Contexto): Campos {
   const { snapshot, balance, manifest } = ctx;
@@ -189,6 +201,10 @@ function inicial(intent: Intencao, ctx: Contexto): Campos {
       return { ...base, reference: "Correção do resgate" };
     case "distribution_reverse":
       return { ...base, reference: "Correção do pagamento" };
+    case "pool_settle":
+      return { ...base, reason: "Conta do bolão conferida." };
+    case "pool_reopen":
+      return { ...base, reason: "Reabrir para corrigir a conta." };
   }
 }
 
@@ -292,6 +308,26 @@ function montar(intent: Intencao, ctx: Contexto, f: Campos): SettlementAction {
         distributionId: intent.distributionId,
         eventAt,
       };
+    case "pool_settle":
+      if (!report) throw new Error("Falta conferir o registro.");
+      return {
+        ...base,
+        type: "pool_settle",
+        registrationReportId: report.id,
+        prizeConfirmationId: latest(snapshot.prizes, intent.poolId)?.id ?? null,
+        expenseConfirmationId: latest(snapshot.expenses, intent.poolId)?.id ??
+          null,
+        leftoverDisposition: intent.leftoverDisposition,
+        pendingExplanation: intent.pendingExplanation,
+        reason: fonte.reason,
+      };
+    case "pool_reopen":
+      return {
+        ...base,
+        type: "pool_reopen",
+        closureId: intent.closureId,
+        reason: fonte.reason,
+      };
   }
 }
 
@@ -312,8 +348,10 @@ function titulo(action: SettlementAction, manifest: PoolManifest | null) {
         : `Devolver para ${who(action.personId)}`;
     case "distribution_reverse":
       return "Desfazer o pagamento";
-    default:
-      return "Divisão do prêmio";
+    case "pool_settle":
+      return "Encerrar o bolão";
+    case "pool_reopen":
+      return "Reabrir o bolão";
   }
 }
 const FEITO: Record<SettlementAction["type"], string> = {
@@ -382,6 +420,28 @@ function resumir(
       }${
         original ? ` para ${nome(manifest, original.personId)}` : ""
       }. O registro original continua guardado.`,
+    );
+  } else if (action.type === "pool_settle") {
+    const { balance } = ctx;
+    const valor = (cents: string | null) =>
+      cents === null ? "a confirmar" : formatBRL(cents);
+    lines.push(
+      `Encerrar a conta do bolão. Prêmio a pagar: ${
+        valor(balance.unpaidPrizeCents)
+      }; devoluções pendentes: ${valor(balance.refundPendingCents)}.`,
+      `Sobra das cotas: ${valor(balance.contributionSurplusCents)}, ${
+        action.leftoverDisposition === "group-reserve"
+          ? "fica no caixa do grupo"
+          : "volta para as pessoas"
+      }.`,
+      action.pendingExplanation.trim()
+        ? `Fica pendente: ${action.pendingExplanation}`
+        : "Nada fica pendente.",
+      "Depois de encerrado, nenhum valor muda até alguém reabrir o bolão.",
+    );
+  } else if (action.type === "pool_reopen") {
+    lines.push(
+      "Reabrir o bolão para corrigir a conta. O encerramento anterior continua guardado.",
     );
   }
   if ("eventAt" in action) {
@@ -609,7 +669,9 @@ export function DivisaoDecisao(
     if (evidenciaObrigatoria(intent, fields) && !fields.evidenceIds.length) {
       return { hint: "Marque o comprovante." };
     }
-    if (!fields.reference.trim()) return { hint: "Escreva a referência." };
+    if (!fechamento(intent) && !fields.reference.trim()) {
+      return { hint: "Escreva a referência." };
+    }
     if (motivoObrigatorio(intent) && !fields.reason.trim()) {
       return { hint: "Escreva o motivo." };
     }
@@ -796,7 +858,8 @@ export function DivisaoDecisao(
   const withAmount = intent?.type === "prize_confirm" ? !official.length
   : intent?.type === "redemption_record" ||
     intent?.type === "distribution_record";
-  const withDate = !!intent &&
+  const closing = !!intent && fechamento(intent);
+  const withDate = !!intent && !closing &&
     !["expense_confirm", "prize_confirm"].includes(intent.type);
 
   if (end) {
@@ -951,48 +1014,61 @@ export function DivisaoDecisao(
                   />
                 </label>
               )}
-              <fieldset className="pool-fieldset">
-                <legend>Comprovante</legend>
-                {evidence.length
-                  ? evidence.map((file) => (
-                    <label className="pool-choice" key={file.id}>
-                      <input
-                        type="checkbox"
-                        checked={fields.evidenceIds.includes(file.id)}
-                        onChange={(event) =>
-                          update({
-                            evidenceIds: event.target.checked
-                              ? [...fields.evidenceIds, file.id]
-                              : fields.evidenceIds.filter((id) =>
-                                id !== file.id
-                              ),
-                          })}
-                      />
-                      <span>{file.originalName}</span>
-                    </label>
-                  ))
-                  : (
-                    <p className="ui-sec">
-                      Nenhum comprovante enviado neste bolão.
-                    </p>
-                  )}
-                {goRegistrar && (
-                  <button
-                    type="button"
-                    className="pool-link"
-                    onClick={goRegistrar}
-                  >
-                    Anexar outro comprovante no Registrar
-                  </button>
+              {closing
+                ? (
+                  <div className="split-lines">
+                    {preview?.action &&
+                      resumir(preview.action, ctx, timeZone).lines
+                        .filter((line) => !line.startsWith("Motivo: "))
+                        .map((line, index) => <p key={index}>{line}</p>)}
+                  </div>
+                )
+                : (
+                  <>
+                  <fieldset className="pool-fieldset">
+                    <legend>Comprovante</legend>
+                    {evidence.length
+                      ? evidence.map((file) => (
+                        <label className="pool-choice" key={file.id}>
+                          <input
+                            type="checkbox"
+                            checked={fields.evidenceIds.includes(file.id)}
+                            onChange={(event) =>
+                              update({
+                                evidenceIds: event.target.checked
+                                  ? [...fields.evidenceIds, file.id]
+                                  : fields.evidenceIds.filter((id) =>
+                                    id !== file.id
+                                  ),
+                              })}
+                          />
+                          <span>{file.originalName}</span>
+                        </label>
+                      ))
+                      : (
+                        <p className="ui-sec">
+                          Nenhum comprovante enviado neste bolão.
+                        </p>
+                      )}
+                    {goRegistrar && (
+                      <button
+                        type="button"
+                        className="pool-link"
+                        onClick={goRegistrar}
+                      >
+                        Anexar outro comprovante no Registrar
+                      </button>
+                    )}
+                  </fieldset>
+                  <label>
+                    Referência (Pix, extrato ou lotérica)<input
+                      value={fields.reference}
+                      onChange={(event) =>
+                        update({ reference: event.target.value })}
+                    />
+                  </label>
+                  </>
                 )}
-              </fieldset>
-              <label>
-                Referência (Pix, extrato ou lotérica)<input
-                  value={fields.reference}
-                  onChange={(event) =>
-                    update({ reference: event.target.value })}
-                />
-              </label>
               <label>
                 {motivoObrigatorio(intent) ? "Motivo" : "Motivo (se mudou algo)"}
                 <textarea
@@ -1017,7 +1093,9 @@ export function DivisaoDecisao(
                   disabled={!enabled || busy || !preview?.action}
                   onChange={(event) => setReviewed(event.target.checked)}
                 />
-                Conferi o valor e o comprovante.
+                {closing
+                  ? "Conferi a conta do bolão."
+                  : "Conferi o valor e o comprovante."}
               </label>
               <Disclosure summary="Detalhes técnicos">
                 <p>

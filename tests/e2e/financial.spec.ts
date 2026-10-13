@@ -1439,7 +1439,7 @@ async function confirmSplit(
   await expect(dialog).not.toBeVisible();
 }
 
-test("the prize split confirms cost and prize, records the redemption, pays, reverses and pays again on the real SQL", async ({ page, request }) => {
+test("the prize split confirms cost and prize, records the redemption, pays, reverses, pays again, closes and reopens on the real SQL", async ({ page, request }) => {
   test.setTimeout(150_000);
   const manifest = await lockRegistrationFixture(page, request);
   await addOriginal(page);
@@ -1585,4 +1585,34 @@ test("the prize split confirms cost and prize, records the redemption, pays, rev
   expect(settled.redemptions).toHaveLength(1);
   expect(settled.prizes).toHaveLength(1);
   expect(settled.expenses).toHaveLength(1);
+
+  // Nothing left open: the pool closes without an explanation and reopens by a human decision.
+  const closing = page.locator('[aria-label="Encerrar o bolão"]');
+  const review = async (done: string) => {
+    await dialog.getByRole("checkbox", { name: "Conferi a conta do bolão." })
+      .check();
+    await dialog.getByRole("button", { name: "Confirmar", exact: true }).click();
+    await expect(dialog.getByText(done, { exact: true })).toBeVisible();
+    await dialog.getByRole("button", { name: "Pronto", exact: true }).click();
+    await expect(dialog).not.toBeVisible();
+  };
+  await expect(closing).toContainText("Prêmio a pagarR$ 0,00");
+  await expect(closing).toContainText("Devoluções pendentesR$ 0,00");
+  await closing.getByRole("button", { name: "Encerrar o bolão", exact: true })
+    .click();
+  await review("Bolão encerrado.");
+  const closed = page.locator('[aria-label="Encerramento"]');
+  await expect(closed.getByText(/^Bolão encerrado em \d{2}\/\d{2}$/))
+    .toBeVisible();
+  await expect(closing).not.toBeVisible();
+  await closed.getByRole("button", { name: "Reabrir o bolão", exact: true })
+    .click();
+  await review("Bolão reaberto.");
+  await expect(
+    closing.getByRole("button", { name: "Encerrar o bolão", exact: true }),
+  ).toBeVisible();
+  const reopened = await fixturePost(request, "settlement_pull", { groupId });
+  expect(
+    reopened.closures.map((item: { direction: string }) => item.direction),
+  ).toEqual(["closed", "reopened"]);
 });
