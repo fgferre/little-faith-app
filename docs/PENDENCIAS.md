@@ -14,6 +14,16 @@ leitura só, `rolloverOf`, para Sorteio e Arrecadar); "Enviar no WhatsApp" + "Co
 `main` = 4b52fea, enviado ao GitHub. **Verificado em 13/10:** `npm run done` verde duas vezes (tipos, lint, 320 testes,
 SQL no PGlite, 16 da API, build, 40 fluxos no navegador); capturas em `.tmp/visual/` (apagável).
 
+**Rodada de layout (13–14/10, dois commits locais 1e0084e e 28b9771, NÃO enviados ao GitHub):** conferência geral
+pedida por ele (quadro "Conferência de layout", https://claude.ai/artifact/NRJqXNXzy6aaSC7YC9nroT, com antes e depois
+de 7 telas em 3 larguras); régua única em `styles.css :root` (`--t-*`, `--lh-*`, `--e*`, `--r-*`, `--margem`,
+`--conteudo-max`), quebras 359/700/1000/1200, barra lateral só a partir de 1000 (tablet com barra de baixo e duas
+colunas, escolha dele), Inter nunca acima de 600, fileira de botões única (lado a lado até caber, pilha quando não, até
+420 px a partir de 700), cartão do participante de exemplo em `#/p/demo`, marcador do menu corrigido. Medições e fotos
+em `.tmp/layout/` (`auditar.mjs` fotografa e mede as 17 telas × 3 larguras; `RESUMO.md`). `npm run done` verde em 14/10.
+Fica para a próxima: publicar junto com o pendente de produção abaixo; o teste que faltou aprovar: "`#/p/demo` mostra o
+cartão da Isabela sem chamar o servidor"; ideia de lint "sem px fora da régua" e "sem prefers-reduced-motion: reduce".
+
 **PENDENTE DE PRODUÇÃO (ordem obrigatória):** 1) migração `20261013020000` ainda NÃO aplicada no servidor
 (`npx -y supabase@2 db push --yes`); 2) app ainda NÃO republicado com os três commits de 13/10 (`gh workflow run
 deploy.yml --ref main`). O classificador do modo automático barrou os dois (e alguns "Salvar" no app publicado) mesmo
