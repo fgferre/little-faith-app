@@ -65,9 +65,16 @@ export function useSlidingIndicator(
       }
     };
     watch();
-    const swapped = new MutationObserver(watch);
-    swapped.observe(box, { childList: true });
     let alive = true;
+    // Quando algo entra, sai ou muda de texto dentro do menu (o cartão do grupo troca o botão quando os dados
+    // chegam), re-mede na hora: a mutação já está no DOM e medir força o layout. Não depender de
+    // ResizeObserver nem de requestAnimationFrame aqui: os dois só rodam quando o navegador desenha um
+    // quadro, e numa aba que ainda não desenha (ou está de lado) o marcador ficava 20 px fora até o próximo clique.
+    const swapped = new MutationObserver(() => {
+      watch();
+      place(true);
+    });
+    swapped.observe(box, { childList: true, subtree: true, characterData: true });
     void document.fonts?.ready.then(() => {
       if (alive) place(true);
     });
