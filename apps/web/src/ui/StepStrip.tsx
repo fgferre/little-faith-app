@@ -20,6 +20,8 @@ export function StepStrip<K extends string>(
   },
 ) {
   const list = useRef<HTMLOListElement>(null);
+  // A primeira centralização é seca (a faixa já abre no lugar); as seguintes deslizam.
+  const centered = useRef(false);
   // O fundo da etapa atual é uma peça só que desliza até a etapa escolhida, como no menu.
   // A chave inclui as etapas feitas: o ✓ alarga o chip no celular e a peça precisa acompanhar.
   const setBox = useSlidingIndicator(
@@ -32,29 +34,36 @@ export function StepStrip<K extends string>(
     const ol = list.current;
     if (!ol) return;
     // Esmaecer só do lado em que ainda há etapas escondidas.
-    // A faixa tem folga de 16 px nas pontas (ui.css): enquanto só a folga está escondida, nenhuma
-    // etapa está cortada e não há esmaecido.
+    // A faixa tem nas pontas a folga da margem da página (ui.css): enquanto só a folga está escondida,
+    // nenhuma etapa está cortada e não há esmaecido.
     const fades = () => {
       const max = ol.scrollWidth - ol.clientWidth;
       const edge = Number.parseFloat(getComputedStyle(ol).paddingLeft) || 0;
       ol.style.setProperty(
         "--fl",
-        ol.scrollLeft > edge + 2 ? "44px" : "0px",
+        ol.scrollLeft > edge + 2 ? "40px" : "0px",
       );
       ol.style.setProperty(
         "--fr",
-        ol.scrollLeft < max - edge - 2 ? "44px" : "0px",
+        ol.scrollLeft < max - edge - 2 ? "40px" : "0px",
       );
     };
-    // A etapa atual fica inteira à vista, com folga para o esmaecido.
+    // A etapa atual fica no meio da faixa quando ela rola; se todas cabem, nada rola.
+    // Rola só a faixa, nunca a página; o marcador vai junto sozinho.
     const align = () => {
       const now = ol.querySelector<HTMLElement>(".now")?.parentElement;
-      if (now) {
-        const want = now.offsetLeft + now.offsetWidth + 52 - ol.clientWidth;
-        ol.scrollLeft = Math.max(
-          0,
-          Math.min(want, ol.scrollWidth - ol.clientWidth),
-        );
+      const max = ol.scrollWidth - ol.clientWidth;
+      if (now && max > 0) {
+        const slide = centered.current
+          && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+        ol.scrollTo({
+          left: Math.max(
+            0,
+            Math.min(now.offsetLeft + (now.offsetWidth - ol.clientWidth) / 2, max),
+          ),
+          behavior: slide ? "smooth" : "auto",
+        });
+        centered.current = true;
       }
       fades();
     };

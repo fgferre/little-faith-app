@@ -219,7 +219,12 @@ export function HistoricoScreen(
                   {lines.filter(([, cents]) => cents != null).map((
                     [label, cents],
                   ) => (
-                    <div key={label}>
+                    <div
+                      key={label}
+                      className={label === "Caixa conciliado"
+                        ? "history-line-total"
+                        : undefined}
+                    >
                       <dt>{label}</dt>
                       <dd>{formatBRL(cents!)}</dd>
                     </div>

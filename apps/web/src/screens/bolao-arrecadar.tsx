@@ -502,7 +502,7 @@ export function BolaoArrecadar(
   };
 
   return (
-    <div className="pool-cols">
+    <div className="pool-cols pool-collect">
       <Card className="pool-card" label="Arrecadação">
         <Eyebrow>Arrecadação</Eyebrow>
         <Money
@@ -698,16 +698,15 @@ export function BolaoArrecadar(
           <div className="pool-actions">
             <Button
               variant={snapshot.persons.length ? "ghost" : "primary"}
-              small
               icon={<UserPlus aria-hidden="true" />}
               onClick={() => openForm("person")}
             >
               Adicionar pessoa
             </Button>
-            <Button variant="ghost" small onClick={() => openForm("quota")}>
+            <Button variant="ghost" onClick={() => openForm("quota")}>
               Preparar cota
             </Button>
-            <Button variant="ghost" small onClick={() => openForm("payment")}>
+            <Button variant="ghost" onClick={() => openForm("payment")}>
               Registrar pagamento
             </Button>
           </div>

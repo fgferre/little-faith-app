@@ -10,6 +10,7 @@ export {
 export type { ShareCardData, ShareCardGame } from "./cartao";
 export { EnviarWhatsApp } from "./EnviarWhatsApp";
 export { codigoPix, PixCode } from "./PixCode";
+export { PoolRow } from "./PoolRow";
 export { StepStrip } from "./StepStrip";
 export type { StepItem } from "./StepStrip";
 export { useSlidingIndicator } from "./useSlidingIndicator";

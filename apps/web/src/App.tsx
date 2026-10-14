@@ -529,6 +529,8 @@ function OrganizerApp() {
       {group ? "Novo bolão" : "Criar grupo"}
     </Button>
   );
+  // o lema fecha só a Início, já aberta; o aviso da demonstração fecha todas as telas
+  const motto = !!snapshot && route.screen === "inicio";
   const pendingLabel = `${reviewCount} ${
     reviewCount === 1 ? "pendência" : "pendências"
   }`;
@@ -873,21 +875,30 @@ function OrganizerApp() {
                   )}
                 </>
               )}
-            {isDemo && (
-              <div className="demo-banner">
-                <Sparkles aria-hidden="true" />
-                <span>Um gostinho do app: estes são dados de exemplo.</span>
-                <Button
-                  variant="ghost"
-                  small
-                  onClick={() => {
-                    switchMode("local");
-                    setForm("group");
-                  }}
-                >
-                  Criar meu grupo
-                </Button>
-              </div>
+            {(motto || isDemo) && (
+              <footer className="page-footer">
+                {motto && (
+                  <p className="home-moto">
+                    Faça sua fezinha, organize suas apostas e boa sorte!
+                  </p>
+                )}
+                {isDemo && (
+                  <div className="demo-banner">
+                    <Sparkles aria-hidden="true" />
+                    <span>Um gostinho do app: estes são dados de exemplo.</span>
+                    <Button
+                      variant="ghost"
+                      small
+                      onClick={() => {
+                        switchMode("local");
+                        setForm("group");
+                      }}
+                    >
+                      Criar meu grupo
+                    </Button>
+                  </div>
+                )}
+              </footer>
             )}
           </main>
         </div>

@@ -1,7 +1,7 @@
 import type { MouseEvent } from "react";
 import { ChevronRight, MessageCircle, Plus } from "lucide-react";
 import { useReducedMotion } from "motion/react";
-import { formatBRL, LOTTERIES } from "@bolao/core";
+import { formatBRL } from "@bolao/core";
 import type { FinancialView, LocalRecord } from "@bolao/core";
 import type { BolaoDatabase } from "@bolao/local";
 import type { FormKind, Route, Snapshot } from "../app-shared";
@@ -11,13 +11,15 @@ import {
   Button,
   calendarDaysUntil,
   Card,
-  Chip,
   Countdown,
   Eyebrow,
   formatWhen,
   Money,
+  PoolRow,
 } from "../ui";
-import { joinNames, STEP_LABEL, usePoolViews } from "./bolao-etapas";
+import { useSettlement } from "./bolao-dividir";
+import { joinNames, usePoolViews } from "./bolao-etapas";
+import { poolSituation } from "./boloes";
 import type { PoolView } from "./bolao-etapas";
 import capa900 from "../assets/inicio-companhia-900.jpg";
 import capa1536 from "../assets/inicio-companhia-1536.jpg";
@@ -48,6 +50,7 @@ export function InicioScreen(
   },
 ) {
   const views = usePoolViews({ db, snapshot, financialView, isDemo });
+  const settlement = useSettlement(db, group?.id ?? null);
   const reduceMotion = useReducedMotion();
 
   // Capa: a cena acompanha o ponteiro do mouse, no máximo 6 px por eixo; nada no toque.
@@ -98,16 +101,6 @@ export function InicioScreen(
     return `${paid} de ${v.people.length} ${
       v.people.length === 1 ? "pessoa" : "pessoas"
     } já ${paid === 1 ? "pagou" : "pagaram"}`;
-  };
-
-  const when = (v: PoolView) => {
-    if (v.drawAt) return formatWhen(Date.parse(v.drawAt), now, timeZone);
-    if (v.pool.data.deadlineAt && (v.step === "montar" || v.step === "arrecadar")) {
-      return `pagar até ${
-        formatWhen(Date.parse(v.pool.data.deadlineAt), now, timeZone)
-      }`;
-    }
-    return null;
   };
 
   return (
@@ -263,7 +256,7 @@ export function InicioScreen(
               >
                 <span className="home-attention-main">
                   <Eyebrow>Pede atenção</Eyebrow>
-                  <Money>{reviewCount}</Money>
+                  <b className="home-attention-count">{reviewCount}</b>{" "}
                   <span className="ui-sec">
                     {reviewCount === 1 ? "pendência" : "pendências"}{" "}
                     para revisar · Conferir antes de confirmar
@@ -284,62 +277,19 @@ export function InicioScreen(
                   Novo bolão
                 </Button>
               </div>
-              {views.map((v) => {
-                const line = when(v);
-                return (
-                  <Card
-                    key={v.pool.id}
-                    className="home-pool"
-                    onClick={() => route.navigate("boloes", v.pool.id)}
-                  >
-                    <span
-                      className={`home-num mod-${v.pool.data.lotteryId}`}
-                      aria-hidden="true"
-                    >
-                      {String(LOTTERIES[v.pool.data.lotteryId].minNumbers)
-                        .padStart(2, "0")}
-                    </span>
-                    <span className="home-pool-main">
-                      <b>{v.pool.data.title}</b>
-                      <span className="ui-sec">
-                        {v.hasQuotas
-                          ? (
-                            <>
-                              <span className="ui-nb">
-                                {formatBRL(v.collectedCents)}
-                              </span>
-                              {v.expectedCents !== null && (
-                                <>
-                                  {" de "}
-                                  <span className="ui-nb">
-                                    {formatBRL(v.expectedCents)}
-                                  </span>
-                                </>
-                              )}
-                            </>
-                          )
-                          : "Nenhuma cota ainda"}
-                        {line && <>{" · "}{line}</>}
-                      </span>
-                      <span className="home-pool-chips">
-                        <Chip modality={v.pool.data.lotteryId}>
-                          {LOTTERIES[v.pool.data.lotteryId].label}
-                        </Chip>
-                        <Chip modality={v.pool.data.lotteryId} step>
-                          {STEP_LABEL[v.step]}
-                        </Chip>
-                      </span>
-                    </span>
-                    <ChevronRight aria-hidden="true" />
-                  </Card>
-                );
-              })}
+              {views.map((v) => (
+                <PoolRow
+                  key={v.pool.id}
+                  view={v}
+                  ended={poolSituation(v, settlement.finance?.pools[v.pool.id])
+                    .ended}
+                  timeZone={timeZone}
+                  onClick={() => route.navigate("boloes", v.pool.id)}
+                />
+              ))}
             </section>
           </>
         )}
-      <h2 className="home-moto">
-        Faça sua fezinha, organize suas apostas e boa sorte!
-      </h2>
     </div>
   );
 }

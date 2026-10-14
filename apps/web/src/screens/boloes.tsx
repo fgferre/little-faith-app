@@ -1,6 +1,4 @@
 import type { ReactNode } from "react";
-import { ChevronRight } from "lucide-react";
-import { formatBRL, LOTTERIES } from "@bolao/core";
 import type {
   FinancialView,
   LocalRecord,
@@ -11,10 +9,10 @@ import type { latestApplied, latestManifest } from "../planning";
 import type { PlanningRequest } from "../planning-decision";
 import type { RecordRequest } from "../record-decision";
 import type { FormKind, Notice, Route, Snapshot } from "../app-shared";
-import { Button, Card, Chip, formatWhen, PageHead } from "../ui";
+import { Button, Card, PageHead, PoolRow } from "../ui";
 import { BolaoScreen } from "./bolao";
 import { useSettlement } from "./bolao-dividir";
-import { STEP_LABEL, usePoolViews } from "./bolao-etapas";
+import { usePoolViews } from "./bolao-etapas";
 import type { PoolView } from "./bolao-etapas";
 
 /**
@@ -36,63 +34,6 @@ export function poolSituation(
     ended: closed ||
       (view.step === "dividir" && !view.owing.length && !prizeDue),
   };
-}
-
-/** O cartão de um bolão, igual ao do Início: nome, linha, modalidade, etapa e a seta. */
-function PoolRow(
-  { view, ended, timeZone, onClick }: {
-    view: PoolView;
-    ended: boolean;
-    timeZone: string;
-    onClick: () => void;
-  },
-) {
-  const now = Date.now();
-  const { pool } = view;
-  const when = view.drawAt
-    ? formatWhen(Date.parse(view.drawAt), now, timeZone)
-    : pool.data.deadlineAt &&
-        (view.step === "montar" || view.step === "arrecadar")
-    ? `pagar até ${formatWhen(Date.parse(pool.data.deadlineAt), now, timeZone)}`
-    : null;
-  return (
-    <Card className="home-pool" onClick={onClick}>
-      <span className="home-pool-main">
-        <b>{pool.data.title}</b>
-        <span className="ui-sec">
-          {view.hasQuotas
-            ? (
-              <>
-                <span className="ui-nb">{formatBRL(view.collectedCents)}</span>
-                {view.expectedCents !== null && (
-                  <>
-                    {" de "}
-                    <span className="ui-nb">
-                      {formatBRL(view.expectedCents)}
-                    </span>
-                  </>
-                )}
-              </>
-            )
-            : "Nenhuma cota ainda"}
-          {when && <>{" · "}{when}</>}
-        </span>
-        <span className="home-pool-chips">
-          <Chip modality={pool.data.lotteryId}>
-            {LOTTERIES[pool.data.lotteryId].label}
-          </Chip>
-          {ended
-            ? <Chip status="confirmed">Encerrado</Chip>
-            : (
-              <Chip modality={pool.data.lotteryId} step>
-                {STEP_LABEL[view.step]}
-              </Chip>
-            )}
-        </span>
-      </span>
-      <ChevronRight aria-hidden="true" />
-    </Card>
-  );
 }
 
 function BoloesList(

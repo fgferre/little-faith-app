@@ -75,12 +75,10 @@ export function PageHead(
 ) {
   return (
     <div className="ui-page-head">
-      <div>
-        <Eyebrow>{eyebrow}</Eyebrow>
-        <h1 className="ui-title">{title}</h1>
-        {line && <p className="ui-sec">{line}</p>}
-      </div>
+      <Eyebrow>{eyebrow}</Eyebrow>
+      <h1 className="ui-title">{title}</h1>
       {action}
+      {line && <p className="ui-sec">{line}</p>}
     </div>
   );
 }

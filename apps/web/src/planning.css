@@ -1,19 +1,19 @@
 .planning-sections {
   display: grid;
-  gap: 20px;
+  gap: var(--e24);
 }
 .planning-settings {
   display: flex;
   align-items: end;
   flex-wrap: wrap;
-  gap: 16px;
-  margin: 24px 0 16px;
+  gap: var(--e16);
+  margin: var(--e24) 0 var(--e16);
 }
 .planning-settings label {
   display: grid;
-  gap: 8px;
+  gap: var(--e8);
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--t-apoio);
   font-weight: 600;
   flex: 1;
   min-width: 180px;
@@ -22,16 +22,16 @@
 .planning-settings select {
   width: 100%;
   min-height: 44px;
-  padding: 11px 12px;
+  padding: var(--e12);
   border: 1.5px solid var(--ghost-line);
-  border-radius: 9px;
+  border-radius: var(--r-campo);
   color: var(--text);
   background: var(--surface);
   font: inherit;
 }
 /* o planejador da tela do bolão: nada aqui pode alargar a coluna */
 .planner {
-  gap: 16px;
+  gap: var(--e16);
   min-width: 0;
 }
 .planner > *,
@@ -39,33 +39,33 @@
   min-width: 0;
 }
 .planner .ui-card > .ui-eyebrow {
-  margin-bottom: 8px;
+  margin-bottom: var(--e8);
 }
 .planner .ui-card > .ui-btn {
-  margin-top: 14px;
+  margin-top: var(--e16);
 }
 .planner .planning-settings {
-  margin: 14px 0 0;
+  margin: var(--e16) 0 0;
 }
 .planner-h {
-  margin: 2px 0 6px;
-  font-size: 20px;
+  margin: var(--e2) 0 var(--e8);
+  font-size: var(--t-secao);
   font-weight: 700;
-  line-height: 1.2;
+  line-height: var(--lh-titulo);
 }
 .planner-note {
   display: flex;
   align-items: flex-start;
   flex-wrap: wrap;
-  gap: 8px 10px;
-  margin: 12px 0 0;
-  padding: 12px;
-  border-radius: 12px;
+  gap: var(--e8) var(--e12);
+  margin: var(--e12) 0 0;
+  padding: var(--e12);
+  border-radius: var(--r-cartao);
   background: rgba(255, 255, 255, .04);
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--t-apoio);
   font-weight: 600;
-  line-height: 1.5;
+  line-height: var(--lh-texto);
 }
 .planner-note > svg {
   width: 18px;
@@ -77,12 +77,12 @@
   flex: 1 1 200px;
 }
 .planner-after {
-  margin-top: 10px;
+  margin-top: var(--e12);
 }
 .plan-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 16px;
+  gap: var(--e16);
 }
 .plan-card.selected {
   border-color: var(--purple-ink);
@@ -90,54 +90,55 @@
 }
 .plan-card > .ui-btn,
 .plan-card > .ui-chip {
-  margin-top: 10px;
+  margin-top: var(--e12);
 }
 .plan-chance {
   display: grid;
-  gap: 2px;
-  margin: 12px 0 4px;
+  gap: var(--e2);
+  margin: var(--e12) 0 var(--e4);
 }
 .plan-chance strong {
-  font-size: 28px;
+  font-family: var(--f-titulo);
+  font-size: var(--t-numero);
   font-weight: 700;
-  line-height: 1.15;
+  line-height: var(--lh-justo);
   font-variant-numeric: tabular-nums;
 }
 .plan-values {
   display: grid;
-  gap: 12px;
-  margin: 8px 0 20px;
-  font-size: 13px;
+  gap: var(--e12);
+  margin: var(--e8) 0 var(--e24);
+  font-size: var(--t-apoio);
 }
 .plan-values > div {
   display: flex;
-  gap: 10px;
+  gap: var(--e12);
   justify-content: space-between;
 }
 .plan-values dt {
   color: var(--muted);
 }
 .plan-values dd {
-  font-weight: 650;
+  font-weight: 600;
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 .plan-values .plan-total {
   border-top: 1px solid var(--border);
-  padding-top: 13px;
-  font-size: 15px;
+  padding-top: var(--e12);
+  font-size: var(--t-corpo);
 }
 .planning-actions {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 18px;
+  gap: var(--e12);
+  margin-top: var(--e16);
 }
 .planning-details {
-  margin-top: 20px;
-  font-size: 13px;
-  line-height: 1.7;
+  margin-top: var(--e24);
+  font-size: var(--t-apoio);
+  line-height: var(--lh-texto);
 }
 .planning-details summary {
   min-height: 44px;
@@ -145,68 +146,68 @@
   align-items: center;
   cursor: pointer;
   color: var(--purple-ink);
-  font-weight: 650;
+  font-weight: 600;
 }
 .planning-details p {
   color: var(--muted);
-  margin: 10px 0;
+  margin: var(--e12) 0;
 }
 .planning-details code,
 .manifest-hash {
   overflow-wrap: anywhere;
-  font-size: 12px;
+  font-size: var(--t-apoio);
   color: var(--muted);
 }
 .planner .planning-details {
-  margin-top: 12px;
+  margin-top: var(--e12);
 }
 .planner .planning-details summary {
   display: inline-flex;
 }
 .planning-games {
   display: grid;
-  gap: 12px;
-  margin-top: 12px;
+  gap: var(--e12);
+  margin-top: var(--e12);
 }
 .planning-game {
   border-top: 1px solid var(--border);
-  padding: 14px 0;
+  padding: var(--e16) 0;
 }
 .planning-game > small {
   display: block;
   color: var(--muted);
-  margin: 8px 0;
-  line-height: 1.8;
+  margin: var(--e8) 0;
+  line-height: var(--lh-texto);
 }
 /* simulação: uma linha de progresso de altura fixa e uma tabela de colunas fixas, para nada pular */
 .planner-sim {
-  margin-top: 18px;
-  padding-top: 16px;
+  margin-top: var(--e16);
+  padding-top: var(--e16);
   border-top: 1px solid var(--border);
 }
 .planner-sim h4 {
-  margin: 0 0 4px;
-  font-size: 15px;
-  font-weight: 700;
+  margin: 0 0 var(--e4);
+  font-size: var(--t-corpo);
+  font-weight: 600;
 }
 .planner-sim > .ui-btn {
-  margin-top: 10px;
+  margin-top: var(--e12);
 }
 .planner-sim > .ui-sec {
-  margin-top: 10px;
+  margin-top: var(--e12);
 }
 .planner-progress {
   display: grid;
-  gap: 8px;
-  margin: 12px 0 0;
+  gap: var(--e8);
+  margin: var(--e12) 0 0;
 }
 .planner-progress-line {
-  height: 1.4em;
+  height: calc(var(--lh-texto) * 1em);
   margin: 0;
   overflow: hidden;
-  font-size: 13px;
+  font-size: var(--t-apoio);
   font-weight: 600;
-  line-height: 1.4;
+  line-height: var(--lh-texto);
   text-overflow: ellipsis;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
@@ -218,16 +219,16 @@
 }
 .planner-table {
   min-width: 0;
-  margin-top: 14px;
+  margin-top: var(--e16);
 }
 .planner-table table {
   table-layout: fixed;
   width: 100%;
-  font-size: 13px;
+  font-size: var(--t-apoio);
 }
 .planner-table th,
 .planner-table td {
-  padding: 10px 8px;
+  padding: var(--e12) var(--e8);
   vertical-align: top;
   white-space: normal;
   overflow-wrap: anywhere;
@@ -243,13 +244,13 @@
 }
 .planning-review-text {
   display: grid;
-  gap: 12px;
-  margin: 20px 0;
-  padding: 20px;
-  border-radius: 12px;
+  gap: var(--e12);
+  margin: var(--e24) 0;
+  padding: var(--e24);
+  border-radius: var(--r-cartao);
   background: var(--bg);
-  font-size: 13px;
-  line-height: 1.8;
+  font-size: var(--t-apoio);
+  line-height: var(--lh-texto);
 }
 .planning-review-text > p {
   overflow-wrap: anywhere;
@@ -257,10 +258,10 @@
 .planning-review-checkbox {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--e12);
   min-height: 44px;
-  font-size: 13px;
-  line-height: 1.8;
+  font-size: var(--t-apoio);
+  line-height: var(--lh-texto);
 }
 .planning-review-checkbox input {
   width: 18px;
@@ -268,7 +269,7 @@
   accent-color: var(--purple-ink);
   flex-shrink: 0;
 }
-@media (max-width: 480px) {
+@media (max-width: 699px) {
   .planning-settings label {
     min-width: 100%;
   }

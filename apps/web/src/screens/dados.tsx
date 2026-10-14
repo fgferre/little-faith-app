@@ -259,7 +259,7 @@ export function DadosScreen(
             Baixa um arquivo com tudo o que está neste aparelho, para guardar
             se o navegador falhar.
           </p>
-          <ProblemBox title="Não é a cópia de segurança completa">
+          <ProblemBox title="Não é a cópia completa">
             Não traz o que está só no servidor e não tem senha: quem tiver o
             arquivo vê os dados do grupo.
           </ProblemBox>

@@ -516,7 +516,7 @@ export function BolaoSorteio(
       </p>
     </div>
   );
-  const actions = (small: boolean) => (
+  const actions = (small: boolean, tell = false) => (
     <div className="pool-actions">
       <Button
         variant={small ? "ghost" : "primary"}
@@ -529,6 +529,7 @@ export function BolaoSorteio(
       >
         Consultar resultado da CAIXA
       </Button>
+      {tell && tellButton}
       <Button
         variant="ghost"
         small={small}
@@ -659,10 +660,10 @@ export function BolaoSorteio(
   if (!drawn && !conflict) {
     const future = drawAt !== null && Date.parse(drawAt) > Date.now();
     return (
-      <div className="pool-cols">
+      <div className={manualCard ? "pool-cols" : "pool-cols pool-solo"}>
         <Card className="pool-card sorteio-palco" label="Sorteio">
           {stageHead}
-          <p className="sorteio-sub">Vamos conferir a sorte da turma?</p>
+          <p className="ui-sec">Vamos conferir a sorte da turma?</p>
           <Eyebrow>{future ? "Sorteio em" : "Sorteio"}</Eyebrow>
           {future && drawAt
             ? <Countdown target={drawAt} timeZone={timeZone} />
@@ -672,11 +673,6 @@ export function BolaoSorteio(
               </h2>
             )}
           {drawAt && <p className="ui-sec">{drawLine(drawAt, timeZone)}</p>}
-          {!pool.data.contestNumber && (
-            <p className="ui-sec pool-note">
-              Defina o concurso do bolão para consultar o resultado.
-            </p>
-          )}
           <div className="sorteio-detalhes">
             {!!games.length && (
               <>
@@ -685,12 +681,16 @@ export function BolaoSorteio(
                   {plan && ` · ${reais(plan.plan.betCostCents)}`}
                 </p>
                 {gamesList}
-                <div className="pool-actions">{tellButton}</div>
               </>
             )}
-            {actions(false)}
-            {failure}
+            {actions(false, !!games.length)}
+            {!pool.data.contestNumber && (
+              <p className="ui-sec pool-note">
+                Defina o concurso do bolão para consultar o resultado.
+              </p>
+            )}
             {offline}
+            {failure}
             {extras}
           </div>
         </Card>

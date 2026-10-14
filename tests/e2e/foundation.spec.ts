@@ -3,7 +3,7 @@ import type { Page } from "@playwright/test";
 
 async function createGroup(page: Page) {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: /Faça sua fezinha/ }))
+  await expect(page.getByText(/Faça sua fezinha/))
     .toBeVisible();
   await page.getByRole("button", { name: "Criar meu grupo", exact: true })
     .click();
@@ -171,14 +171,14 @@ for (const width of [320, 390, 768, 1440]) {
   test(`navigation fits at ${width}px, with no horizontal page overflow`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: /Faça sua fezinha/ }))
+    await expect(page.getByText(/Faça sua fezinha/))
       .toBeVisible();
     expect(
       await page.evaluate(() =>
         document.documentElement.scrollWidth <= window.innerWidth
       ),
     ).toBe(true);
-    await page.locator(width <= 760 ? ".bottom-nav" : ".sidebar nav").getByRole(
+    await page.locator(width < 1000 ? ".bottom-nav" : ".sidebar nav").getByRole(
       "link",
       { name: "Bolões", exact: true },
     ).click();
@@ -293,7 +293,7 @@ test("a waiting update keeps online and offline navigation on the active public 
   await page.reload();
   await expect(page.locator('meta[name="shell-fixture-build"]'))
     .toHaveAttribute("content", "a");
-  await expect(page.getByRole("heading", { name: /Faça sua fezinha/ }))
+  await expect(page.getByText(/Faça sua fezinha/))
     .toBeVisible();
   const cachedRequests = await page.evaluate(async () => {
     const names = await caches.keys();

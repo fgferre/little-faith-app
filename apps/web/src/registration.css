@@ -1,14 +1,14 @@
 /* formulários dentro das etapas Registrar e Sorteio (e o fuso em Seus dados) */
 .pool-form {
   display: grid;
-  gap: 16px;
+  gap: var(--e16);
 }
 .pool-form label:not(.planning-review-checkbox):not(.pool-choice),
 .timezone-setting {
   display: grid;
-  gap: 8px;
+  gap: var(--e8);
   min-width: 0;
-  font-size: 14px;
+  font-size: var(--t-corpo);
   font-weight: 600;
 }
 .pool-form input:not([type=checkbox]):not([type=radio]),
@@ -21,8 +21,8 @@
   background: var(--surface);
   color: var(--text);
   border: 1.5px solid var(--ghost-line);
-  padding: 10px 12px;
-  border-radius: 10px;
+  padding: var(--e12);
+  border-radius: var(--r-campo);
   font: inherit;
 }
 .pool-form textarea {
@@ -34,30 +34,30 @@
 .pool-fieldset,
 .evidence-choices {
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 12px 15px;
+  border-radius: var(--r-cartao);
+  padding: var(--e12) var(--e16);
   min-width: 0;
 }
 .pool-fieldset legend,
 .evidence-choices legend {
-  font-size: 14px;
+  font-size: var(--t-corpo);
   font-weight: 600;
-  padding: 0 5px;
+  padding: 0 var(--e4);
 }
 .pool-planned {
   display: grid;
-  gap: 10px;
+  gap: var(--e12);
   min-width: 0;
 }
 .timezone-setting {
-  margin-top: 20px;
+  margin-top: var(--e24);
 }
 .timezone-setting small {
   font-weight: 400;
   color: var(--muted);
-  line-height: 1.6;
+  line-height: var(--lh-texto);
 }
-@media (max-width: 600px) {
+@media (max-width: 699px) {
   .pool-form .form-columns {
     grid-template-columns: minmax(0, 1fr);
   }
