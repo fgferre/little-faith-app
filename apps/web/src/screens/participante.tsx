@@ -13,6 +13,8 @@ import {
   LINKS_UNAVAILABLE,
   ParticipantApiError,
 } from "../participant-client";
+import { id } from "../demo";
+import { demoParticipantCard } from "../demo-participante";
 import {
   ampliado,
   Balls,
@@ -170,7 +172,7 @@ function GamesCard({ pool }: { pool: Pool }) {
   const hits = drawn ? new Set(drawn) : undefined;
   const count = pool.games.length;
   return (
-    <Card className="pool-card" label="Jogos">
+    <Card className="pool-card card-games" label="Jogos">
       <Eyebrow>Jogos</Eyebrow>
       {count
         ? (
@@ -471,6 +473,8 @@ export function ParticipanteScreen({ token }: { token: string }) {
     let active = true;
     if (!token) {
       setLoad(failure(new ParticipantApiError("", 404)));
+    } else if (token === "demo") {
+      setLoad({ state: "ready", card: demoParticipantCard() });
     } else if (!navigator.onLine) {
       setLoad(OFFLINE);
     } else {
@@ -494,6 +498,14 @@ export function ParticipanteScreen({ token }: { token: string }) {
           </span>
         </header>
         <main className="card-main">
+          {token === "demo" && (
+            <p className="ui-sec pool-sub">
+              Cartão de exemplo ·{" "}
+              <a className="pool-link" href={`#/boloes/${id(10)}/arrecadar`}>
+                voltar ao bolão
+              </a>
+            </p>
+          )}
           {load.state === "loading" && (
             <div className="loading">
               <LoaderCircle className="spin" aria-hidden="true" />Abrindo seu

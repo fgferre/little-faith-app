@@ -127,11 +127,27 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* pendência da Revisão */
-.ui-review { display: grid; gap: var(--e8); }
-.ui-review-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--e8); }
-.ui-review-main { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--e4) var(--e12); }
-.ui-review-main b { min-width: 0; font-size: var(--t-cartao); font-weight: 600; overflow-wrap: anywhere; }
+/* pendência da Revisão: duas colunas; em cima família e estado, depois nome e valor na mesma linha de base,
+   e o resto (data, explicação, ações) na largura toda */
+.ui-card.ui-review {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--e8) var(--e16);
+}
+.ui-review > .ui-chip { justify-self: start; }
+.ui-review > .ui-chip + .ui-chip { justify-self: end; }
+.ui-review > :not(.ui-chip, .ui-review-title, .ui-money),
+.ui-review-title:not(:has(+ .ui-money)) { grid-column: 1 / -1; }
+.ui-review-title {
+  min-width: 0;
+  font-family: var(--f-titulo);
+  font-size: var(--t-cartao);
+  font-weight: 600;
+  line-height: var(--lh-titulo);
+  overflow-wrap: anywhere;
+}
+.ui-review > .ui-money { font-size: var(--t-cartao); text-align: right; }
 .ui-review-actions { margin-top: var(--e4); }
 .ui-review-actions > .ui-sec { flex: 1 1 100%; color: var(--text); font-size: var(--t-corpo); }
 
@@ -222,11 +238,19 @@
   flex: 1 1 0;
   min-width: fit-content;
 }
+/* do tablet para cima o botão da fileira para em 420 px, em vez de atravessar o cartão; numa fileira de até
+   480 px ele segue cheio, para não parar a poucos px da borda */
+@media (min-width: 700px) {
+  :is(.ui-pair, .ui-review-actions, .pool-actions, .settings-actions, .modal-actions) > .ui-btn {
+    max-width: max(420px, (480px - 100%) * 999);
+  }
+}
 /* par "Enviar no WhatsApp" + "Copiar": ocupa a linha inteira da fileira em que está */
 .ui-pair { flex: 1 1 100%; }
-/* abaixo de 360 px o botão da fileira não cabe com o ícone: o ícone sai, o texto fica inteiro */
+/* abaixo de 360 px um botão com nome não cabe com o ícone: o ícone sai, o texto fica inteiro
+   (botão só de ícone tem aria-label e fica como está) */
 @media (max-width: 359px) {
-  :is(.ui-pair, .ui-review-actions, .pool-actions, .settings-actions, .modal-actions) > .ui-btn svg { display: none; }
+  .ui-btn:not([aria-label]) svg { display: none; }
   .ui-btn { padding-inline: var(--e12); }
 }
 
@@ -317,7 +341,8 @@
   display: flex;
   gap: var(--e4);
   margin: 0;
-  padding: 0 0 0 var(--margem);
+  padding: 0 var(--margem);
+  scroll-padding-inline: var(--margem);
   list-style: none;
   overflow-x: auto;
   scrollbar-width: none;
@@ -325,8 +350,6 @@
   mask-image: linear-gradient(90deg, transparent 0, rgba(0, 0, 0, .35) calc(var(--fl) * .45), #000 var(--fl), #000 calc(100% - var(--fr)), rgba(0, 0, 0, .35) calc(100% - var(--fr) * .45), transparent 100%);
 }
 .ui-steps ol::-webkit-scrollbar { display: none; }
-/* folga no fim: a última etapa para alinhada com o texto da página */
-.ui-steps ol::after { content: ""; flex: 0 0 var(--margem); }
 .ui-steps li { flex: none; }
 /* o fundo da etapa atual desliza de lado até a etapa escolhida */
 .ui-steps .nav-indicator {
@@ -359,10 +382,9 @@
   .ui-steps .nav-indicator { transition-property: left, right; }
   .ui-step { transition: color .22s cubic-bezier(.2, .8, .2, 1); }
 }
-/* no computador a faixa ocupa a largura toda, sem rolar */
-@media (min-width: 1000px) {
+/* do tablet para cima a faixa ocupa a largura toda, sem rolar */
+@media (min-width: 700px) {
   .ui-steps { margin-inline: 0; }
-  .ui-steps ol::after { display: none; }
   .ui-steps ol {
     gap: var(--e8);
     padding: var(--e4);
@@ -478,8 +500,13 @@
 }
 .ui-hits.wrong { color: var(--red); }
 .ui-balls { display: flex; flex: none; gap: var(--e4); }
-.ui-balls.grid { display: grid; grid-template-columns: repeat(var(--cols), auto); }
 .ui-balls.sm { gap: var(--e4); }
+.ui-balls.grid {
+  display: grid;
+  grid-template-columns: repeat(var(--cols), max-content);
+  justify-content: start;
+  gap: var(--e4) var(--e8);
+}
 /* tela estreita: bolas de 28 px */
 @media (max-width: 359px) {
   .ui-ball { width: 28px; height: 28px; font-size: var(--t-rotulo); }
@@ -516,7 +543,7 @@ a:focus-visible > .ui-brandmark img {
   flex: none;
   width: 32px;
   height: 32px;
-  margin-left: calc(-1 * var(--e8));
+  margin-left: calc(-1 * var(--e4));
   border: 2px solid #191341;
   border-radius: 50%;
   background: #4a3658;

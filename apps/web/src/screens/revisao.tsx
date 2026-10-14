@@ -216,6 +216,7 @@ export function RevisaoScreen(
             reviewCount === 1 ? "pendência" : "pendências"
           } · nada vale antes de você conferir`
           : "Tudo o que foi anotado já foi conferido."}
+        note={pendingReview.length > 0 && !financeEnabled && financeAvailability}
       />
       <div className="review-list">
         {conflicts.map((record) => (
@@ -224,13 +225,11 @@ export function RevisaoScreen(
             key={record.id}
             label={`${KIND_LABEL[record.kind]}: duas versões`}
           >
-            <div className="ui-review-head">
-              <Chip family>{KIND_LABEL[record.kind]}</Chip>
-              <Chip status="problem">Duas versões</Chip>
-            </div>
-            <div className="ui-review-main">
-              <b>Esta informação mudou em outro aparelho</b>
-            </div>
+            <Chip family>{KIND_LABEL[record.kind]}</Chip>
+            <Chip status="problem">Duas versões</Chip>
+            <b className="ui-review-title">
+              Esta informação mudou em outro aparelho
+            </b>
             <p className="ui-sec">
               A sua versão ficou guardada junto com a que chegou. Escolha qual
               vale; a escolhida ainda passa pela conferência.
@@ -328,9 +327,6 @@ export function RevisaoScreen(
           </Card>
         )}
       </div>
-      {pendingReview.length > 0 && !financeEnabled && (
-        <p className="ui-sec review-why">{financeAvailability}</p>
-      )}
       {groupId && !isDemo && (
         <section className="review-failed" aria-label="Não deram certo">
           <h2 className="ui-eyebrow">Não deram certo</h2>

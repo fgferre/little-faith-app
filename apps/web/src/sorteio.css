@@ -10,10 +10,6 @@
     linear-gradient(140deg, #24172f, #191222 70%);
   text-align: center;
 }
-/* palco largo (computador, tablet): a grade de um jogo não estica as bolas pela largura toda */
-.sorteio-palco .ui-balls.grid {
-  max-width: 420px;
-}
 .sorteio-palco::before {
   content: "";
   position: absolute;

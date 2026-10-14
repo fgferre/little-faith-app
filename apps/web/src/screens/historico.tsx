@@ -113,7 +113,7 @@ export function HistoricoScreen(
         line="Só o que já foi conferido. Estimativas ficam de fora."
       />
       <div className="history">
-        <div className="history-col">
+        <div className="history-col history-caixas">
           {isDemo
             ? (
               <Card className="finance-card" label="Caixa do grupo">
@@ -171,7 +171,7 @@ export function HistoricoScreen(
             })}
           </Card>
         </div>
-        <div className="history-col">
+        <div className="history-col history-pools">
           {views.map((view) => {
             const balance = settlement.finance?.pools[view.pool.id];
             const { closed, prizeDue } = poolSituation(view, balance);

@@ -64,12 +64,16 @@ export function Eyebrow({ children }: { children: ReactNode }) {
   return <span className="ui-eyebrow">{children}</span>;
 }
 
-/** Topo de uma tela: rótulo pequeno, título de 28, uma linha opcional e a ação principal ao lado. */
+/**
+ * Topo de uma tela: rótulo pequeno, título de 28, uma linha opcional, um aviso opcional embaixo dela
+ * e a ação principal ao lado.
+ */
 export function PageHead(
-  { eyebrow, title, line, action }: {
+  { eyebrow, title, line, note, action }: {
     eyebrow: string;
     title: string;
     line?: ReactNode;
+    note?: ReactNode;
     action?: ReactNode;
   },
 ) {
@@ -79,6 +83,7 @@ export function PageHead(
       <h1 className="ui-title">{title}</h1>
       {action}
       {line && <p className="ui-sec">{line}</p>}
+      {note && <p className="ui-sec">{note}</p>}
     </div>
   );
 }
@@ -110,14 +115,10 @@ export function ReviewItem(
 ) {
   return (
     <Card className="ui-review" label={`${family}: ${title}`}>
-      <div className="ui-review-head">
-        <Chip family>{family}</Chip>
-        <Chip status={status}>{state}</Chip>
-      </div>
-      <div className="ui-review-main">
-        <b>{title}</b>
-        {cents !== undefined && <Money small cents={cents} />}
-      </div>
+      <Chip family>{family}</Chip>
+      <Chip status={status}>{state}</Chip>
+      <b className="ui-review-title">{title}</b>
+      {cents !== undefined && <Money small cents={cents} />}
       {line && <p className="ui-sec">{line}</p>}
       {children && <div className="ui-review-actions">{children}</div>}
     </Card>

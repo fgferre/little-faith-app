@@ -21,10 +21,21 @@ export function PoolRow(
   const { pool } = view;
   const lottery = LOTTERIES[pool.data.lotteryId];
   const when = view.drawAt
-    ? formatWhen(Date.parse(view.drawAt), now, timeZone)
+    ? (
+      <span className="ui-nb">
+        {formatWhen(Date.parse(view.drawAt), now, timeZone)}
+      </span>
+    )
     : pool.data.deadlineAt &&
         (view.step === "montar" || view.step === "arrecadar")
-    ? `pagar até ${formatWhen(Date.parse(pool.data.deadlineAt), now, timeZone)}`
+    ? (
+      <>
+        pagar até{" "}
+        <span className="ui-nb">
+          {formatWhen(Date.parse(pool.data.deadlineAt), now, timeZone)}
+        </span>
+      </>
+    )
     : null;
   return (
     <Card className="home-pool" onClick={onClick}>

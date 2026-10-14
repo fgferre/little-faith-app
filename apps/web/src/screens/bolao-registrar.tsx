@@ -324,7 +324,9 @@ export function BolaoRegistrar(
           Quando os jogos e as cotas estiverem travados, a lista para quem vai
           registrar aparece aqui.
         </p>
-        <Button onClick={goPlay}>Ir para Jogar</Button>
+        <div className="pool-actions">
+          <Button onClick={goPlay}>Ir para Jogar</Button>
+        </div>
       </Card>
     );
   }

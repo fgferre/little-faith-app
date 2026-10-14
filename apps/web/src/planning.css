@@ -38,6 +38,9 @@
 .planner .ui-card {
   min-width: 0;
 }
+.planner .planner-card {
+  padding: var(--e24);
+}
 .planner .ui-card > .ui-eyebrow {
   margin-bottom: var(--e8);
 }
@@ -46,6 +49,9 @@
 }
 .planner .planning-settings {
   margin: var(--e16) 0 0;
+}
+.planner .planning-settings label {
+  min-width: 200px;
 }
 .planner-h {
   margin: var(--e2) 0 var(--e8);

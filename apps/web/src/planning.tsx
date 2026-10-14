@@ -481,12 +481,6 @@ export function Planner(
             </Button>
           </div>
         )}
-        {budget === "0" && (
-          <p className="planner-note">
-            Confirme os pagamentos na Revisão para formar o orçamento deste
-            bolão.
-          </p>
-        )}
         <div className="planning-settings">
           <label>
             Taxa externa prevista (R$)<input
@@ -522,17 +516,25 @@ export function Planner(
             </select>
           </label>
         </div>
-        <Button
-          icon={generating
-            ? <LoaderCircle className="spin" aria-hidden="true" />
-            : <Sparkles aria-hidden="true" />}
-          disabled={busy || setupMissing || budget === "0" ||
-            pool.data.status === "registered" ||
-            pool.data.status === "settled"}
-          onClick={() => void generate()}
-        >
-          Comparar alternativas
-        </Button>
+        <div className="pool-actions">
+          <Button
+            icon={generating
+              ? <LoaderCircle className="spin" aria-hidden="true" />
+              : <Sparkles aria-hidden="true" />}
+            disabled={busy || setupMissing || budget === "0" ||
+              pool.data.status === "registered" ||
+              pool.data.status === "settled"}
+            onClick={() => void generate()}
+          >
+            Comparar alternativas
+          </Button>
+        </div>
+        {budget === "0" && (
+          <p className="planner-note">
+            Confirme os pagamentos na Revisão para formar o orçamento deste
+            bolão.
+          </p>
+        )}
         <p className="ui-sec planner-after">
           As alternativas mantêm os jogos fixos. A taxa e o destino da sobra
           ficam para aprovação.

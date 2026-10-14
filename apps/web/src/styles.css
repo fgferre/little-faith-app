@@ -109,6 +109,11 @@ h3,
 p {
   margin: 0;
 }
+/* sem palavra sozinha na última linha */
+p,
+li {
+  text-wrap: pretty;
+}
 strong,
 b {
   font-weight: 600;
@@ -861,7 +866,6 @@ tr:last-child td {
 .boloes-list {
   display: grid;
   gap: var(--e12);
-  max-width: 720px;
 }
 .review-list > .ui-card,
 .boloes-list > .ui-card {
@@ -884,10 +888,6 @@ tr:last-child td {
 }
 .review-empty .ui-chip {
   white-space: normal;
-}
-.review-why {
-  max-width: 720px;
-  margin-top: var(--e12);
 }
 .review-failed {
   margin-top: var(--e32);
@@ -929,7 +929,7 @@ tr:last-child td {
 .finance-head {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: start;
   justify-content: space-between;
   gap: var(--e12) var(--e16);
 }
@@ -1059,9 +1059,19 @@ tr:last-child td {
 }
 .settings-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
   gap: var(--e16);
-  align-items: start;
+}
+/* no computador duas colunas independentes: cada cartão sobe até o de cima, sem buraco entre linhas */
+@media (min-width: 1000px) {
+  .settings-grid {
+    display: block;
+    columns: 2;
+    column-gap: var(--e24);
+  }
+  .settings-grid > * {
+    break-inside: avoid;
+    margin-bottom: var(--e24);
+  }
 }
 .finance-card > .timezone-setting {
   margin-top: 0;
@@ -1505,7 +1515,7 @@ tr:last-child td {
 }
 .home-hero {
   container-type: inline-size;
-  padding: var(--e16) var(--e16);
+  padding: var(--e16);
   border-color: #4a3454;
   background: linear-gradient(140deg, #2a1d3a, #1a1226);
 }
@@ -1562,9 +1572,10 @@ tr:last-child td {
   gap: var(--e12);
   margin: 0 0 var(--e12) var(--e4);
 }
+/* conteúdo no alto: na grade de duas colunas o cartão vizinho mais alto não desce o texto deste */
 .home-pool {
   display: flex;
-  align-items: center;
+  align-items: start;
   gap: var(--e12);
   margin-bottom: var(--e12);
   padding: var(--e16) var(--e12) var(--e16) var(--e16);
@@ -1616,6 +1627,7 @@ tr:last-child td {
   margin-top: var(--e12);
 }
 .home-pool > svg {
+  align-self: center;
   width: 20px;
   height: 20px;
   color: var(--muted);
@@ -1626,7 +1638,7 @@ tr:last-child td {
   gap: var(--e12);
   min-height: 0;
   margin-top: var(--e12);
-  padding: var(--e16) var(--e24);
+  padding: var(--e16);
 }
 .home-attention-main {
   display: block;
@@ -1704,6 +1716,11 @@ tr:last-child td {
   }
   .home-capa .ui-btn {
     margin-top: var(--e24);
+  }
+  /* o texto dos dois cartões da coluna começa na mesma distância da borda */
+  .home-hero,
+  .home-attention {
+    padding: var(--e24);
   }
   .home-hero {
     grid-area: 2 / 1;
@@ -1829,13 +1846,9 @@ tr:last-child td {
   font-weight: 600;
   text-align: right;
   overflow-wrap: anywhere;
-  font-variant-numeric: tabular-nums;
-}
-.pool-numbers > .ui-eyebrow {
-  margin: 0 0 var(--e12) var(--e4);
 }
 .pool-numbers .stats-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: var(--e12);
   margin: 0;
 }
@@ -1859,6 +1872,9 @@ tr:last-child td {
 .pool-card .ui-money {
   margin-top: var(--e2);
   font-size: var(--t-numero);
+}
+.pool-collect .ui-av:not(:first-child, .owe, .problem) {
+  margin-left: calc(-1 * var(--e4));
 }
 .pool-owe {
   margin: var(--e12) 0 0;
@@ -1896,6 +1912,7 @@ tr:last-child td {
   overflow-wrap: anywhere;
 }
 .pool-person-due {
+  justify-self: end;
   font-size: var(--t-corpo);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -1906,6 +1923,16 @@ tr:last-child td {
 }
 .pool-person > .ui-chip {
   justify-self: end;
+}
+.pool-person-line {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--e2) var(--e12);
+}
+.pool-person-line > .ui-chip {
+  margin-left: auto;
 }
 .pool-person-sub:has(+ .pool-person-state) {
   grid-column: 1 / -1;
@@ -1919,7 +1946,8 @@ tr:last-child td {
 .pool-person-state > .ui-problem {
   justify-self: stretch;
 }
-.pool-person-state > .ui-btn {
+.pool-person-state > .ui-btn,
+.pool-person-state > .pool-link {
   justify-self: end;
 }
 /* link pessoal: a data à esquerda e o botão à direita, com a largura do texto (não quebra nem estica) */
@@ -1962,6 +1990,9 @@ tr:last-child td {
 .pool-actions {
   margin-top: var(--e16);
 }
+.split-repeat {
+  margin-top: var(--e24);
+}
 .pool-games {
   margin: var(--e8) 0 0;
   padding: 0;
@@ -1973,6 +2004,30 @@ tr:last-child td {
 }
 .pool-game:first-child {
   border-top: 0;
+}
+@media (min-width: 700px) {
+  .pool-solo .sorteio-palco .pool-games {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--e24);
+  }
+  .pool-solo .sorteio-palco .ui-game-head {
+    grid-column: 1 / -1;
+  }
+  .pool-solo .sorteio-palco .ui-game-head + .pool-game + .pool-game {
+    border-top: 0;
+    padding-top: var(--e8);
+  }
+}
+@media (min-width: 1200px) {
+  .card-games .pool-games {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--e24);
+  }
+  .card-games .pool-game:nth-child(2) {
+    border-top: 0;
+  }
 }
 /* Registrar e Sorteio */
 .pool-stack {
@@ -2191,7 +2246,8 @@ tr:last-child td {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: var(--e24);
   }
-  .pool-cols.pool-solo {
+  .pool-cols.pool-solo,
+  .pool-cols.pool-collect {
     grid-template-columns: minmax(0, 1fr);
   }
   .pool-play {
@@ -2213,6 +2269,9 @@ tr:last-child td {
   }
 }
 @media (min-width: 1000px) {
+  .pool-cols.pool-collect {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+  }
   .pool-collect > .pool-card:first-child {
     position: sticky;
     top: var(--e16);
@@ -2228,10 +2287,19 @@ tr:last-child td {
   }
 }
 @media (min-width: 700px) {
+  /* os caixas numa faixa de colunas iguais em cima; os bolões embaixo, dois por linha */
   .history {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     max-width: var(--conteudo-max);
     margin-inline: auto;
+  }
+  .history-caixas {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+  .history-pools {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
   }
   .boloes-list {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -2261,9 +2329,6 @@ tr:last-child td {
 @media (max-width: 999px) {
   .stats-grid {
     grid-template-columns: 1fr 1fr;
-  }
-  .settings-grid {
-    grid-template-columns: 1fr;
   }
   .sidebar {
     display: none;
@@ -2436,7 +2501,7 @@ tr:last-child td {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  max-width: 600px;
+  max-width: calc(var(--conteudo-max) + 2 * var(--margem));
   margin-inline: auto;
   padding: 0 var(--margem) var(--e32);
 }
@@ -2456,6 +2521,9 @@ tr:last-child td {
 }
 .card-main > .ui-eyebrow {
   margin: var(--e8) 0 var(--e8);
+}
+.card-main > .pool-sub {
+  margin: 0 0 var(--e16);
 }
 .card-pool {
   display: grid;
@@ -2554,44 +2622,33 @@ tr:last-child td {
   padding-top: var(--e16);
   border-top: 1px solid var(--border);
 }
-/* tablet e computador: os cartões do bolão em duas colunas, na ordem de leitura (desce a primeira, depois a segunda) */
+/* tablet e computador: os jogos na segunda coluna; até cinco cartões descem na primeira, e a última linha cresce com os jogos */
 @media (min-width: 700px) {
   .card-page {
-    max-width: var(--conteudo-max);
     padding-bottom: var(--e48);
   }
   .card-top {
     min-height: 76px;
   }
   .card-grid {
-    display: block;
-    columns: 2;
-    column-gap: var(--e24);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: repeat(5, auto) 1fr;
+    align-items: start;
+    gap: 0 var(--e24);
   }
   .card-grid > * {
-    break-inside: avoid;
+    grid-column: 1;
     margin-bottom: var(--e24);
+  }
+  .card-grid > .card-games {
+    grid-column: 2;
+    grid-row: 1 / -1;
   }
 }
 
 /* pix */
-/* "Ainda não pagou" à esquerda e "Cobrar por Pix" (ou o link para cadastrar a chave) à direita, com a largura do texto;
-   em 390 px os dois não cabem lado a lado, então a ação desce para a linha de baixo, ainda à direita (não quebra nem estica) */
-.pool-person-state > .pix-owe {
-  justify-self: stretch;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--e8) var(--e12);
-}
-.pix-owe > * {
-  flex: none;
-  white-space: nowrap;
-}
-.pix-owe > :last-child {
-  margin-left: auto;
-}
-.pix-owe > .pool-link {
+.pool-person-state > .pool-link,
+.pool-sub > .pool-link {
   padding: 0;
 }
 /* formulário do grupo: o título da seção "Quem recebe o dinheiro" */

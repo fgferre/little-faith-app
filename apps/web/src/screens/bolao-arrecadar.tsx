@@ -222,10 +222,11 @@ function useParticipantLinks(groupId: string | null) {
 }
 
 export function BolaoArrecadar(
-  { db, snapshot, view, openForm, openReview, goPlay, setNotice }: {
+  { db, snapshot, view, isDemo, openForm, openReview, goPlay, setNotice }: {
     db: BolaoDatabase;
     snapshot: Snapshot;
     view: PoolView;
+    isDemo: boolean;
     openForm: (kind: FormKind) => void;
     openReview: () => void;
     goPlay: () => void;
@@ -445,37 +446,29 @@ export function BolaoArrecadar(
 
   const stateView = (
     person: PoolPerson,
-    state: Exclude<PersonState, "paid">,
+    state: Exclude<PersonState, "paid" | "review">,
   ) => {
-    if (state === "review") {
-      return <Chip status="pending">Pagamento em conferência</Chip>;
-    }
     if (state === "owe") {
-      return (
-        <div className="pix-owe">
-          <Chip status="pending">Ainda não pagou</Chip>
-          {pix
-            ? (
-              <Button
-                variant="ghost"
-                small
-                icon={<QrCode aria-hidden="true" />}
-                onClick={() => setPixId(person.id)}
-              >
-                Cobrar por Pix
-              </Button>
-            )
-            : (
-              <button
-                type="button"
-                className="pool-link"
-                onClick={() => openForm("edit-group")}
-              >
-                Cadastrar chave Pix do grupo
-              </button>
-            )}
-        </div>
-      );
+      return pix
+        ? (
+          <Button
+            variant="ghost"
+            small
+            icon={<QrCode aria-hidden="true" />}
+            onClick={() => setPixId(person.id)}
+          >
+            Cobrar por Pix
+          </Button>
+        )
+        : (
+          <button
+            type="button"
+            className="pool-link"
+            onClick={() => openForm("edit-group")}
+          >
+            Cadastrar chave Pix do grupo
+          </button>
+        );
     }
     if (state === "fix") {
       return (
@@ -636,9 +629,17 @@ export function BolaoArrecadar(
         )}
         <Card className="pool-card" label="Pessoas">
           <Eyebrow>Pessoas</Eyebrow>
-          {!!people.length && problem && (
-            <p className="ui-sec pool-sub">{problem}</p>
-          )}
+          {!!people.length && (isDemo && hidden
+            ? (
+              <p className="ui-sec pool-sub">
+                Na demonstração os links pessoais ficam de fora. Veja como fica
+                o cartão de quem participa:{" "}
+                <a className="pool-link" href="#/p/demo">
+                  abrir o cartão de exemplo
+                </a>
+              </p>
+            )
+            : problem && <p className="ui-sec pool-sub">{problem}</p>)}
           {!!people.length && (
             <ul className="pool-people">
               {people.map((person) => {
@@ -651,16 +652,24 @@ export function BolaoArrecadar(
                         ? "Revisar cota"
                         : formatBRL(person.dueCents)}
                     </span>
-                    <span className="ui-sec pool-person-sub">
-                      {cotas(person.units)} · pagou {formatBRL(person.paidCents)}
-                    </span>
-                    {state === "paid"
-                      ? <Chip status="confirmed">Pago</Chip>
-                      : (
-                        <div className="pool-person-state">
-                          {stateView(person, state)}
-                        </div>
+                    <div className="pool-person-line">
+                      <span className="ui-sec pool-person-sub">
+                        {cotas(person.units)} · pagou{" "}
+                        {formatBRL(person.paidCents)}
+                      </span>
+                      {state === "paid" && <Chip status="confirmed">Pago</Chip>}
+                      {state === "review" && (
+                        <Chip status="pending">Pagamento em conferência</Chip>
                       )}
+                      {state === "owe" && (
+                        <Chip status="pending">Ainda não pagou</Chip>
+                      )}
+                    </div>
+                    {state !== "paid" && state !== "review" && (
+                      <div className="pool-person-state">
+                        {stateView(person, state)}
+                      </div>
+                    )}
                     {!hidden && linkRow(person)}
                   </li>
                 );

@@ -149,6 +149,7 @@ export function BolaoScreen(
             db={db}
             snapshot={snapshot}
             view={view}
+            isDemo={isDemo}
             openForm={openForm}
             openReview={() => route.navigate("revisao")}
             goPlay={() => go("jogar")}
@@ -202,7 +203,9 @@ export function BolaoScreen(
               poolBets={poolBets}
               manifest={manifest}
               enabled={financeEnabled}
-              availability={financeAvailability}
+              availability={isDemo
+                ? "Na demonstração a consulta à CAIXA fica desligada. Toque em Informar resultado para ver o palco com os números."
+                : financeAvailability}
               timeZone={timeZone}
               open={setRecordRequest}
               setNotice={setNotice}

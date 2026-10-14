@@ -182,14 +182,12 @@ export function BolaoDividir(
     manifest?.content.plan.rights.find((right) => right.personId === personId)
       ?.units;
 
-  const goRegistrar = (primary: boolean) => (
-    <Button
-      variant={primary ? "primary" : "ghost"}
-      small={!primary}
-      onClick={() => go("registrar")}
-    >
-      Ir para o Registrar
-    </Button>
+  const goRegistrar = (
+    <div className="pool-actions">
+      <Button variant="ghost" small onClick={() => go("registrar")}>
+        Ir para o Registrar
+      </Button>
+    </div>
   );
 
   function prizeCard() {
@@ -201,7 +199,7 @@ export function BolaoDividir(
             O prêmio é confirmado depois que os comprovantes das apostas forem
             conferidos.
           </p>
-          {goRegistrar(true)}
+          {goRegistrar}
         </>
       );
     }
@@ -285,7 +283,7 @@ export function BolaoDividir(
           <p className="ui-sec pool-empty">
             O custo vem do comprovante conferido no registro.
           </p>
-          <div className="pool-actions">{goRegistrar(false)}</div>
+          {goRegistrar}
         </>
       );
     }
@@ -900,9 +898,6 @@ export function BolaoDividir(
               {closingCard(balance)}
             </Card>
           )}
-          <div className="pool-actions">
-            <Button onClick={repeat}>Repetir com a mesma turma</Button>
-          </div>
           {!!facts.length && (
             <Disclosure summary="Detalhes técnicos" className="split-tech">
               {facts.map(({ fact, label }) => (
@@ -919,6 +914,9 @@ export function BolaoDividir(
       {!enabled && balance && (
         <p className="ui-sec split-later">{availability}</p>
       )}
+      <div className="pool-actions split-repeat">
+        <Button onClick={repeat}>Repetir com a mesma turma</Button>
+      </div>
       {/* Um pedido novo só abre depois que a janela anterior terminou de sair. */}
       <AnimatePresence mode="wait">
         {request && (

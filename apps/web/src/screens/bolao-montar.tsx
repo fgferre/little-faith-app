@@ -92,14 +92,16 @@ export function BolaoMontar(
         <Disclosure summary="Ver combinados">
           <p>{group?.data.statute || "Nenhum combinado escrito ainda."}</p>
         </Disclosure>
-        <Button
-          disabled={pool.data.status !== "draft"}
-          onClick={() => openForm("edit-pool")}
-        >
-          Editar bolão
-        </Button>
+        <div className="pool-actions">
+          <Button
+            disabled={pool.data.status !== "draft"}
+            onClick={() => openForm("edit-pool")}
+          >
+            Editar bolão
+          </Button>
+        </div>
       </Card>
-      <section className="pool-numbers" aria-label="Números do bolão">
+      <Card className="pool-card pool-numbers" label="Números do bolão">
         <Eyebrow>Números do bolão</Eyebrow>
         <div className="stats-grid">
           <Stat
@@ -135,7 +137,7 @@ export function BolaoMontar(
             note="Não aumenta o saldo"
           />
         </div>
-      </section>
+      </Card>
     </div>
   );
 }
