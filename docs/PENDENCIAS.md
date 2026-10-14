@@ -4,7 +4,16 @@ Lista viva do que está aberto. Leia só a seção O BASTÃO e o item da vez; o 
 Item resolvido sai da lista e vira commit com o número entre parênteses; a história de cada número fica no git (`git log --all --grep="(NNN)"`).
 Número é identidade, não posição: item novo entra no fim da sua seção. **Próximo número livre: 14.**
 
-## O BASTÃO — onde a rodada parou (13/10) — PRAZO DO PRÊMIO, ENVIO COM UM TOQUE E O MODO SOMBRA DO PRIMEIRO BOLÃO DE VERDADE
+## O BASTÃO — onde a rodada parou (14/10) — LAYOUT COM RÉGUA ÚNICA FEITO E PUBLICADO; PRODUÇÃO EM DIA; SEGUE O MODO SOMBRA DO PRIMEIRO BOLÃO DE VERDADE
+
+**Para quem pega agora:** `main` = 81d522f, igual ao GitHub, app publicado com ele e banco com todas as migrações. O
+próximo item aberto da fila é o 2 (modo sombra do "Mega 14/10 150MM"; o sorteio é na noite de 14/10). Da rodada de
+layout ficaram só decisões para o dono, não código: aprovar o teste "`#/p/demo` mostra o cartão da Isabela sem chamar o
+servidor" e duas regras de lint ("sem px fora da régua", "sem prefers-reduced-motion: reduce"); dois apontamentos
+baixos deixados de propósito ("Novo bolão" com contorno na Início e cheio em Bolões; selo "Demonstração" dentro do
+cartão de Dados). A régua está em `styles.css :root` e explicada no quadro
+https://claude.ai/artifact/NRJqXNXzy6aaSC7YC9nroT (antes e depois de 7 telas × 3 larguras); qualquer tela nova segue
+a régua, nunca px solto.
 
 **Estado:** etapas 1–6 da especificação feitas; fila 1–6 feitas em 12–13/10. Em 13/10: fila 8 feita (prazo de resgate com
 contagem de dias e tom de aviso em Dividir e no cartão da pessoa; migração `20261013020000_participant_card_deadline.sql`
