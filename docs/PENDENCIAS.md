@@ -4,7 +4,20 @@ Lista viva do que está aberto. Leia só a seção O BASTÃO e o item da vez; o 
 Item resolvido sai da lista e vira commit com o número entre parênteses; a história de cada número fica no git (`git log --all --grep="(NNN)"`).
 Número é identidade, não posição: item novo entra no fim da sua seção. **Próximo número livre: 14.**
 
-## O BASTÃO — onde a rodada parou (14/10) — LAYOUT COM RÉGUA ÚNICA FEITO E PUBLICADO; PRODUÇÃO EM DIA; SEGUE O MODO SOMBRA DO PRIMEIRO BOLÃO DE VERDADE
+## O BASTÃO — onde a rodada parou (15/10) — ENSAIO RETROATIVO DO BOLÃO 3070 FEITO, TUDO SÓ NO GRUPO TESTE DELE; FALTA CORRIGIR O QUE O ENSAIO MOSTROU
+
+**Rodada de 15/10 (ensaio da revelação, pedido dele):** "Vamos tentar fazer, emular isso, mas sem mandar no grupo [...] Eu quero chegar
+com tudo funcionando muito bem lá no grupo." Feito no bolão real "Mega 14/10 150MM" (escolha dele): 10 pessoas (4 novas, maioridade
+declarada por ele), 10 pagamentos de R$ 50 confirmados com a hora em que cada nome entrou na lista "Pagos" do grupo, combinados v1
+publicados com aceite "sem aceite escrito; quem paga entra" (escolha dele), prazo mudado para 15/10 23h só para o ensaio (o real era
+14/10 18h Brasília; ele: "A gente está rodando só um teste que é retroativo. Não tem problema nisso."), 17 bilhetes digitados e conferidos
+com as 4 fotos do grupo, plano e trava confirmados, resultado 3070 informado à mão (19 27 29 43 54 60, acumulou), sem prêmio, custo
+R$ 498 confirmado, sobra R$ 2 como reserva do grupo. Os 10 links pessoais, o resultado e a mensagem da surpresa foram só para o grupo
+"Teste" dele (só ele está lá); nada foi ao grupo da turma (conferido). O WhatsApp Web ficou ligado no Chrome dele por código de telefone;
+ele desliga em Aparelhos conectados quando quiser. Desenho da revelação: https://claude.ai/artifact/6iCZS5eDry2cGmwcGWR1an (três
+novidades esperam o sim dele). Notas, bilhetes lidos, fotos e links com token em `.tmp/bastao/` (fora do git). O que o ensaio mostrou:
+itens 14 e 15. Próximo: ele avalia os cartões no Teste; corrigir o 14 antes de qualquer revelação.
+
 
 **Para quem pega agora:** `main` = 81d522f, igual ao GitHub, app publicado com ele e banco com todas as migrações. O
 próximo item aberto da fila é o 2 (modo sombra do "Mega 14/10 150MM"; o sorteio é na noite de 14/10). Da rodada de
@@ -65,7 +78,7 @@ público; app em https://fgferre.github.io/little-faith-app/ ligado ao Supabase 
 **A FILA (13/10, uma lista só, nesta ordem; quem pegar a próxima conversa começa pelo primeiro item aberto e marca
 aqui o que fechar):**
 1. Aplicar a migração e republicar: FEITO em 14/10 (ver PRODUÇÃO EM DIA).
-2. Modo sombra do bolão "Mega 14/10 150MM" até a divisão (ver acima); cadastrar o resto do grupo; conferir o fuso.
+2. Modo sombra do bolão "Mega 14/10 150MM": ENSAIO RETROATIVO FEITO em 15/10 até a divisão e os links (ver a rodada de 15/10).
 3. ~~Avisos de prazo do prêmio~~ FEITO em 13/10.
 4. ~~Enviar no WhatsApp com um toque~~ FEITO em 13/10.
 5. Telefone por pessoa (cadastro e servidor, nunca no cartão) para o link pessoal abrir direto na conversa (~3 h).
@@ -83,7 +96,26 @@ cartão por URL temporária; limite de taxa na rota pública (ver BACKLOG).
 
 ## ALTA — bloqueia a entrega ou pode perder trabalho
 
+**14. A tela do Sorteio fica em branco entre o resultado e a conferência do registro (15/10).**
+`bolao-sorteio.tsx` lê `assessment.skippedTicketKeys` no ramo "Não foi dessa vez" sem checar `assessment`, que é null enquanto o
+registro não foi conferido; o app inteiro para até recarregar. Visto no bolão real 3070 com resultado manual e registro ainda não
+conferido; depois da conferência a tela abriu. Com a busca automática, o resultado costuma chegar antes da conferência.
+
 ## MÉDIA — afeta o produto
+
+**15. O que o ensaio de 15/10 mostrou (detalhes em `.tmp/bastao/confraria.md`).**
+- "Consultar resultado da CAIXA" falhou no app publicado: "A fonte oficial está indisponível" (a API da CAIXA respondia de fora).
+- O servidor recusa cota depois do prazo, mesmo com pagamento antes: espelhar uma rodada que já passou exige mudar o prazo.
+- A data do pagamento vem como "agora"; é preciso digitar a hora real, senão a cota parece paga fora do prazo.
+- 17 bilhetes = 113 cliques nas dezenas; não há como colar "10 20 23 33 45 50 55". Pagamentos: 2 janelas e ~10 s de espera cada.
+- Aposta feita antes da trava vira "divergente": o servidor pede justificativa por cartela só num aviso pequeno, a janela fecha
+  como se tivesse dado certo, e o cartão mostra "Registro com diferença: o comprovante não bate com o combinado".
+- O aceite dos combinados por pessoa, com prova, não existe na vida do grupo (lá "quem paga entra").
+- A mensagem do link pessoal some ao sair da tela; para reenviar é preciso cancelar e criar outro link.
+- O WhatsApp transforma "19 27 29 43 54 60" em link de telefone; usar separador ("19 · 27 · ...").
+- Janelas de revisão mostram hora crua ("2026-10-16T04:00:00.000Z"); confirmações às vezes ficam em "Consultar recibo" mesmo aceitas.
+- No cartão: resultado no fim, depois dos 17 jogos; "Devolução R$ 0,00 de R$ 0,20" com a sobra marcada como reserva do grupo.
+- Do grupo: a turma confere à mão numa planilha depois do sorteio, mantém a lista "Pagos" em corrente e pediu para repetir os números.
 
 **4. A exportação de emergência não é backup (10/10).**
 O export atual é `bolao-emergency-v5`, sem criptografia; não apresentar como backup completo. `@zip.js/zip.js@2.23.0`
