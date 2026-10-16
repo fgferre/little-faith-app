@@ -1,11 +1,13 @@
 import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { AnimatePresence } from "motion/react";
+import { Download } from "lucide-react";
 import {
   computeSettlement,
   createResultView,
   formatBRL,
   formatQuotaUnits,
+  settlementStatement,
 } from "@bolao/core";
 import type {
   LocalRecord,
@@ -30,6 +32,7 @@ import {
   ProblemBox,
 } from "../ui";
 import { hoje, prazoResgate } from "../ui/texto";
+import { downloadText } from "../registration-handoff";
 import { DivisaoDecisao } from "./bolao-dividir-decisao";
 import type { Intencao, PedidoDivisao } from "./bolao-dividir-decisao";
 
@@ -108,6 +111,8 @@ export function CashFormula(
 const name = (manifest: PoolManifest | undefined, personId: string) =>
   manifest?.content.persons.find((person) => person.id === personId)?.data
     .name ?? "Participante";
+const money = (cents: string | null) =>
+  cents === null ? "Pendente" : formatBRL(cents);
 const cotas = (units: number | undefined) =>
   units === undefined
     ? ""
@@ -181,6 +186,80 @@ export function BolaoDividir(
   const units = (personId: string) =>
     manifest?.content.plan.rights.find((right) => right.personId === personId)
       ?.units;
+
+  function download() {
+    if (!snapshot || !balance) return;
+    try {
+      const statement = settlementStatement(snapshot, pool.id);
+      const lines = [
+        "DEMONSTRATIVO DO GRUPO",
+        pool.data.title,
+        "Documento do grupo. Não é recibo da CAIXA nem documento fiscal oficial.",
+        `Revisão confirmada: ${snapshot.groupRevision}. Emitido em ${
+          new Date().toISOString()
+        } (UTC).`,
+        `Investimento confirmado: ${
+          money(balance.contributedCents)
+        }. Despesas confirmadas: ${money(balance.confirmedExpenseCents)}.`,
+        `Prêmio calculado: ${
+          money(balance.calculatedPrizeCents)
+        }. Prêmio confirmado: ${money(balance.confirmedPrizeCents)}.`,
+        `Resgatado no caixa do organizador: ${
+          money(balance.organizerRedeemedCents)
+        }. Recebido individualmente: ${
+          money(balance.individualRedeemedCents)
+        }.`,
+        `Prêmios pagos: ${money(balance.prizePaidCents)}. Devoluções: ${
+          money(balance.refundedCents)
+        }.`,
+        `Caixa do organizador neste bolão: ${
+          money(balance.organizerCashCents)
+        }. Sobra das contribuições: ${
+          money(balance.contributionSurplusCents)
+        }.`,
+        `Prêmio a resgatar: ${
+          money(balance.unredeemedPrizeCents)
+        }. Prêmio a entregar: ${
+          money(balance.unpaidPrizeCents)
+        }. Devoluções pendentes: ${money(balance.refundPendingCents)}.`,
+        balance.expenseConfirmationPending
+          ? "As despesas ainda precisam de confirmação humana."
+          : "Despesas conferidas.",
+        ...balance.persons.map((person) =>
+          `${name(manifest, person.personId)}: investimento ${
+            money(person.contributedCents)
+          }; direito ao prêmio ${money(person.prizeRightCents)}; recebido ${
+            money(person.prizeReceivedCents)
+          }; prêmio pendente ${money(person.prizePendingCents)}; devolvido ${
+            money(person.refundedCents)
+          }; devolução pendente ${money(person.refundPendingCents)}.`
+        ),
+        closure
+          ? `Último encerramento: ${
+            closure.direction === "closed" ? "encerrado" : "reaberto"
+          }. Motivo: ${closure.reason}. Pendências explicadas: ${
+            closure.pendingExplanation || "nenhuma"
+          }.`
+          : "Encerramento ainda não confirmado.",
+        "",
+        "Dados do demonstrativo:",
+        JSON.stringify(statement, null, 2),
+      ];
+      downloadText(
+        lines.join("\n"),
+        `demonstrativo-${pool.data.lotteryId}-${
+          pool.data.contestNumber ?? "rascunho"
+        }.txt`,
+      );
+    } catch (failure) {
+      setNotice({
+        text: failure instanceof Error
+          ? failure.message
+          : "Não foi possível preparar o demonstrativo.",
+        error: true,
+      });
+    }
+  }
 
   const goRegistrar = (
     <div className="pool-actions">
@@ -886,6 +965,18 @@ export function BolaoDividir(
                   Depois de confirmar o custo das apostas.
                 </p>
               )}
+            {snapshot && balance && (
+              <div className="pool-actions">
+                <Button
+                  variant="ghost"
+                  small
+                  icon={<Download aria-hidden="true" />}
+                  onClick={download}
+                >
+                  Baixar demonstrativo privado do grupo
+                </Button>
+              </div>
+            )}
           </Card>
           {balance && (balance.closed || released) && (
             <Card
