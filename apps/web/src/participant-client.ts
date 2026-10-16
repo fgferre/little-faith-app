@@ -26,6 +26,7 @@ async function call<T>(
   path: string,
   headers: Record<string, string>,
   body?: unknown,
+  method: "GET" | "POST" | "PUT" | "DELETE" = body === undefined ? "GET" : "POST",
 ): Promise<T> {
   if (!supabaseUrl || !supabaseKey) {
     throw new ParticipantApiError(
@@ -34,7 +35,7 @@ async function call<T>(
     );
   }
   const response = await fetch(`${supabaseUrl}/functions/v1/api/v1/${path}`, {
-    method: body === undefined ? "GET" : "POST",
+    method,
     headers: {
       apikey: supabaseKey,
       ...headers,
@@ -56,11 +57,16 @@ async function call<T>(
       response.status,
     );
   }
+  if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
 }
 
 /** Pedido do organizador: vai com a sessão da conta, como as outras chamadas da API. */
-async function organizer<T>(path: string, body: unknown): Promise<T> {
+async function organizer<T>(
+  path: string,
+  body?: unknown,
+  method?: "GET" | "POST" | "PUT" | "DELETE",
+): Promise<T> {
   if (!supabase) {
     throw new ParticipantApiError(
       "A conexão compartilhada ainda não foi configurada.",
@@ -74,7 +80,12 @@ async function organizer<T>(path: string, body: unknown): Promise<T> {
       0,
     );
   }
-  return call<T>(path, { Authorization: `Bearer ${session.access_token}` }, body);
+  return call<T>(
+    path,
+    { Authorization: `Bearer ${session.access_token}` },
+    body,
+    method,
+  );
 }
 
 /** O cartão aberto pelo link: sem conta e sem Authorization; o token é a única chave. */
@@ -102,4 +113,37 @@ export async function pullParticipantLinks(groupId: string) {
     "participant_links_pull",
     { groupId },
   )).links;
+}
+
+/** Telefones de WhatsApp por pessoa: só o organizador lê e grava; nunca vão no link nem no cartão. */
+export interface PersonPhone {
+  personId: string;
+  phone: string;
+}
+
+export async function pullPersonPhones(groupId: string) {
+  return (await organizer<{ phones: PersonPhone[] }>(
+    `groups/${groupId}/phones`,
+  )).phones;
+}
+
+/** `phone` só com dígitos, DDI primeiro (10 a 15). */
+export function setPersonPhone(
+  groupId: string,
+  personId: string,
+  phone: string,
+) {
+  return organizer<PersonPhone>(
+    `groups/${groupId}/persons/${personId}/phone`,
+    { phone },
+    "PUT",
+  );
+}
+
+export async function clearPersonPhone(groupId: string, personId: string) {
+  await organizer<void>(
+    `groups/${groupId}/persons/${personId}/phone`,
+    undefined,
+    "DELETE",
+  );
 }

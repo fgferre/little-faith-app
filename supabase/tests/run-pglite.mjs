@@ -156,7 +156,8 @@ try {
       if (person) cardShares++;
     }
   }
-  console.log(`Foundation, finance, planning, registration, results, settlement and participant SQL passed; ${samples.length} financial + ${planningSamples.length} planning + ${stage5Samples.length} registration/result + ${settlementSamples.length} settlement responses (${settlementFacts} settlement facts rebuilt) validated by the real core; ${cardShares} participant card shares match the core; all 32 catalog rules match, manifests/raw sources independently hashed (Auth/Storage stubs; platform integration remains separate).`);
+  await db.exec(await readFile(new URL('./person_phones.sql', import.meta.url), 'utf8'));
+  console.log(`Foundation, finance, planning, registration, results, settlement, participant and person phone SQL passed; ${samples.length} financial + ${planningSamples.length} planning + ${stage5Samples.length} registration/result + ${settlementSamples.length} settlement responses (${settlementFacts} settlement facts rebuilt) validated by the real core; ${cardShares} participant card shares match the core; all 32 catalog rules match, manifests/raw sources independently hashed (Auth/Storage stubs; platform integration remains separate).`);
 } catch (error) {
   for (let cause = error; cause; cause = cause.cause) console.error(cause.message, cause.where ?? '');
   process.exitCode = 1;

@@ -3,7 +3,7 @@ import { bodyLimit } from 'hono/body-limit';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { EvidenceFailure, evidenceMime, hashBytes, MAX_ORIGINAL_BYTES, uploadOriginal } from './evidence.ts';
 import { collectOfficialResult, ResultCollectionFailure, type CollectionContext } from './results.ts';
-import { createParticipantToken, isParticipantCard, isParticipantLink, participantTokenHash } from './participant.ts';
+import { createParticipantToken, isParticipantCard, isParticipantLink, isPersonPhone, isPhone, participantTokenHash } from './participant.ts';
 import { validateEvidenceMetadata, validateEvidenceUploadMetadata } from '../../../packages/core/src/evidence.ts';
 import {
   exactKeys, isCursor, isFinancialReceipt, isFinancialSnapshot, isHumanSession, isObject,
@@ -43,7 +43,7 @@ export function createApi(config: ApiConfig): Hono<ApiEnvironment> {
     c.header('Vary', 'Origin');
     if (origin) {
       c.header('Access-Control-Allow-Origin', origin);
-      c.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      c.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
       c.header('Access-Control-Allow-Headers', 'authorization, apikey, x-client-info, content-type');
       c.header('Access-Control-Max-Age', '600');
     }
@@ -352,6 +352,33 @@ export function createApi(config: ApiConfig): Hono<ApiEnvironment> {
     if (error) { const failure = rpcError(error.code); return c.json({ code: failure.code, message: failure.message }, failure.status); }
     if (!isObject(data) || !Array.isArray(data.links) || !data.links.every(isParticipantLink)) return c.json({ code: 'invalid_backend_response', message: 'Os links não puderam ser verificados.' }, 503);
     return c.json({ links: data.links });
+  });
+  // Phones are organizer-only: never part of a link, the participant card, a manifest or an export.
+  app.get('/v1/groups/:groupId/phones', async c => {
+    const groupId = c.req.param('groupId');
+    if (!isUuid(groupId)) return c.json({ code: 'invalid_request', message: 'Informe um grupo válido.' }, 400);
+    const { data, error } = await c.get('supabase').rpc('person_phones_pull', { p_group_id: groupId });
+    if (error) { const failure = rpcError(error.code); return c.json({ code: failure.code, message: failure.message }, failure.status); }
+    if (!isObject(data) || !Array.isArray(data.phones) || !data.phones.every(isPersonPhone)) return c.json({ code: 'invalid_backend_response', message: 'Os telefones não puderam ser verificados.' }, 503);
+    return c.json({ phones: data.phones });
+  });
+  app.put('/v1/groups/:groupId/persons/:personId/phone', async c => {
+    const groupId = c.req.param('groupId'); const personId = c.req.param('personId');
+    if (!isUuid(groupId) || !isUuid(personId)) return c.json({ code: 'invalid_request', message: 'Informe o grupo e a pessoa do telefone.' }, 400);
+    const value: unknown = await c.req.json().catch(() => null);
+    if (!isObject(value) || !exactKeys(value, ['phone']) || !isPhone(value.phone)) return c.json({ code: 'invalid_phone', message: 'Telefone inválido: use só números, com DDI e DDD.' }, 400);
+    const { data, error } = await c.get('supabase').rpc('person_phone_set', { p_group_id: groupId, p_person_id: personId, p_phone: value.phone });
+    if (error) { const failure = rpcError(error.code); return c.json({ code: failure.code, message: failure.message }, failure.status); }
+    if (!isPersonPhone(data) || data.personId !== personId || data.phone !== value.phone) return c.json({ code: 'invalid_backend_response', message: 'O telefone não pôde ser confirmado; repita.' }, 503);
+    return c.json({ personId: data.personId, phone: data.phone });
+  });
+  app.delete('/v1/groups/:groupId/persons/:personId/phone', async c => {
+    const groupId = c.req.param('groupId'); const personId = c.req.param('personId');
+    if (!isUuid(groupId) || !isUuid(personId)) return c.json({ code: 'invalid_request', message: 'Informe o grupo e a pessoa do telefone.' }, 400);
+    const { data, error } = await c.get('supabase').rpc('person_phone_clear', { p_group_id: groupId, p_person_id: personId });
+    if (error) { const failure = rpcError(error.code); return c.json({ code: failure.code, message: failure.message }, failure.status); }
+    if (!isObject(data) || data.personId !== personId) return c.json({ code: 'invalid_backend_response', message: 'A remoção não pôde ser confirmada; repita.' }, 503);
+    return c.body(null, 204);
   });
   // The token travels in the body, never in the URL, so gateway logs never see it.
   app.post('/v1/participant_card', async c => {

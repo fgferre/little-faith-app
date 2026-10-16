@@ -1,6 +1,6 @@
 import type { ParticipantCard } from '../../../packages/core/src/participant-types.ts';
 import { hashBytes } from './evidence.ts';
-import { isObject, isUuid } from './contract.ts';
+import { exactKeys, isObject, isUuid } from './contract.ts';
 
 const TOKEN_RE = /^[A-Za-z0-9_-]{43}$/;
 
@@ -25,4 +25,13 @@ export function isParticipantCard(value: unknown): value is ParticipantCard {
 export function isParticipantLink(value: unknown): value is { id: string; personId: string; createdAt: string; revokedAt: string | null } {
   return isObject(value) && isUuid(value.id) && isUuid(value.personId) && typeof value.createdAt === 'string'
     && (value.revokedAt === null || typeof value.revokedAt === 'string');
+}
+
+/** Digits only, country code first, 10 to 15 digits: the same rule the database enforces on person_phones. */
+export function isPhone(value: unknown): value is string {
+  return typeof value === 'string' && /^[1-9][0-9]{9,14}$/.test(value);
+}
+
+export function isPersonPhone(value: unknown): value is { personId: string; phone: string } {
+  return isObject(value) && exactKeys(value, ['personId', 'phone']) && isUuid(value.personId) && isPhone(value.phone);
 }

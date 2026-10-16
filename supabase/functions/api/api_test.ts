@@ -470,3 +470,65 @@ Deno.test('participant links: token only at creation, card opens by POST without
     assert(refused.status === 403 && (await refused.json()).code === 'access_denied', 'non-organizer cannot create a link');
   } finally { globalThis.fetch = originalFetch; }
 });
+Deno.test('person phones: organizer lists, sets and clears; invalid phones and ids never reach the database; no session 401; non-organizer 403', async () => {
+  // The mocked transport checks wiring; the SQL suite proves RLS, validation and that the card never carries a phone.
+  const token = `fixture.${btoa(JSON.stringify({ sub: id, role: 'authenticated', session_id: id, app_metadata: {}, is_anonymous: false }))}.fixture`;
+  const personId = '33333333-3333-4333-8333-333333333333';
+  const phones = new Map<string, string>();
+  const calls: { name: string; authorization: string | null; parameters: Record<string, string> }[] = [];
+  let organizer = true;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input, init) => {
+    const request = new Request(input, init);
+    const path = new URL(request.url).pathname;
+    if (path === '/auth/v1/user') return Response.json({ id, app_metadata: {}, is_anonymous: false });
+    const name = path.replace('/rest/v1/rpc/', '');
+    const parameters = await request.json();
+    calls.push({ name, authorization: request.headers.get('Authorization'), parameters });
+    if (!organizer) return Response.json({ code: '42501', details: null, hint: null, message: 'group_access_denied' }, { status: 403 });
+    if (name === 'person_phone_set') { phones.set(parameters.p_person_id, parameters.p_phone); return Response.json({ personId: parameters.p_person_id, phone: parameters.p_phone }); }
+    if (name === 'person_phone_clear') { phones.delete(parameters.p_person_id); return Response.json({ personId: parameters.p_person_id }); }
+    if (name === 'person_phones_pull') return Response.json({ phones: [...phones].map(([key, phone]) => ({ personId: key, phone })) });
+    throw new Error(`Unexpected mocked RPC: ${name}`);
+  };
+  try {
+    const app = createApi({ supabaseUrl: 'https://fixture.supabase.co', publishableKey: 'test-public-key', allowedOrigins: ['https://app.example'] });
+    const headers = { Authorization: `Bearer ${token}`, Origin: 'https://app.example', 'Content-Type': 'application/json' };
+    const one = `/api/v1/groups/${id}/persons/${personId}/phone`;
+    const put = (phone: unknown) => app.request(one, { method: 'PUT', headers, body: JSON.stringify({ phone }) });
+    assert(JSON.stringify(await (await app.request(`/api/v1/groups/${id}/phones`, { headers })).json()) === JSON.stringify({ phones: [] }), 'no phones at first');
+    const saved = await put('5511987654321');
+    assert(saved.status === 200 && JSON.stringify(await saved.json()) === JSON.stringify({ personId, phone: '5511987654321' }), 'phone saved and echoed');
+    const sent = calls.at(-1);
+    assert(sent?.name === 'person_phone_set' && sent.authorization === `Bearer ${token}`
+      && JSON.stringify(sent.parameters) === JSON.stringify({ p_group_id: id, p_person_id: personId, p_phone: '5511987654321' }), 'organizer session sends group, person and digits');
+    const listed = await app.request(`/api/v1/groups/${id}/phones`, { headers });
+    assert(listed.status === 200 && JSON.stringify(await listed.json()) === JSON.stringify({ phones: [{ personId, phone: '5511987654321' }] })
+      && JSON.stringify(calls.at(-1)?.parameters) === JSON.stringify({ p_group_id: id }) && listed.headers.get('Cache-Control') === 'no-store', 'phones listed and never cached');
+    const cleared = await app.request(one, { method: 'DELETE', headers });
+    assert(cleared.status === 204 && (await cleared.text()) === '' && phones.size === 0 && calls.at(-1)?.name === 'person_phone_clear', 'phone cleared with no content');
+    const count = calls.length;
+    for (const bad of ['+5511987654321', '11 98765-4321', '123456789', '1234567890123456', '0511987654321', '', 5511987654321, null]) {
+      const refused = await put(bad);
+      const body = await refused.json();
+      assert(refused.status === 400 && body.code === 'invalid_phone' && body.message === 'Telefone inválido: use só números, com DDI e DDD.', `invalid phone refused: ${String(bad)}`);
+    }
+    assert((await app.request(one, { method: 'PUT', headers, body: JSON.stringify({}) })).status === 400
+      && (await app.request(one, { method: 'PUT', headers, body: JSON.stringify({ phone: '5511987654321', extra: 1 }) })).status === 400
+      && (await app.request(one, { method: 'PUT', headers, body: 'not json' })).status === 400, 'missing, extra or malformed body refused');
+    assert((await app.request(`/api/v1/groups/not-a-uuid/persons/${personId}/phone`, { method: 'PUT', headers, body: JSON.stringify({ phone: '5511987654321' }) })).status === 400
+      && (await app.request(`/api/v1/groups/${id}/persons/not-a-uuid/phone`, { method: 'DELETE', headers })).status === 400
+      && (await app.request('/api/v1/groups/not-a-uuid/phones', { headers })).status === 400, 'malformed ids refused');
+    assert(calls.length === count, 'refused requests never reach the database');
+    const bare = { 'Content-Type': 'application/json' };
+    assert((await app.request(`/api/v1/groups/${id}/phones`, { headers: bare })).status === 401
+      && (await app.request(one, { method: 'PUT', headers: bare, body: JSON.stringify({ phone: '5511987654321' }) })).status === 401
+      && (await app.request(one, { method: 'DELETE', headers: bare })).status === 401 && calls.length === count, 'phones need a session');
+    const preflight = await app.request(one, { method: 'OPTIONS', headers: { Origin: 'https://app.example', 'Access-Control-Request-Method': 'PUT' } });
+    assert(preflight.status === 204 && /PUT/.test(preflight.headers.get('Access-Control-Allow-Methods') ?? '') && /DELETE/.test(preflight.headers.get('Access-Control-Allow-Methods') ?? ''), 'browser may PUT and DELETE');
+    organizer = false;
+    for (const refused of [await app.request(`/api/v1/groups/${id}/phones`, { headers }), await put('5511987654321'), await app.request(one, { method: 'DELETE', headers })]) {
+      assert(refused.status === 403 && (await refused.json()).code === 'access_denied', 'non-organizer refused');
+    }
+  } finally { globalThis.fetch = originalFetch; }
+});
