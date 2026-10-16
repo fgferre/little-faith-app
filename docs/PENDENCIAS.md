@@ -47,18 +47,23 @@ https://claude.ai/artifact/6iCZS5eDry2cGmwcGWR1an (as três novidades dele estã
   "sem prefers-reduced-motion: reduce".
 
 **A FILA (uma lista só, nesta ordem; quem pegar começa pelo primeiro aberto):**
-1. Quadro de desenho: linha da pessoa em Arrecadar e página de venda (ver `PLAN.md`). Pedido dele em 15/10.
-2. Publicar a rodada de 15/10 (item 14), quando ele disser.
-3. Revelação de verdade para a Confraria (rodada nova), depois de publicar; anotar o que a turma estranhar.
-4. Pagamento confirmado sozinho por provedor de Pix (provedor e conta são dele; tarifa por transação) (~1 dia).
-5. Jogos lidos da foto do bilhete, para o organizador só conferir (~1 dia).
-6. Busca automática do resultado no horário: o servidor é barrado pela CAIXA (403); repensar antes de agendar.
-7. "Estou dentro" e "paguei" (com comprovante) pelo cartão do participante (~3 h).
-8. Teimosinha e série de concursos (a Confraria pediu para "repetir os números") (~1 dia).
-9. Outros organizadores entrando com Google: publicar o app do Google "em produção" ou cadastrar e-mails (conta dele).
-10. Backup completo com senha (etapa 8 da especificação) (~4 h).
-11. Pesquisa, rodada 2: ele abre o Loterias Online (maioridade) e conversa com 5 organizadores; eu cruzo.
-12. O assistente que lê o WhatsApp (etapa do agente). Depois: participante com conta e convites; foto do bilhete no
+1. Responder pelo cartão: "Estou dentro", "Já paguei" (com comprovante) e "Desta vez estou fora"; o tesoureiro vê selos e confirma
+o Pix. Decisão dele em 16/10; cuidados de produto e dados na resposta do Astra em `.tmp/critica/astra-2.md` (item c).
+2. Próximo sorteio automático (prêmio estimado, acumulou, data) pela API da CAIXA no aparelho: Início, convite, cartão e barra
+lateral; desenho no quadro (`PLAN.md`), riscos no item d da mesma resposta. Esperando o sim dele ao desenho.
+3. Doação: o app é grátis e aceita doação; falta ele dizer o canal (chave Pix ou link). Lugares sugeridos: rodapé da página, depois de
+encerrar a rodada (raro) e em Dados.
+4. Quadro: escolher a versão da linha da pessoa (A recomendada). Página de venda só vai ao ar com o app do Google em produção (item 11).
+5. Publicar a rodada de 15/10 (item 14), quando ele disser.
+6. Revelação de verdade para a Confraria (rodada nova), depois de publicar; anotar o que a turma estranhar.
+7. Pagamento confirmado sozinho por provedor de Pix (provedor e conta são dele; tarifa por transação) (~1 dia).
+8. Jogos lidos da foto do bilhete, para o organizador só conferir (~1 dia).
+9. Busca automática do resultado no horário: o servidor é barrado pela CAIXA (403); repensar antes de agendar.
+10. Teimosinha e série de concursos (a Confraria pediu para "repetir os números") (~1 dia).
+11. Outros organizadores entrando com Google: publicar o app do Google "em produção" ou cadastrar e-mails (conta dele).
+12. Backup completo com senha (etapa 8 da especificação) (~4 h).
+13. Pesquisa, rodada 2: ele abre o Loterias Online (maioridade) e conversa com 5 organizadores; eu cruzo.
+14. O assistente que lê o WhatsApp (etapa do agente). Depois: participante com conta e convites; foto do bilhete no
 cartão por URL temporária; limite de taxa na rota pública (ver BACKLOG).
 
 ## ALTA — bloqueia a entrega ou pode perder trabalho

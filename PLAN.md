@@ -47,6 +47,11 @@ Quadro de desenho: a linha da pessoa em Arrecadar e a página de venda — pedid
   assinatura "Seu bolão em boa companhia" fica; a faixa do cartão vira "Seu cartão do bolão"; "little faith" brinca com "fezinha".
   O quadro (versão 11) já está nesse conceito: linha com "Lembrar" e "Desta vez está fora"; as duas páginas antigas saíram.
 - Frases revistas com o GPT (gpt-6.1-sol, pelo Codex) em 16/10; rascunhos em `.tmp/mkt/`. As do app foram trocadas no código.
+- 16/10, depois da crítica do GPT-6 Astra (com leitura do repositório; resposta em `.tmp/critica/astra-2.md`): sob a manchete,
+  "Eleja um tesoureiro, responda pelo seu link e boa sorte."; o app é grátis e aceita doação (canal a decidir: chave Pix dele ou link);
+  estados são selos curtos ("Dentro", "Pix avisado", "Pago", "Fora", "Sem resposta"), nunca frases; "Conferir pagamento"; "Chance: 1 em
+  603 mil"; responder pelo cartão vai ser feito ("é da forma que a gente quer transformar o app"); o prêmio estimado do próximo
+  concurso vem sozinho da API oficial da CAIXA, buscado pelo aparelho; barra lateral "Acumulou. Dia de fezinha." / "Vai uma fezinha?".
 
 - Nada é publicado antes do sim dele (item 14 de `docs/PENDENCIAS.md`).
 - A página não promete o que o app não faz sem marcar o que falta.
