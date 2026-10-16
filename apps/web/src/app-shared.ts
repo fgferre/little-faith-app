@@ -38,6 +38,7 @@ export type FormKind =
   | "quota"
   | "payment"
   | "bet"
+  | "paste"
   | "generate";
 export interface GenerationRun {
   poolId: string;

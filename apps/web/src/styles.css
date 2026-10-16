@@ -1394,6 +1394,35 @@ tr:last-child td {
 .cost-preview strong {
   font-variant-numeric: tabular-nums;
 }
+.paste-preview {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.paste-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--e4) var(--e12);
+  padding: var(--e8) 0;
+  border-top: 1px solid var(--border);
+}
+.paste-line:first-child {
+  border-top: 0;
+}
+.paste-text {
+  color: var(--muted);
+  font-size: var(--t-apoio);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.paste-error {
+  flex: 1 1 100%;
+  color: var(--red);
+  font-size: var(--t-apoio);
+  font-weight: 600;
+  line-height: var(--lh-texto);
+}
 @media (prefers-reduced-motion: no-preference) {
   .spin {
     animation: spin 1s linear infinite;

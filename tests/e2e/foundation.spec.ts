@@ -140,6 +140,33 @@ test("blocks duplicate bets and keeps the existing game", async ({ page }) => {
   await expect(page.locator(".pool-game")).toHaveCount(1);
 });
 
+test("pastes several games at once and refuses a bad line with its reason", async ({ page }) => {
+  await createGroup(page);
+  await createPool(page);
+  await step(page, "Jogar");
+  await page.getByRole("button", { name: "Colar jogos", exact: true }).click();
+  const games = page.getByLabel("Jogos, um por linha");
+  const save = page.getByRole("button", { name: /^Salvar .* neste aparelho$/ });
+  await games.fill(
+    "05-08-12-26-48-51\n10 20 23 33 45 50 55\n01 02 03 04 05 61",
+  );
+  await expect(page.getByText("A dezena 61 está fora de 1 a 60."))
+    .toBeVisible();
+  await expect(save).toBeDisabled();
+  await games.fill("05-08-12-26-48-51\n10 20 23 33 45 50 55");
+  await expect(page.getByText("7 dezenas · vale 7 jogos · R$ 42,00"))
+    .toBeVisible();
+  await expect(page.getByText("2 jogos · R$ 48,00")).toBeVisible();
+  await expect(save).toHaveText("Salvar 2 jogos neste aparelho");
+  await save.click();
+  await expect(page.getByRole("dialog")).not.toBeVisible();
+  await expect(page.locator(".pool-game")).toHaveCount(2);
+  await expect(page.locator(".pool-game", { hasText: "050812264851" }))
+    .toHaveCount(1);
+  await expect(page.locator(".pool-game", { hasText: "7 dezenas" }))
+    .toHaveCount(1);
+});
+
 test("rejects a quota that would create a fraction of a cent without damaging the pool", async ({ page }) => {
   await createGroup(page);
   await page.getByRole("button", { name: "Novo bolão" }).click();

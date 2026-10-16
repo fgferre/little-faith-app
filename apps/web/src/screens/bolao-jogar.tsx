@@ -1,4 +1,4 @@
-import { Plus, Sparkles } from "lucide-react";
+import { ClipboardPaste, Plus, Sparkles } from "lucide-react";
 import { formatBRL, LOTTERIES } from "@bolao/core";
 import type { LocalRecord } from "@bolao/core";
 import type { BolaoDatabase } from "@bolao/local";
@@ -119,6 +119,14 @@ export function BolaoJogar(
             onClick={() => openForm("bet")}
           >
             Adicionar dezenas
+          </Button>
+          <Button
+            variant="ghost"
+            icon={<ClipboardPaste aria-hidden="true" />}
+            disabled={locked}
+            onClick={() => openForm("paste")}
+          >
+            Colar jogos
           </Button>
           <Button
             icon={<Sparkles aria-hidden="true" />}

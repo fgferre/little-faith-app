@@ -17,8 +17,9 @@ import type { LocalRecord, LotteryId, PixKeyType } from "@bolao/core";
 import { Modal } from "../components";
 import { createSeed, generateInWorker } from "../generation";
 import { errorMessage } from "../app-shared";
-import { ampliado, Button, Chip, MoneyInput } from "../ui";
+import { ampliado, Balls, Button, Chip, MoneyInput } from "../ui";
 import type { FormKind, GenerationRun, SaveRecord } from "../app-shared";
+import { parsePastedGames } from "./paste-games";
 
 const localDateInput = (value: string | null) => {
   if (!value) return "";
@@ -77,6 +78,7 @@ export function DraftForm(
     "mega-sena";
   const [lotteryId, setLotteryId] = useState<LotteryId>(startLottery);
   const [selected, setSelected] = useState<number[]>([]);
+  const [pastedText, setPastedText] = useState("");
   const [personId, setPersonId] = useState(persons[0]?.id ?? "");
   const entityFormKind = kind === "edit-group"
     ? "group"
@@ -86,6 +88,15 @@ export function DraftForm(
   const editing = kind === "edit-group" || kind === "edit-pool";
   const priceFrom = editing ? pool : repeatOf;
   const rule = LOTTERIES[lotteryId];
+  const pasted = kind === "paste"
+    ? parsePastedGames(pastedText, rule, bets.map((b) => b.data.numbers))
+    : [];
+  const pastedGames = pasted.flatMap((g) => "numbers" in g ? [g.numbers] : []);
+  const pastedCost = pastedGames.reduce(
+    (sum, numbers) => sum + BigInt(betCost(lotteryId, numbers)),
+    0n,
+  );
+  const pasteReady = pasted.length > 0 && pastedGames.length === pasted.length;
   const titles = {
     group: "Um grupo para chamar de nosso",
     "edit-group": "Editar grupo e combinados",
@@ -95,6 +106,7 @@ export function DraftForm(
     quota: "Preparar a cota",
     payment: "Anotar um pagamento",
     bet: "Os números da turma",
+    paste: "Colar os jogos da turma",
     generate: "Deixe os números com a gente",
   };
   const descriptions = {
@@ -109,6 +121,8 @@ export function DraftForm(
       "Uma cota inteira ou uma parte, como 1 ou 1,5. Ela só vale depois de conferida com internet.",
     payment: "Anotar um valor não confirma o pagamento nem mexe no caixa.",
     bet: "O jogo fica neste aparelho. A aposta de verdade é feita na lotérica ou no site da Caixa.",
+    paste:
+      "Os jogos ficam neste aparelho. A aposta de verdade é feita na lotérica ou no site da Caixa.",
     generate:
       "Os jogos são sorteados neste aparelho, sem repetir. Nenhum jeito de escolher aumenta a chance de ganhar.",
   };
@@ -231,27 +245,39 @@ export function DraftForm(
             status: "pending",
           });
           if (fields.get("reviewNow") === "on") onReviewPayment(proposal.id);
-        } else if (kind === "bet") {
-          const numbers = validateBet(lotteryId, selected);
-          if (
-            bets.some((b) =>
-              betSignature(b.data.lotteryId, b.data.numbers) ===
-                betSignature(lotteryId, numbers)
-            )
-          ) {
-            throw new Error(
-              "Este jogo já está no bolão. A duplicata não foi adicionada.",
-            );
+        } else if (kind === "bet" || kind === "paste") {
+          if (kind === "paste") {
+            if (!pasteReady) {
+              throw new Error("Corrija ou apague as linhas marcadas.");
+            }
+            if (bets.length + pastedGames.length > 1_000) {
+              throw new Error(
+                "O limite de 1.000 jogos seria passado. Revise o lote.",
+              );
+            }
           }
-          await save("bet", {
-            poolId: pool.id,
-            lotteryId,
-            numbers,
-            authorIds: text("author") ? [text("author")] : [],
-            catalogVersion: rule.catalogVersion,
-            seed: null,
-            generationAlgorithmVersion: null,
-          });
+          for (const picked of kind === "paste" ? pastedGames : [selected]) {
+            const numbers = validateBet(lotteryId, picked);
+            if (
+              bets.some((b) =>
+                betSignature(b.data.lotteryId, b.data.numbers) ===
+                  betSignature(lotteryId, numbers)
+              )
+            ) {
+              throw new Error(
+                "Este jogo já está no bolão. A duplicata não foi adicionada.",
+              );
+            }
+            await save("bet", {
+              poolId: pool.id,
+              lotteryId,
+              numbers,
+              authorIds: text("author") ? [text("author")] : [],
+              catalogVersion: rule.catalogVersion,
+              seed: null,
+              generationAlgorithmVersion: null,
+            });
+          }
         } else if (kind === "generate") {
           const count = Number(text("count"));
           const numberCount = Number(text("numberCount"));
@@ -286,11 +312,25 @@ export function DraftForm(
     }
   }
 
+  const authorField = (
+    <label>
+      Autoria <span className="muted">(não altera o direito ao prêmio)</span>
+      <select name="author">
+        <option value="">Jogo do grupo</option>
+        {persons.map((p) => (
+          <option value={p.id} key={p.id}>{p.data.name}</option>
+        ))}
+      </select>
+    </label>
+  );
+
   return (
     <Modal
       title={titles[kind]}
       description={descriptions[kind]}
-      dirty={!copyWarned && (selected.length > 0 || lotteryId !== startLottery)}
+      dirty={!copyWarned &&
+        (selected.length > 0 || pastedText.trim() !== "" ||
+          lotteryId !== startLottery)}
       onClose={() => {
         if (!busy) onClose();
       }}
@@ -602,21 +642,66 @@ export function DraftForm(
                 </button>
               ))}
             </div>
-            <label>
-              Autoria{" "}
-              <span className="muted">(não altera o direito ao prêmio)</span>
-              <select name="author">
-                <option value="">Jogo do grupo</option>
-                {persons.map((p) => (
-                  <option value={p.id} key={p.id}>{p.data.name}</option>
-                ))}
-              </select>
-            </label>
+            {authorField}
             <div className="cost-preview">
               Custo deste jogo<strong>
                 {selected.length >= rule.minNumbers
                   ? formatBRL(betCost(lotteryId, selected))
                   : "Selecione as dezenas"}
+              </strong>
+            </div>
+          </>
+        )}
+        {kind === "paste" && (
+          <>
+            <div className="number-picker-heading">
+              <Chip modality={lotteryId}>{rule.label}</Chip>
+              <strong>{rule.minNumbers}–{rule.maxNumbers} dezenas por jogo</strong>
+            </div>
+            <label>
+              Jogos, um por linha
+              <textarea
+                name="games"
+                rows={6}
+                value={pastedText}
+                autoComplete="off"
+                spellCheck={false}
+                onChange={(e) => setPastedText(e.target.value)}
+              />
+              <small>
+                Cole as dezenas como estão no bilhete ou na conversa.
+              </small>
+            </label>
+            {authorField}
+            {pasted.length > 0 && (
+              <ul className="paste-preview">
+                {pasted.map((g, i) => (
+                  <li key={i} className="paste-line">
+                    {"numbers" in g
+                      ? (
+                        <Balls
+                          numbers={g.numbers}
+                          size="sm"
+                          detail={ampliado(lotteryId, g.numbers.length)}
+                        />
+                      )
+                      : (
+                        <>
+                          <span className="paste-text">{g.text}</span>
+                          <span className="paste-error">{g.error}</span>
+                        </>
+                      )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="cost-preview">
+              Custo dos jogos<strong>
+                {pastedGames.length
+                  ? `${plural(pastedGames.length, "jogo", "jogos")} · ${
+                    formatBRL(pastedCost.toString())
+                  }`
+                  : "Cole os jogos"}
               </strong>
             </div>
           </>
@@ -659,7 +744,8 @@ export function DraftForm(
           <Button
             type="submit"
             disabled={busy || copyWarned ||
-              ((kind === "payment" || kind === "quota") && !persons.length)}
+              ((kind === "payment" || kind === "quota") && !persons.length) ||
+              (kind === "paste" && !pasteReady)}
             icon={busy
               ? <LoaderCircle aria-hidden="true" className="spin" />
               : <Check aria-hidden="true" />}
@@ -668,6 +754,8 @@ export function DraftForm(
               ? "Salvando…"
               : kind === "generate"
               ? "Gerar e salvar jogos"
+              : kind === "paste" && pastedGames.length
+              ? `Salvar ${plural(pastedGames.length, "jogo", "jogos")} neste aparelho`
               : kind === "payment"
               ? "Salvar para revisão"
               : "Salvar neste aparelho"}
