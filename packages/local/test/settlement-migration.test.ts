@@ -113,5 +113,5 @@ it('migrates v4 preserving private originals, all prior facts, unknown decisions
   expect(exported.evidenceUploads).toHaveLength(2);
   expect(exported.resultCommands[0]).toMatchObject({ status: 'unknown', command: result });
   expect(exported.settlementCommands).toEqual([]);
-  expect(db.verno).toBe(5);
+  expect(db.verno).toBe(6);
 });

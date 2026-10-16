@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, LoaderCircle, X } from "lucide-react";
+import type { FormEvent } from "react";
+import { Check, ChevronDown, LoaderCircle, X } from "lucide-react";
 import { MotionConfig } from "motion/react";
-import { formatBRL, LOTTERIES, prizeMultiplicities } from "@bolao/core";
+import {
+  formatBRL,
+  keptPrize,
+  LOTTERIES,
+  prizeMultiplicities,
+} from "@bolao/core";
 import type {
   LotteryId,
   ParticipantCard,
@@ -12,7 +18,9 @@ import {
   fetchParticipantCard,
   LINKS_UNAVAILABLE,
   ParticipantApiError,
+  setParticipantPin,
 } from "../participant-client";
+import { Modal } from "../components";
 import { id } from "../demo";
 import { demoParticipantCard } from "../demo-participante";
 import {
@@ -325,13 +333,20 @@ function ResultCard({ pool }: { pool: Pool }) {
 }
 
 function ShareCard(
-  { share, internal, result }: {
+  { share, internal, result, groupReserve, groupPrizeLimit }: {
     share: Share;
     internal: boolean;
     result: Pool["result"];
+    groupReserve: string | null;
+    groupPrizeLimit: string | null;
   },
 ) {
   const pending = positive(share.pendingCents);
+  // Prêmio até o limite combinado fica no caixa do grupo: ninguém tem parte dele para receber.
+  const kept = keptPrize({
+    participationMode: internal ? "internal" : "",
+    groupPrizeLimitCents: groupPrizeLimit,
+  }, result?.prizeConfirmedCents ?? null) > 0n;
   const refund = positive(share.refundRightCents);
   const deadline = result && positive(result.prizeConfirmedCents) &&
       result.redemptionDeadlineDate && result.prizeRedeemed !== true
@@ -346,22 +361,36 @@ function ShareCard(
           <Chip status="confirmed">Recebido</Chip>
         )}
       </div>
-      {share.rightCents === null
+      {kept ? null : share.rightCents === null
         ? <p className="card-line">Sua parte ainda vai ser calculada.</p>
         : <Money cents={share.rightCents} />}
       <dl className="pool-facts">
-        <div>
-          <dt>Recebido</dt>
-          <dd>{formatBRL(share.receivedCents)}</dd>
-        </div>
-        <div>
-          <dt>Falta receber</dt>
-          <dd className={pending ? "pool-amber" : undefined}>
-            {share.pendingCents === null
-              ? "A calcular"
-              : formatBRL(share.pendingCents)}
-          </dd>
-        </div>
+        {kept
+          ? (
+            <div>
+              <dt>Prêmio</dt>
+              <dd>
+                {formatBRL(result!.prizeConfirmedCents!)} · fica no caixa do
+                grupo, como combinado
+              </dd>
+            </div>
+          )
+          : (
+            <>
+              <div>
+                <dt>Recebido</dt>
+                <dd>{formatBRL(share.receivedCents)}</dd>
+              </div>
+              <div>
+                <dt>Falta receber</dt>
+                <dd className={pending ? "pool-amber" : undefined}>
+                  {share.pendingCents === null
+                    ? "A calcular"
+                    : formatBRL(share.pendingCents)}
+                </dd>
+              </div>
+            </>
+          )}
         {refund && (
           <div>
             <dt>Devolução</dt>
@@ -371,8 +400,20 @@ function ShareCard(
             </dd>
           </div>
         )}
+        {positive(groupReserve) && (
+          <div>
+            <dt>Sobra do bolão</dt>
+            <dd>{formatBRL(groupReserve!)} · fica no caixa do grupo</dd>
+          </div>
+        )}
       </dl>
-      {internal && share.paidByName && (
+      {groupPrizeLimit !== null && !kept && (
+        <p className="ui-sec pool-sub">
+          Combinado: prêmio até {formatBRL(groupPrizeLimit)}{" "}
+          fica no caixa do grupo.
+        </p>
+      )}
+      {internal && share.paidByName && !kept && (
         <p className="ui-sec pool-sub">
           {pending
             ? `${share.paidByName} repassa a sua parte.`
@@ -405,6 +446,8 @@ function PoolCards({ pool, pix }: { pool: Pool; pix: PixReceiver | null }) {
           share={pool.share}
           internal={pool.participationMode === "internal"}
           result={pool.result}
+          groupReserve={pool.groupReserveCents ?? null}
+          groupPrizeLimit={pool.groupPrizeLimitCents ?? null}
         />
       )}
     </>
@@ -458,8 +501,276 @@ function Welcome({ personId }: { personId: string }) {
   );
 }
 
+const PIN = /^\d{4}$/;
+const pinKey = (token: string) => `little-faith:pin:${token}`;
+
+/** O PIN fica neste aparelho para o cartão abrir sozinho; sem armazenamento, ele é pedido a cada visita. */
+function rememberedPin(token: string) {
+  try {
+    return localStorage.getItem(pinKey(token));
+  } catch {
+    return null;
+  }
+}
+
+function rememberPin(token: string, pin: string | null) {
+  try {
+    if (pin) localStorage.setItem(pinKey(token), pin);
+    else localStorage.removeItem(pinKey(token));
+  } catch {
+    // Sem armazenamento o PIN é pedido de novo na próxima visita; o cartão segue igual.
+  }
+}
+
+const isPinError = (error: unknown): error is ParticipantApiError =>
+  error instanceof ParticipantApiError &&
+  (error.code === "pin_required" || error.code === "pin_wrong" ||
+    error.code === "pin_locked");
+
+/** O texto de um PIN recusado (errado ou bloqueado), o mesmo no portão e nas janelas; sem texto para os outros erros. */
+function pinProblem(error: ParticipantApiError) {
+  if (error.code === "pin_wrong") {
+    const left = error.attemptsLeft;
+    if (left === undefined) return "PIN errado.";
+    return left === 1
+      ? "PIN errado. Resta 1 tentativa."
+      : `PIN errado. Restam ${left} tentativas.`;
+  }
+  if (error.code === "pin_locked") {
+    const at = error.retryAt ? new Date(error.retryAt) : null;
+    if (!at || Number.isNaN(at.getTime())) {
+      return "Muitas tentativas erradas. Tente de novo mais tarde.";
+    }
+    const time = new Intl.DateTimeFormat("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(at);
+    return `Muitas tentativas erradas. Tente de novo depois das ${time}.`;
+  }
+  return null;
+}
+
+function PinInput(
+  { label, value, onChange }: {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+  },
+) {
+  return (
+    <label>
+      {label}
+      <input
+        type="password"
+        inputMode="numeric"
+        autoComplete="off"
+        maxLength={4}
+        pattern="[0-9]{4}"
+        value={value}
+        onChange={(event) => onChange(event.target.value.replace(/\D/g, ""))}
+      />
+    </label>
+  );
+}
+
+/** O portão do cartão com PIN: pede os 4 números e só então o cartão abre. */
+function PinGate(
+  { message, onOpen }: {
+    message: string | null;
+    onOpen: (pin: string) => Promise<void>;
+  },
+) {
+  const [value, setValue] = useState("");
+  const [short, setShort] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const problem = short ? "O PIN tem 4 números." : message;
+  return (
+    <form
+      className="card-state card-pin"
+      noValidate
+      onSubmit={(event: FormEvent) => {
+        event.preventDefault();
+        setShort(!PIN.test(value));
+        if (!PIN.test(value)) return;
+        setBusy(true);
+        void onOpen(value).finally(() => {
+          setBusy(false);
+          setValue("");
+        });
+      }}
+    >
+      <h1 className="pool-card-title">Este cartão tem PIN</h1>
+      <PinInput label="PIN de 4 números" value={value} onChange={setValue} />
+      {problem && <p className="form-error" role="alert">{problem}</p>}
+      <Button type="submit" disabled={busy}>Abrir</Button>
+      <p className="ui-sec">
+        Esqueceu? Peça um link novo para quem organiza o bolão.
+      </p>
+    </form>
+  );
+}
+
+/** Criar, trocar ou tirar o PIN do cartão; o PIN de agora vem do aparelho e só é pedido quando não está guardado. */
+function PinDialog(
+  { token, mode, pinSet, onDone, onClose }: {
+    token: string;
+    mode: "set" | "remove";
+    pinSet: boolean;
+    onDone: (pinSet: boolean) => void;
+    onClose: () => void;
+  },
+) {
+  const [saved, setSaved] = useState(() => rememberedPin(token));
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [again, setAgain] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const removing = mode === "remove";
+  const asksCurrent = pinSet && !saved;
+
+  async function run() {
+    if (asksCurrent && !PIN.test(current)) {
+      setError("Digite o PIN atual, com 4 números.");
+      return;
+    }
+    if (!removing && !PIN.test(next)) {
+      setError("O novo PIN precisa ter 4 números.");
+      return;
+    }
+    if (!removing && next !== again) {
+      setError("Os dois PINs não são iguais.");
+      return;
+    }
+    const pin = removing ? null : next;
+    setBusy(true);
+    setError("");
+    try {
+      const result = await setParticipantPin(
+        token,
+        pin,
+        pinSet ? saved ?? current : null,
+      );
+      rememberPin(token, pin);
+      onDone(result.pinSet);
+    } catch (failure) {
+      if (saved && failure instanceof ParticipantApiError && failure.code === "pin_wrong") {
+        // O PIN guardado já não vale (foi trocado em outro aparelho): a janela passa a pedir o atual.
+        rememberPin(token, null);
+        setSaved(null);
+      }
+      setError(
+        failure instanceof ParticipantApiError
+          ? pinProblem(failure) ?? failure.message
+          : "Sem conexão. Tente de novo.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal
+      title={removing ? "Tirar o PIN" : pinSet ? "Trocar PIN" : "Criar PIN"}
+      onClose={() => {
+        if (!busy) onClose();
+      }}
+    >
+      <form
+        onSubmit={(event: FormEvent) => {
+          event.preventDefault();
+          void run();
+        }}
+      >
+        {removing && (
+          <p className="ui-sec">
+            Sem o PIN, quem abrir este link vê o cartão.
+          </p>
+        )}
+        {asksCurrent && (
+          <PinInput label="PIN atual" value={current} onChange={setCurrent} />
+        )}
+        {!removing && (
+          <>
+            <PinInput label="Novo PIN" value={next} onChange={setNext} />
+            <PinInput label="Repita o PIN" value={again} onChange={setAgain} />
+          </>
+        )}
+        {error && <p className="form-error" role="alert">{error}</p>}
+        <div className="modal-actions">
+          <Button
+            type="submit"
+            disabled={busy}
+            icon={busy
+              ? <LoaderCircle aria-hidden="true" className="spin" />
+              : <Check aria-hidden="true" />}
+          >
+            {busy ? "Salvando…" : removing ? "Tirar o PIN" : "Salvar PIN"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+/** O fim do cartão: a pessoa cria, troca ou tira o PIN que protege este link. */
+function PinCard({ token, initial }: { token: string; initial: boolean }) {
+  const [pinSet, setPinSet] = useState(initial);
+  const [dialog, setDialog] = useState<"set" | "remove" | null>(null);
+  return (
+    <>
+      <Card className="pool-card card-protect" label="Proteger meu cartão">
+        <Eyebrow>Proteger meu cartão</Eyebrow>
+        {pinSet
+          ? (
+            <>
+              <p className="card-line">Seu cartão está protegido com PIN.</p>
+              <div className="ui-pair">
+                <Button variant="ghost" small onClick={() => setDialog("set")}>
+                  Trocar PIN
+                </Button>
+                <Button
+                  variant="ghost"
+                  small
+                  onClick={() => setDialog("remove")}
+                >
+                  Tirar o PIN
+                </Button>
+              </div>
+            </>
+          )
+          : (
+            <>
+              <p className="card-line">
+                Crie um PIN de 4 números. Quem abrir este link em outro celular
+                vai precisar dele.
+              </p>
+              <Button variant="ghost" small onClick={() => setDialog("set")}>
+                Criar PIN
+              </Button>
+            </>
+          )}
+      </Card>
+      {dialog && (
+        <PinDialog
+          token={token}
+          mode={dialog}
+          pinSet={pinSet}
+          onDone={(value) => {
+            setPinSet(value);
+            setDialog(null);
+          }}
+          onClose={() => setDialog(null)}
+        />
+      )}
+    </>
+  );
+}
+
 /** O cartão da pessoa: os bolões do grupo em que ela tem cota, o mais novo aberto e os outros recolhidos. */
-export function CartaoParticipante({ card }: { card: ParticipantCard }) {
+export function CartaoParticipante(
+  { card, token }: { card: ParticipantCard; token?: string | undefined },
+) {
   const [first, ...others] = card.pools;
   // Servidor anterior à chave Pix no cartão: sem o campo, sem o cartão de pagar.
   const pix = card.group.pix ?? null;
@@ -506,6 +817,9 @@ export function CartaoParticipante({ card }: { card: ParticipantCard }) {
           ))}
         </div>
       )}
+      {token && typeof card.pinSet === "boolean" && (
+        <PinCard token={token} initial={card.pinSet} />
+      )}
     </>
   );
 }
@@ -513,6 +827,7 @@ export function CartaoParticipante({ card }: { card: ParticipantCard }) {
 type Load =
   | { state: "loading" }
   | { state: "ready"; card: ParticipantCard }
+  | { state: "pin"; message: string | null }
   | { state: "failed"; title: string; line?: string; retry?: boolean };
 
 const OFFLINE: Load = {
@@ -524,6 +839,9 @@ const OFFLINE: Load = {
 
 function failure(error: unknown): Load {
   if (!navigator.onLine || error instanceof TypeError) return OFFLINE;
+  if (isPinError(error)) {
+    return { state: "pin", message: pinProblem(error) };
+  }
   const status = error instanceof ParticipantApiError ? error.status : -1;
   if (status === 404) {
     return {
@@ -554,6 +872,14 @@ function failure(error: unknown): Load {
 export function ParticipanteScreen({ token }: { token: string }) {
   const [load, setLoad] = useState<Load>({ state: "loading" });
   const [attempt, setAttempt] = useState(0);
+  const open = (pin: string) =>
+    fetchParticipantCard(token, pin).then(
+      (card) => {
+        rememberPin(token, pin);
+        setLoad({ state: "ready", card });
+      },
+      (error) => setLoad(failure(error)),
+    );
   useEffect(() => {
     let active = true;
     if (!token) {
@@ -563,9 +889,17 @@ export function ParticipanteScreen({ token }: { token: string }) {
     } else if (!navigator.onLine) {
       setLoad(OFFLINE);
     } else {
-      fetchParticipantCard(token).then(
+      const saved = rememberedPin(token);
+      fetchParticipantCard(token, saved ?? undefined).then(
         (card) => active && setLoad({ state: "ready", card }),
-        (error) => active && setLoad(failure(error)),
+        (error) => {
+          if (!active) return;
+          if (saved && isPinError(error) && error.code === "pin_wrong") {
+            // O PIN guardado já não vale (foi trocado em outro aparelho): esquece e pede de novo, sem culpar quem não digitou.
+            rememberPin(token, null);
+            setLoad({ state: "pin", message: null });
+          } else setLoad(failure(error));
+        },
       );
     }
     return () => {
@@ -597,7 +931,15 @@ export function ParticipanteScreen({ token }: { token: string }) {
               cartão…
             </div>
           )}
-          {load.state === "ready" && <CartaoParticipante card={load.card} />}
+          {load.state === "ready" && (
+            <CartaoParticipante
+              card={load.card}
+              token={token === "demo" ? undefined : token}
+            />
+          )}
+          {load.state === "pin" && (
+            <PinGate message={load.message} onOpen={open} />
+          )}
           {load.state === "failed" && (
             <div className="card-state" role="alert">
               <h1 className="pool-card-title">{load.title}</h1>

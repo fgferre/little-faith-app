@@ -30,6 +30,10 @@ async function organizerPage(browser: Browser) {
     token: "tok_Nov0-link_123",
     name: "",
     revoked: false,
+    // The link the organizer created, as the pull returns it; the server never gives the token back.
+    link: null as
+      | { id: string; personId: string; createdAt: string; revokedAt: string | null }
+      | null,
     phones: {} as Record<string, string>,
   };
   const context = await browser.newContext();
@@ -72,19 +76,21 @@ async function organizerPage(browser: Browser) {
   }, actorId);
   const page = await context.newPage();
   await page.route("**/v1/participant_links_pull", (route) =>
-    reply(route, 200, { links: [] }));
+    reply(route, 200, { links: server.link ? [server.link] : [] }));
   await page.route("**/v1/participant_link", (route) => {
     if (route.request().method() !== "POST") return reply(route, 204, {});
-    return reply(route, 201, {
+    const created = {
       id: "50800000-0000-4000-8000-000000000001",
       personId: route.request().postDataJSON().personId,
       createdAt: "2026-10-11T15:00:00.000Z",
-      token: server.token,
-    });
+    };
+    server.link = { ...created, revokedAt: null };
+    return reply(route, 201, { ...created, token: server.token });
   });
   await page.route("**/v1/participant_link_revoke", (route) => {
     if (route.request().method() !== "POST") return reply(route, 204, {});
     server.revoked = true;
+    if (server.link) server.link.revokedAt = "2026-10-11T16:00:00.000Z";
     return reply(route, 200, {
       id: "50800000-0000-4000-8000-000000000001",
       revokedAt: "2026-10-11T16:00:00.000Z",
@@ -206,6 +212,10 @@ test("a saved WhatsApp number makes the personal link open in that person's chat
   await expect(row.getByRole("button", { name: /\+55 11 96948-4954/ }))
     .toBeVisible();
   await row.getByRole("button", { name: "Enviar link pessoal" }).click();
+  await expect(row.getByRole("link", { name: "Enviar no WhatsApp" }))
+    .toHaveAttribute("href", /^https:\/\/wa\.me\/5511969484954\?text=/);
+  // The message stays on this device: after leaving and coming back, the same link can be resent.
+  await page.reload();
   await expect(row.getByRole("link", { name: "Enviar no WhatsApp" }))
     .toHaveAttribute("href", /^https:\/\/wa\.me\/5511969484954\?text=/);
   await context.close();
@@ -442,4 +452,90 @@ test("the welcome band closes and stays closed on this device", async ({ page })
   await page.reload();
   await expect(page.getByText("Cartão de exemplo")).toBeVisible();
   await expect(band).toHaveCount(0);
+});
+
+test("a card with a PIN asks for it, opens with the right one and lets the person change it", async ({ browser }) => {
+  const server = {
+    token: "tok_Pin0-link_123",
+    pin: "1234",
+    changes: [] as unknown[],
+  };
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await page.route("**/v1/participant_card", (route) => {
+    if (route.request().method() !== "POST") return reply(route, 204, {});
+    const { token, pin } = route.request().postDataJSON();
+    if (token !== server.token) return reply(route, 404, { code: "link_unknown" });
+    if (!pin) {
+      return reply(route, 401, {
+        code: "pin_required",
+        message: "Este cartão tem PIN.",
+      });
+    }
+    if (pin !== server.pin) {
+      return reply(route, 401, {
+        code: "pin_wrong",
+        message: "PIN errado.",
+        attemptsLeft: 4,
+      });
+    }
+    return reply(route, 200, {
+      version: 1,
+      generatedAt: "2026-10-11T15:00:00.000Z",
+      group: { name: "Grupo de teste", pix: null },
+      person: { id: "p-1", name: "Marina" },
+      pools: [{
+        id: "pool-mega",
+        title: "Mega entre amigos",
+        modality: "mega-sena",
+        contest: 2930,
+        drawAt: "2026-10-10T23:00:00.000Z",
+        status: "registered",
+        participationMode: "internal",
+        quota: { units: 100, dueCents: "6000", paidCents: "6000", paid: true },
+        games: [{ numbers: [4, 15, 17, 26, 40, 55], registered: true }],
+        registration: { status: "registered", ticketHolderName: "Rafael" },
+        result: null,
+        share: null,
+        closed: false,
+      }],
+      pinSet: true,
+    });
+  });
+  await page.route("**/v1/participant_pin", (route) => {
+    if (route.request().method() !== "POST") return reply(route, 204, {});
+    const body = route.request().postDataJSON();
+    server.changes.push(body);
+    server.pin = body.pin;
+    return reply(route, 200, { pinSet: true });
+  });
+
+  await page.goto(`${origin}/#/p/${server.token}`);
+  await expect(page.getByRole("heading", { name: "Este cartão tem PIN" }))
+    .toBeVisible();
+  await expect(page.getByText("Esqueceu? Peça um link novo")).toBeVisible();
+  await page.getByLabel("PIN de 4 números").fill("0000");
+  await page.getByRole("button", { name: "Abrir" }).click();
+  await expect(page.getByText("PIN errado. Restam 4 tentativas.")).toBeVisible();
+  await page.getByLabel("PIN de 4 números").fill("1234");
+  await page.getByRole("button", { name: "Abrir" }).click();
+  await expect(page.getByText("Suas cotas", { exact: true })).toBeVisible();
+  await expect(page.getByText("Seu cartão está protegido com PIN."))
+    .toBeVisible();
+
+  await page.getByRole("button", { name: "Trocar PIN" }).click();
+  await page.getByLabel("Novo PIN", { exact: true }).fill("5678");
+  await page.getByLabel("Repita o PIN").fill("5678");
+  await page.getByRole("button", { name: "Salvar PIN" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByText("Seu cartão está protegido com PIN."))
+    .toBeVisible();
+  expect(server.changes).toEqual([
+    { token: server.token, pin: "5678", currentPin: "1234" },
+  ]);
+
+  // The new PIN stays on this device: the card opens again without the gate.
+  await page.reload();
+  await expect(page.getByText("Suas cotas", { exact: true })).toBeVisible();
+  await context.close();
 });

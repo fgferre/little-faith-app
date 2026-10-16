@@ -19,12 +19,18 @@ export async function participantTokenHash(token: unknown): Promise<string | nul
 export function isParticipantCard(value: unknown): value is ParticipantCard {
   return isObject(value) && value.version === 1 && typeof value.generatedAt === 'string' && isObject(value.group) && typeof value.group.name === 'string'
     && isObject(value.person) && isUuid(value.person.id) && typeof value.person.name === 'string'
-    && Array.isArray(value.pools) && value.pools.every(pool => isObject(pool) && isUuid(pool.id) && isObject(pool.quota) && Array.isArray(pool.games));
+    && Array.isArray(value.pools) && value.pools.every(pool => isObject(pool) && isUuid(pool.id) && isObject(pool.quota) && Array.isArray(pool.games))
+    && (value.pinSet === undefined || typeof value.pinSet === 'boolean');
 }
 
-export function isParticipantLink(value: unknown): value is { id: string; personId: string; createdAt: string; revokedAt: string | null } {
+export function isParticipantLink(value: unknown): value is { id: string; personId: string; createdAt: string; revokedAt: string | null; hasPin?: boolean } {
   return isObject(value) && isUuid(value.id) && isUuid(value.personId) && typeof value.createdAt === 'string'
-    && (value.revokedAt === null || typeof value.revokedAt === 'string');
+    && (value.revokedAt === null || typeof value.revokedAt === 'string') && (value.hasPin === undefined || typeof value.hasPin === 'boolean');
+}
+
+/** Exactly four digits: the same rule the database enforces on the card PIN. */
+export function isPin(value: unknown): value is string {
+  return typeof value === 'string' && /^[0-9]{4}$/.test(value);
 }
 
 /** Digits only, country code first, 10 to 15 digits: the same rule the database enforces on person_phones. */

@@ -128,7 +128,7 @@ describe('v3 migration and immutable planning facts', () => {
     expect(await db.metadata.get('outboxSequence')).toEqual({ key: 'outboxSequence', value: 1 });
     expect(await db.planningCommands.count()).toBe(0);
     expect(await db.planningAnalyses.count()).toBe(0);
-    expect(db.verno).toBe(5);
+    expect(db.verno).toBe(6);
   });
 
   it('stores applied plans and hashed manifests independently of drafts and finance', async () => {

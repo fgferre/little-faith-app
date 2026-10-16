@@ -401,12 +401,31 @@ export function BolaoArrecadar(
   const [phoneId, setPhoneId] = useState<string | null>(null);
   const phonePerson = people.find((person) => person.id === phoneId) ?? null;
   const [joining, setJoining] = useState(false);
-  // Mensagem de cada link criado nesta visita, para o WhatsApp e o Copiar (o token não volta do
-  // servidor depois); some ao sair da tela ou ao cancelar o link.
-  const [messages, setMessages] = useState<Record<string, string>>({});
+  // Mensagem de cada link criado neste aparelho, para o WhatsApp e o Copiar (o token não volta do
+  // servidor depois): fica guardada só aqui, nunca sincronizada nem exportada, e some ao cancelar ou
+  // trocar o link. A de uma pessoa é a do link ativo mais novo dela.
+  const stored = useLiveQuery(
+    async () =>
+      groupId
+        ? await db.linkMessages.where("groupId").equals(groupId).toArray()
+        : [],
+    [db, groupId],
+  );
+  const messages = new Map((stored ?? []).map((row) => [row.id, row.text]));
   const activeLinks = (personId: string) =>
     (links ?? []).filter((link) => link.personId === personId && !link.revokedAt)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+  // Ao puxar os links, a mensagem de um link que não está mais ativo não serve para nada: sai.
+  useEffect(() => {
+    if (!links || !groupId) return;
+    const activeIds = new Set(
+      links.filter((link) => !link.revokedAt).map((link) => link.id),
+    );
+    void db.linkMessages.where("groupId").equals(groupId).primaryKeys().then(
+      (ids) => db.linkMessages.bulkDelete(ids.filter((id) => !activeIds.has(id))),
+    );
+  }, [db, groupId, links]);
 
   async function copyLink(person: PoolPerson, text: string) {
     const copied = await copiar(text);
@@ -420,20 +439,45 @@ export function BolaoArrecadar(
     );
   }
 
+  // Cria o link e guarda a mensagem dele neste aparelho (o token só existe agora).
+  async function createLink(groupId: string, person: PoolPerson) {
+    const created = await createParticipantLink(groupId, person.id);
+    setLinks((list) => [...(list ?? []), {
+      id: created.id,
+      personId: created.personId,
+      createdAt: created.createdAt,
+      revokedAt: null,
+    }]);
+    const text = linkText(person.name, groupName, created.token);
+    await db.linkMessages.put({
+      id: created.id,
+      groupId,
+      personId: person.id,
+      text,
+      createdAt: created.createdAt,
+    });
+    return text;
+  }
+
+  async function revokeLinks(groupId: string, targets: ParticipantLink[]) {
+    for (const link of targets) {
+      const revoked = await revokeParticipantLink(groupId, link.id);
+      setLinks((list) =>
+        (list ?? []).map((item) =>
+          item.id === revoked.id
+            ? { ...item, revokedAt: revoked.revokedAt }
+            : item
+        )
+      );
+      await db.linkMessages.delete(link.id);
+    }
+  }
+
   async function sendLink(person: PoolPerson) {
     if (!groupId) return;
     setBusy(person.id);
     try {
-      const created = await createParticipantLink(groupId, person.id);
-      setLinks((list) => [...(list ?? []), {
-        id: created.id,
-        personId: created.personId,
-        createdAt: created.createdAt,
-        revokedAt: null,
-      }]);
-      const text = linkText(person.name, groupName, created.token);
-      setMessages((list) => ({ ...list, [person.id]: text }));
-      await copyLink(person, text);
+      await copyLink(person, await createLink(groupId, person));
     } catch (error) {
       setNotice({ text: errorMessage(error), error: true });
     } finally {
@@ -445,18 +489,28 @@ export function BolaoArrecadar(
     if (!groupId) return;
     setBusy(person.id);
     try {
-      for (const link of activeLinks(person.id)) {
-        const revoked = await revokeParticipantLink(groupId, link.id);
-        setLinks((list) =>
-          (list ?? []).map((item) =>
-            item.id === revoked.id
-              ? { ...item, revokedAt: revoked.revokedAt }
-              : item
-          )
-        );
-      }
-      setMessages(({ [person.id]: _, ...rest }) => rest);
+      await revokeLinks(groupId, activeLinks(person.id));
       setNotice({ text: `Link de ${person.name} cancelado. Ele não abre mais.` });
+    } catch (error) {
+      setNotice({ text: errorMessage(error), error: true });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  // Outro aparelho criou o link e aqui não há mensagem: cria o novo primeiro e só então cancela os antigos.
+  async function swapLink(person: PoolPerson) {
+    if (!groupId) return;
+    setBusy(person.id);
+    try {
+      const older = activeLinks(person.id);
+      const copied = await copiar(await createLink(groupId, person));
+      await revokeLinks(groupId, older);
+      setNotice({
+        text:
+          "Link novo criado; o anterior parou de funcionar. Toque em Enviar no WhatsApp ou em Copiar.",
+        ...(copied ? {} : { error: true }),
+      });
     } catch (error) {
       setNotice({ text: errorMessage(error), error: true });
     } finally {
@@ -479,9 +533,19 @@ export function BolaoArrecadar(
 
   const linkRow = (person: PoolPerson) => {
     const active = activeLinks(person.id)[0];
-    const text = messages[person.id];
+    const text = active && messages.get(active.id);
     const off = !ready || busy !== null;
     const phone = phones?.[person.id];
+    const cancel = (
+      <Button
+        variant="ghost"
+        small
+        disabled={off}
+        onClick={() => void cancelLink(person)}
+      >
+        Cancelar link
+      </Button>
+    );
     return (
       <div className="pool-person-link">
         <button
@@ -495,35 +559,38 @@ export function BolaoArrecadar(
         >
           {phone ? formatPhone(phone) : "WhatsApp"}
         </button>
-        {(active || !text) && (
-          <div className="pool-link-state">
-            {active && (
-              <span className="ui-sec">
-                Link enviado em {diaMes(active.createdAt, browserTimeZone)}
-              </span>
-            )}
-            {active
-              ? (
-                <Button
-                  variant="ghost"
-                  small
-                  disabled={off}
-                  onClick={() => void cancelLink(person)}
-                >
-                  Cancelar link
-                </Button>
-              )
-              : (
-                <Button
-                  variant="ghost"
-                  small
-                  icon={<Link2 aria-hidden="true" />}
-                  disabled={off}
-                  onClick={() => void sendLink(person)}
-                >
-                  Enviar link pessoal
-                </Button>
-              )}
+        <div className="pool-link-state">
+          {active && (
+            <span className="ui-sec">
+              Link enviado em {diaMes(active.createdAt, browserTimeZone)}
+              {active.hasPin && " · com PIN"}
+            </span>
+          )}
+          {active && text && cancel}
+          {!active && (
+            <Button
+              variant="ghost"
+              small
+              icon={<Link2 aria-hidden="true" />}
+              disabled={off}
+              onClick={() => void sendLink(person)}
+            >
+              Enviar link pessoal
+            </Button>
+          )}
+        </div>
+        {/* Sem a mensagem neste aparelho, cancelar e trocar ficam lado a lado, na mesma fileira. */}
+        {active && !text && (
+          <div className="ui-pair">
+            {cancel}
+            <Button
+              variant="ghost"
+              small
+              disabled={off}
+              onClick={() => void swapLink(person)}
+            >
+              Trocar o link
+            </Button>
           </div>
         )}
         {text && (

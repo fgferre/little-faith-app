@@ -250,6 +250,9 @@ begin
     and pool -> 'result' = '{"drawnNumbers":[1,2,3,4,5,7],"prizeCalculatedCents":"100000","prizeConfirmedCents":"100000",
       "redemptionDeadlineDate":"2027-01-06","prizeRedeemed":true}','B games, registration, result and the official deadline of a prize already redeemed');
   perform pg_temp.assert_true(pool -> 'share' = '{"rightCents":"25000","receivedCents":"25000","pendingCents":"0","paidByName":"Pessoa A","refundRightCents":"400","refundedCents":"400"}','B share received');
+  -- Refund-pro-rata plan: the leftover is split as refund rights, so no group reserve ('0' once the expense is confirmed, null before).
+  perform pg_temp.assert_true(pool ->> 'groupReserveCents' = '0','B pool has no group reserve under refund-pro-rata');
+  perform pg_temp.assert_true(pool ? 'groupPrizeLimitCents' and pool -> 'groupPrizeLimitCents' = 'null','B pool carries its frozen group prize limit, null without one');
   perform pg_temp.assert_true(b::text not like '%Pessoa C%' and b::text not like '%Pessoa D%' and b::text not like '%Apelido%' and b::text not like '%authorIds%'
     and b::text not like '%.pdf%' and b::text not like '%c3000000-0000-4000-8000-000000000003%' and b::text not like '%c8000000%','card carries only B and the ticket holder name');
   pool := c -> 'pools' -> 0;
@@ -261,7 +264,7 @@ begin
   pool := a -> 'pools' -> 0;
   perform pg_temp.assert_true(pool ->> 'id' = 'c4000000-0000-4000-8000-000000000001' and pool ->> 'status' = 'draft' and pool -> 'contest' = '43' and pool -> 'drawAt' = 'null'
     and pool -> 'quota' = '{"units":100,"dueCents":"1000","paidCents":"0","paid":false}' and pool -> 'games' = '[{"numbers":[10,20,30,40,50,60],"registered":false}]'
-    and pool -> 'registration' = 'null' and pool -> 'result' = 'null' and pool -> 'share' = 'null' and pool -> 'closed' = 'false','newest draft pool first, nothing confirmed yet');
+    and pool -> 'registration' = 'null' and pool -> 'result' = 'null' and pool -> 'share' = 'null' and pool -> 'groupReserveCents' = 'null' and pool -> 'groupPrizeLimitCents' = 'null' and pool -> 'closed' = 'false','newest draft pool first, nothing confirmed yet');
   pool := d -> 'pools' -> 0;
   perform pg_temp.assert_true(jsonb_array_length(d -> 'pools') = 1 and pool ->> 'id' = 'c4000000-0000-4000-8000-000000000001'
     and pool -> 'quota' = '{"units":100,"dueCents":"1000","paidCents":"500","paid":false}' and pool -> 'share' = 'null','D paid 500 of 1000, quota not confirmed');
@@ -303,5 +306,101 @@ begin
     and games -> 1 -> 'registered' = 'false' and games -> 1 -> 'numbers' <> '[20,21,22,23,24,25]'
     and games -> 2 -> 'registered' = 'true' and games -> 3 -> 'registered' = 'true','card shows the receipt numbers; a ticket without receipt stays planned');
 end; $$;
+-- Optional 4-digit PIN on the card (owner's decision of 2026-10-15): set on the first visit, five wrong tries lock it for 15 minutes.
+-- Uses Pessoa C's link (token-3); the sample cards above were already captured.
+set local role service_role;
+select set_config('request.jwt.claims','{"role":"service_role"}',true);
+do $$ declare h text := pg_temp.hash('token-3'); r jsonb; i integer;
+begin
+  r := public.participant_card_open(h,null);
+  perform pg_temp.assert_true(r -> 'pinSet' = 'false' and r -> 'person' ->> 'name' = 'Pessoa C' and jsonb_array_length(r -> 'pools') = 1,'a card without PIN opens as before and says so');
+  perform pg_temp.assert_true(public.participant_card_open(pg_temp.hash('token-unknown'),'1234') = '{"error":"link_unknown"}'::jsonb
+    and public.participant_card_open('not-a-hash',null) = '{"error":"link_unknown"}'::jsonb and public.participant_card_open(null,null) = '{"error":"link_unknown"}'::jsonb
+    and public.participant_card_open(pg_temp.hash('token-old'),'1234') = '{"error":"link_revoked"}'::jsonb,'opening with a PIN keeps the unknown and revoked answers');
+  perform pg_temp.assert_true(public.participant_pin_set(pg_temp.hash('token-unknown'),'1234',null) = '{"error":"link_unknown"}'::jsonb
+    and public.participant_pin_set(null,'1234',null) = '{"error":"link_unknown"}'::jsonb
+    and public.participant_pin_set(pg_temp.hash('token-old'),'1234',null) = '{"error":"link_revoked"}'::jsonb,'a PIN is set only on a live link');
+  perform pg_temp.assert_true(public.participant_pin_set(h,'123',null) = '{"error":"pin_invalid"}'::jsonb and public.participant_pin_set(h,'12ab',null) = '{"error":"pin_invalid"}'::jsonb
+    and public.participant_pin_set(h,'12345',null) = '{"error":"pin_invalid"}'::jsonb and public.participant_pin_set(h,'',null) = '{"error":"pin_invalid"}'::jsonb,'only four digits are a PIN');
+  perform pg_temp.assert_true(public.participant_pin_set(h,null,null) = '{"pinSet":false}'::jsonb and public.participant_card_open(h,null) -> 'pinSet' = 'false','removing a PIN that does not exist changes nothing');
+  perform pg_temp.assert_true(public.participant_pin_set(h,'1234',null) = '{"pinSet":true}'::jsonb,'first visit sets the PIN without a current one');
+  perform pg_temp.assert_true(public.participant_card_open(h,null) = '{"error":"pin_required"}'::jsonb,'a card with PIN does not open without it');
+  for i in 1..4 loop
+    r := public.participant_card_open(h,'0000');
+    perform pg_temp.assert_true(r = jsonb_build_object('error','pin_wrong','attemptsLeft',5 - i),'wrong PIN ' || i || ' counts down the tries left');
+  end loop;
+  r := public.participant_card_open(h,'0000');
+  perform pg_temp.assert_true(r ->> 'error' = 'pin_locked' and (r ->> 'retryAt')::timestamptz between now() + interval '14 minutes' and clock_timestamp() + interval '15 minutes',
+    'the fifth wrong PIN locks for about fifteen minutes');
+  perform pg_temp.assert_true(public.participant_card_open(h,'1234') ->> 'error' = 'pin_locked' and public.participant_card_open(h,null) ->> 'error' = 'pin_locked'
+    and public.participant_pin_set(h,'4321','1234') ->> 'error' = 'pin_locked' and public.participant_pin_set(h,null,'1234') ->> 'error' = 'pin_locked','the correct PIN does not open or change a locked card');
+end; $$;
+reset role;
+do $$ declare p public.participant_link_pins;
+begin
+  select * into p from public.participant_link_pins;
+  perform pg_temp.assert_true((select count(*) from public.participant_link_pins) = 1 and p.pin_hash ~ '^[0-9a-f]{64}$' and p.pin_hash <> '1234' and p.pin_salt <> ''
+    and p.pin_hash = private.participant_pin_digest(p.pin_salt,'1234') and p.failed_attempts = 0 and p.locked_until > clock_timestamp(),'only a salted hash is stored and the lock restarts the count');
+  begin update public.participant_link_pins set failed_attempts = 5; raise exception 'five failures stored'; exception when check_violation then null; end;
+  begin update public.participant_link_pins set pin_hash = '1234'; raise exception 'clear PIN stored'; exception when check_violation then null; end;
+  update public.participant_link_pins set locked_until = clock_timestamp() - interval '1 minute';
+end; $$;
+set local role service_role;
+select set_config('request.jwt.claims','{"role":"service_role"}',true);
+do $$ declare h text := pg_temp.hash('token-3'); r jsonb;
+begin
+  perform pg_temp.assert_true(public.participant_card_open(h,'0000') = '{"error":"pin_wrong","attemptsLeft":4}'::jsonb,'after the lock passes, the count starts again from zero');
+  perform pg_temp.assert_true(public.participant_card_open(h,'12') = '{"error":"pin_wrong","attemptsLeft":3}'::jsonb,'a malformed PIN counts as a wrong one');
+  r := public.participant_card_open(h,'1234');
+  perform pg_temp.assert_true(r -> 'pinSet' = 'true' and r -> 'person' ->> 'name' = 'Pessoa C' and r ? 'pools' and not (r ? 'error'),'the correct PIN opens the card once the lock has passed');
+end; $$;
+reset role;
+do $$ begin
+  perform pg_temp.assert_true((select failed_attempts = 0 and locked_until is null from public.participant_link_pins),'a correct PIN clears the count and the lock');
+end; $$;
+set local role service_role;
+select set_config('request.jwt.claims','{"role":"service_role"}',true);
+do $$ declare h text := pg_temp.hash('token-3');
+begin
+  perform pg_temp.assert_true(public.participant_pin_set(h,'4321',null) = '{"error":"pin_required"}'::jsonb and public.participant_pin_set(h,null,null) = '{"error":"pin_required"}'::jsonb,'changing or removing a PIN needs the current one');
+  perform pg_temp.assert_true(public.participant_pin_set(h,'4321','0000') = '{"error":"pin_wrong","attemptsLeft":4}'::jsonb and public.participant_pin_set(h,'4321','abcd') = '{"error":"pin_wrong","attemptsLeft":3}'::jsonb,'a wrong current PIN counts like a wrong card PIN');
+  perform pg_temp.assert_true(public.participant_pin_set(h,'12ab','1234') = '{"error":"pin_invalid"}'::jsonb and public.participant_card_open(h,'1234') -> 'pinSet' = 'true','an invalid new PIN is refused without touching the old one');
+  perform pg_temp.assert_true(public.participant_pin_set(h,'4321','1234') = '{"pinSet":true}'::jsonb,'the current PIN changes the PIN');
+  perform pg_temp.assert_true(public.participant_card_open(h,'1234') = '{"error":"pin_wrong","attemptsLeft":4}'::jsonb and public.participant_card_open(h,'4321') -> 'pinSet' = 'true','the old PIN stops working and the new one opens');
+  perform pg_temp.assert_true(public.participant_pin_set(h,null,'0000') = '{"error":"pin_wrong","attemptsLeft":4}'::jsonb and public.participant_pin_set(h,null,'4321') = '{"pinSet":false}'::jsonb,'removing the PIN needs the current one');
+  perform pg_temp.assert_true(public.participant_card_open(h,null) -> 'pinSet' = 'false' and public.participant_card_open(h,'9999') -> 'pinSet' = 'false','after removal the card opens without a PIN');
+  perform pg_temp.assert_true(public.participant_pin_set(h,'1111',null) = '{"pinSet":true}'::jsonb,'a PIN can be set again after removal');
+end; $$;
+reset role;
+do $$ begin
+  perform pg_temp.assert_true((select count(*) from public.participant_link_pins) = 1 and (select failed_attempts = 0 and locked_until is null from public.participant_link_pins),'removal deleted the row and the new PIN starts clean');
+end; $$;
+
+-- The organizer sees which links have a PIN, never the PIN itself; no client role reads the table or runs the PIN functions.
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000981","role":"authenticated","session_id":"00000000-0000-4000-8000-100000000981","app_metadata":{}}',true);
+do $$ declare r jsonb := public.participant_links_pull('c1000000-0000-4000-8000-000000000001');
+begin
+  perform pg_temp.assert_true(jsonb_array_length(r -> 'links') = 5 and (select bool_and(jsonb_typeof(l.value -> 'hasPin') = 'boolean') from jsonb_array_elements(r -> 'links') l)
+    and (select count(*) from jsonb_array_elements(r -> 'links') l where l.value -> 'hasPin' = 'true') = 1
+    and (select count(*) from jsonb_array_elements(r -> 'links') l where l.value ->> 'personId' = 'c3000000-0000-4000-8000-000000000003' and l.value -> 'hasPin' = 'true') = 1
+    and r::text not like '%pin_hash%' and r::text not like '%pin_salt%' and r::text not like '%1111%','the pull shows hasPin per link and nothing of the PIN');
+end; $$;
+do $$ begin
+  begin perform count(*) from public.participant_link_pins; raise exception 'organizer read the PINs'; exception when insufficient_privilege then null; end;
+  begin update public.participant_link_pins set failed_attempts = 0; raise exception 'organizer rewrote the PINs'; exception when insufficient_privilege then null; end;
+  begin delete from public.participant_link_pins; raise exception 'organizer deleted the PINs'; exception when insufficient_privilege then null; end;
+  begin perform public.participant_card_open(pg_temp.hash('token-3'),'1111'); raise exception 'organizer session opened a card with a PIN'; exception when insufficient_privilege then null; end;
+  begin perform public.participant_pin_set(pg_temp.hash('token-3'),null,'1111'); raise exception 'organizer session changed a PIN'; exception when insufficient_privilege then null; end;
+  begin perform private.participant_pin_digest('a','1111'); raise exception 'organizer session ran the digest'; exception when insufficient_privilege then null; end;
+end; $$;
+reset role;
+set local role anon;
+do $$ begin
+  begin perform count(*) from public.participant_link_pins; raise exception 'anonymous client read the PINs'; exception when insufficient_privilege then null; end;
+  begin perform public.participant_card_open(pg_temp.hash('token-3'),'1111'); raise exception 'anonymous client opened a card with a PIN'; exception when insufficient_privilege then null; end;
+  begin perform public.participant_pin_set(pg_temp.hash('token-3'),null,'1111'); raise exception 'anonymous client changed a PIN'; exception when insufficient_privilege then null; end;
+end; $$;
+reset role;
 select label,kind,data from participant_samples order by label;
 rollback;

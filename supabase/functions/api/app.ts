@@ -3,7 +3,7 @@ import { bodyLimit } from 'hono/body-limit';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { EvidenceFailure, evidenceMime, hashBytes, MAX_ORIGINAL_BYTES, uploadOriginal } from './evidence.ts';
 import { collectOfficialResult, ResultCollectionFailure, type CollectionContext } from './results.ts';
-import { createParticipantToken, isParticipantCard, isParticipantLink, isPersonPhone, isPhone, participantTokenHash } from './participant.ts';
+import { createParticipantToken, isParticipantCard, isParticipantLink, isPersonPhone, isPhone, isPin, participantTokenHash } from './participant.ts';
 import { validateEvidenceMetadata, validateEvidenceUploadMetadata } from '../../../packages/core/src/evidence.ts';
 import {
   exactKeys, isCursor, isFinancialReceipt, isFinancialSnapshot, isHumanSession, isObject,
@@ -22,6 +22,20 @@ export interface ApiConfig {
 }
 
 type ApiEnvironment = { Variables: { supabase: SupabaseClient; actorId: string } };
+
+type ParticipantFailure = { status: 401 | 404 | 410 | 429; body: Record<string, unknown> };
+
+/** The answers the card and PIN routes share for a bad link or a wrong or locked PIN; null for anything else. */
+function participantFailure(data: unknown): ParticipantFailure | null {
+  if (!isObject(data)) return null;
+  if (data.error === 'link_unknown') return { status: 404, body: { code: 'link_unknown', message: 'Este link não existe. Peça um novo ao organizador.' } };
+  if (data.error === 'link_revoked') return { status: 410, body: { code: 'link_revoked', message: 'Este link foi cancelado pelo organizador.' } };
+  if (data.error === 'pin_wrong' && typeof data.attemptsLeft === 'number') return { status: 401, body: { code: 'pin_wrong', message: 'PIN errado.', attemptsLeft: data.attemptsLeft } };
+  if (data.error === 'pin_locked' && typeof data.retryAt === 'string') {
+    return { status: 429, body: { code: 'pin_locked', message: 'Muitas tentativas erradas. Tente de novo mais tarde.', retryAt: data.retryAt } };
+  }
+  return null;
+}
 
 function rpcError(code: string): { status: 400 | 403 | 409 | 503; code: string; message: string } {
   if (code === '42501') return { status: 403, code: 'access_denied', message: 'Esta conta não tem acesso ao grupo ou à operação.' };
@@ -64,8 +78,8 @@ export function createApi(config: ApiConfig): Hono<ApiEnvironment> {
       if (mismatch !== 0) return c.json({ code: 'job_access_denied', message: 'Capacidade de coleta não autorizada.' }, 403);
       await next(); return;
     }
-    // The participant card is opened by its link token alone; any session sent along is ignored.
-    if (c.req.method === 'POST' && c.req.path === '/api/v1/participant_card') { await next(); return; }
+    // The participant card and its PIN are reached by the link token alone; any session sent along is ignored.
+    if (c.req.method === 'POST' && (c.req.path === '/api/v1/participant_card' || c.req.path === '/api/v1/participant_pin')) { await next(); return; }
     if (!token) return c.json({ code: 'authentication_required', message: 'Entre na sua conta antes de sincronizar.' }, 401);
     const supabase = createClient(config.supabaseUrl, config.publishableKey, {
       global: { headers: { Authorization: `Bearer ${token}` } },
@@ -384,14 +398,38 @@ export function createApi(config: ApiConfig): Hono<ApiEnvironment> {
   app.post('/v1/participant_card', async c => {
     if (!server) return c.json({ code: 'participant_card_unconfigured', message: 'O cartão do participante ainda não está configurado no servidor.' }, 503);
     const value: unknown = await c.req.json().catch(() => null);
-    const tokenHash = isObject(value) && exactKeys(value, ['token']) ? await participantTokenHash(value.token) : null;
-    if (!tokenHash) return c.json({ code: 'link_unknown', message: 'Este link não existe. Peça um novo ao organizador.' }, 404);
-    const { data, error } = await server.rpc('participant_card', { p_token_hash: tokenHash });
+    // The PIN is optional; any other shape of the body is treated like an unknown link, before the database.
+    const valid = isObject(value) && (exactKeys(value, ['token']) || (exactKeys(value, ['token', 'pin']) && typeof value.pin === 'string'));
+    const tokenHash = valid ? await participantTokenHash(value.token) : null;
+    if (!valid || !tokenHash) return c.json({ code: 'link_unknown', message: 'Este link não existe. Peça um novo ao organizador.' }, 404);
+    const { data, error } = await server.rpc('participant_card_open', { p_token_hash: tokenHash, p_pin: typeof value.pin === 'string' ? value.pin : null });
     if (error) return c.json({ code: 'backend_unavailable', message: 'Não foi possível abrir o cartão agora; tente de novo.' }, 503);
-    if (isObject(data) && data.error === 'link_unknown') return c.json({ code: 'link_unknown', message: 'Este link não existe. Peça um novo ao organizador.' }, 404);
-    if (isObject(data) && data.error === 'link_revoked') return c.json({ code: 'link_revoked', message: 'Este link foi cancelado pelo organizador.' }, 410);
+    const failure = participantFailure(data);
+    if (failure) return c.json(failure.body, failure.status);
+    if (isObject(data) && data.error === 'pin_required') return c.json({ code: 'pin_required', message: 'Este cartão tem PIN.' }, 401);
     if (!isParticipantCard(data)) return c.json({ code: 'invalid_backend_response', message: 'O cartão não pôde ser verificado; tente de novo.' }, 503);
     return c.json(data);
+  });
+  // Sets, changes or removes (pin null) the card PIN. The current PIN is needed once one exists; the token and PINs travel in the body only.
+  app.post('/v1/participant_pin', async c => {
+    if (!server) return c.json({ code: 'participant_card_unconfigured', message: 'O cartão do participante ainda não está configurado no servidor.' }, 503);
+    const value: unknown = await c.req.json().catch(() => null);
+    if (!isObject(value) || !exactKeys(value, ['token', 'pin', 'currentPin'])) return c.json({ code: 'invalid_request', message: 'Use um PIN de 4 números.' }, 400);
+    const tokenHash = await participantTokenHash(value.token);
+    if (!tokenHash) return c.json({ code: 'link_unknown', message: 'Este link não existe. Peça um novo ao organizador.' }, 404);
+    if (!(value.pin === null || isPin(value.pin)) || !(value.currentPin === null || isPin(value.currentPin))) {
+      return c.json({ code: 'invalid_request', message: 'Use um PIN de 4 números.' }, 400);
+    }
+    const { data, error } = await server.rpc('participant_pin_set', { p_token_hash: tokenHash, p_pin: value.pin, p_current_pin: value.currentPin });
+    if (error) return c.json({ code: 'backend_unavailable', message: 'Não foi possível salvar o PIN agora; tente de novo.' }, 503);
+    const failure = participantFailure(data);
+    if (failure) return c.json(failure.body, failure.status);
+    if (isObject(data) && data.error === 'pin_invalid') return c.json({ code: 'invalid_request', message: 'Use um PIN de 4 números.' }, 400);
+    if (isObject(data) && data.error === 'pin_required') return c.json({ code: 'pin_required', message: 'Digite o PIN atual.' }, 401);
+    if (!isObject(data) || !exactKeys(data, ['pinSet']) || typeof data.pinSet !== 'boolean' || data.pinSet !== (value.pin !== null)) {
+      return c.json({ code: 'invalid_backend_response', message: 'O PIN não pôde ser confirmado; tente de novo.' }, 503);
+    }
+    return c.json({ pinSet: data.pinSet });
   });
   app.notFound(c => c.json({ code: 'not_found', message: 'Operação não disponível nesta versão.' }, 404));
   app.onError((error, c) => {

@@ -430,4 +430,12 @@ describe('pulls, finance and emergency recovery', () => {
     expect(exported.operations[0]?.idempotencyKey).toBe((await db.operations.toArray())[0]?.idempotencyKey);
     expect(exported.cursors).toEqual([{ groupId: GROUP_A, cursor: 8 }]);
   });
+
+  it('keeps the device-only personal link messages out of the emergency export', async () => {
+    const db = store();
+    await db.linkMessages.put({ id: PERSON_2, groupId: GROUP_A, personId: PERSON_1, text: 'Oi Ana! #/p/segredo', createdAt: '2026-10-15T12:00:00.000Z' });
+    const raw = await exportEmergencySnapshot(db);
+    expect(Object.keys(JSON.parse(raw) as object)).not.toContain('linkMessages');
+    expect(raw).not.toContain('segredo');
+  });
 });

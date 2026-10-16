@@ -71,5 +71,5 @@ it('migrates v3 without losing attempted drafts, unknown decisions, frozen facts
   expect(resumed.checkpoint).toEqual(checkpoint);
   expect(resumed.progressVersion).toBe(5);
   for (const table of [db.evidenceUploads, db.confirmedEvidence, db.registrationReports, db.registrationCommands, db.contestResults, db.resultSelections, db.resultCommands]) expect(await table.count()).toBe(0);
-  expect(db.verno).toBe(5);
+  expect(db.verno).toBe(6);
 });

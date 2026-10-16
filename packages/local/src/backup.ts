@@ -4,9 +4,11 @@ import { bytesBase64, sha256Bytes } from './binary';
 /** This optional local export is not the encrypted complete backup from docs/ESPECIFICACAO.md. */
 export async function exportEmergencySnapshot(db: BolaoDatabase): Promise<string> {
   const createdAt = new Date().toISOString();
+  // linkMessages hold personal link URLs (credentials) and stay on the device that created them.
+  const tables = db.tables.filter(table => table.name !== 'linkMessages');
   // Capture every table atomically, then read Blob bytes outside the IDB transaction.
-  const snapshot: Record<string, unknown[]> = await db.transaction('r', db.tables, async () => {
-    const rows = await Promise.all(db.tables.map(async table => [table.name, await table.toArray()] as const));
+  const snapshot: Record<string, unknown[]> = await db.transaction('r', tables, async () => {
+    const rows = await Promise.all(tables.map(async table => [table.name, await table.toArray()] as const));
     return Object.fromEntries(rows);
   });
   if (snapshot.evidenceUploads) {

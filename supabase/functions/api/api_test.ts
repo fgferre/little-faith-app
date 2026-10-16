@@ -415,7 +415,7 @@ Deno.test('participant links: token only at creation, card opens by POST without
     const name = path.replace('/rest/v1/rpc/', '');
     const parameters = await request.json();
     calls.push({ name, authorization: request.headers.get('Authorization'), parameters });
-    if (name !== 'participant_card' && !organizer) return Response.json({ code: '42501', details: null, hint: null, message: 'group_access_denied' }, { status: 403 });
+    if (name !== 'participant_card_open' && !organizer) return Response.json({ code: '42501', details: null, hint: null, message: 'group_access_denied' }, { status: 403 });
     if (name === 'participant_link_create') {
       links.set(parameters.p_token_hash, 'active');
       return Response.json({ id: linkId, personId: parameters.p_person_id, createdAt: '2026-10-11T12:00:00.000Z' });
@@ -424,8 +424,8 @@ Deno.test('participant links: token only at creation, card opens by POST without
       for (const hash of links.keys()) links.set(hash, 'revoked');
       return Response.json({ id: parameters.p_id, revokedAt: '2026-10-11T12:05:00.000Z' });
     }
-    if (name === 'participant_links_pull') return Response.json({ links: [{ id: linkId, personId: id, createdAt: '2026-10-11T12:00:00.000Z', revokedAt: null }] });
-    if (name === 'participant_card') {
+    if (name === 'participant_links_pull') return Response.json({ links: [{ id: linkId, personId: id, createdAt: '2026-10-11T12:00:00.000Z', revokedAt: null, hasPin: false }] });
+    if (name === 'participant_card_open') {
       const state = links.get(parameters.p_token_hash);
       return Response.json(state === 'active' ? card : { error: state === 'revoked' ? 'link_revoked' : 'link_unknown' });
     }
@@ -449,7 +449,7 @@ Deno.test('participant links: token only at creation, card opens by POST without
     assert(again.token !== link.token, 'every link gets a fresh random token');
     const opened = await app.request('/api/v1/participant_card', open(link.token, { Origin: 'https://app.example', 'Content-Type': 'application/json' }));
     assert(opened.status === 200 && JSON.stringify(await opened.json()) === JSON.stringify(card) && opened.headers.get('Cache-Control') === 'no-store', 'card opens without a session and is never cached');
-    assert(calls.at(-1)?.name === 'participant_card' && calls.at(-1)?.authorization === 'Bearer server-fixture', 'card read with the server key only');
+    assert(calls.at(-1)?.name === 'participant_card_open' && calls.at(-1)?.authorization === 'Bearer server-fixture' && calls.at(-1)?.parameters.p_pin === null, 'card read with the server key only, without a PIN');
     const count = calls.length;
     assert((await app.request('/api/v1/participant_card', open('short'))).status === 404 && calls.length === count, 'malformed token never reaches the database');
     assert((await app.request(`/api/v1/participant_card?token=${link.token}`)).status === 401 && calls.length === count, 'token in the URL is not accepted');
@@ -457,7 +457,7 @@ Deno.test('participant links: token only at creation, card opens by POST without
     const unknown = await app.request('/api/v1/participant_card', open('b'.repeat(43)));
     assert(unknown.status === 404 && (await unknown.json()).code === 'link_unknown', 'unknown link answers 404');
     const pulled = await app.request('/api/v1/participant_links_pull', { method: 'POST', headers, body: JSON.stringify({ groupId: id }) });
-    assert(pulled.status === 200 && (await pulled.json()).links.length === 1 && JSON.stringify(calls.at(-1)?.parameters) === JSON.stringify({ p_group_id: id }), 'links listed for the organizer');
+    assert(pulled.status === 200 && (await pulled.json()).links[0].hasPin === false && JSON.stringify(calls.at(-1)?.parameters) === JSON.stringify({ p_group_id: id }), 'links listed for the organizer');
     const revoked = await app.request('/api/v1/participant_link_revoke', { method: 'POST', headers, body: JSON.stringify({ groupId: id, id: linkId }) });
     assert(revoked.status === 200 && JSON.stringify(await revoked.json()) === JSON.stringify({ id: linkId, revokedAt: '2026-10-11T12:05:00.000Z' })
       && JSON.stringify(calls.at(-1)?.parameters) === JSON.stringify({ p_group_id: id, p_id: linkId }), 'link revoked');
@@ -468,6 +468,87 @@ Deno.test('participant links: token only at creation, card opens by POST without
     organizer = false;
     const refused = await app.request('/api/v1/participant_link', { method: 'POST', headers, body });
     assert(refused.status === 403 && (await refused.json()).code === 'access_denied', 'non-organizer cannot create a link');
+  } finally { globalThis.fetch = originalFetch; }
+});
+Deno.test('participant PIN: the card answers 401 without or with a wrong PIN and 429 when locked; the PIN route needs no session and refuses bad bodies before the database', async () => {
+  // The mocked transport checks wiring; the SQL suite proves the counting, the lock and that only a salted hash is stored.
+  const card = { version: 1, generatedAt: '2026-10-15T12:00:00.000Z', group: { name: 'Bolão da firma' }, person: { id, name: 'Pessoa B' }, pools: [], pinSet: true };
+  const calls: { name: string; authorization: string | null; parameters: Record<string, unknown> }[] = [];
+  let reply: unknown = card; let failing = false;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input, init) => {
+    const request = new Request(input, init);
+    const path = new URL(request.url).pathname;
+    if (path === '/auth/v1/user') throw new Error('The public PIN routes never look at a session.');
+    calls.push({ name: path.replace('/rest/v1/rpc/', ''), authorization: request.headers.get('Authorization'), parameters: await request.json() });
+    return failing ? Response.json({ code: 'XX000', details: null, hint: null, message: 'fixture failure' }, { status: 500 }) : Response.json(reply);
+  };
+  try {
+    const config = { supabaseUrl: 'https://fixture.supabase.co', publishableKey: 'test-public-key', allowedOrigins: ['https://app.example'] };
+    const linkToken = 'c'.repeat(43);
+    const open = (body: unknown) => ({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const unconfigured = await createApi(config).request('/api/v1/participant_pin', open({ token: linkToken, pin: '1234', currentPin: null }));
+    assert(unconfigured.status === 503 && calls.length === 0, 'the PIN route needs the server key');
+    const app = createApi({ ...config, serviceRoleKey: 'server-fixture' });
+    // Card route.
+    reply = card;
+    const withPin = await app.request('/api/v1/participant_card', open({ token: linkToken, pin: '1234' }));
+    assert(withPin.status === 200 && (await withPin.json()).pinSet === true && calls.at(-1)?.name === 'participant_card_open' && calls.at(-1)?.authorization === 'Bearer server-fixture'
+      && calls.at(-1)?.parameters.p_pin === '1234' && calls.at(-1)?.parameters.p_token_hash === await hashBytes(new TextEncoder().encode(linkToken)), 'card opens with the PIN');
+    reply = { error: 'pin_required' };
+    const required = await app.request('/api/v1/participant_card', open({ token: linkToken }));
+    assert(required.status === 401 && JSON.stringify(await required.json()) === JSON.stringify({ code: 'pin_required', message: 'Este cartão tem PIN.' }) && calls.at(-1)?.parameters.p_pin === null, 'card with PIN asks for it');
+    reply = { error: 'pin_wrong', attemptsLeft: 3 };
+    const wrong = await app.request('/api/v1/participant_card', open({ token: linkToken, pin: '0000' }));
+    assert(wrong.status === 401 && JSON.stringify(await wrong.json()) === JSON.stringify({ code: 'pin_wrong', message: 'PIN errado.', attemptsLeft: 3 }), 'wrong PIN answers 401 with the tries left');
+    reply = { error: 'pin_locked', retryAt: '2026-10-15T12:15:00.000Z' };
+    const locked = await app.request('/api/v1/participant_card', open({ token: linkToken, pin: '0000' }));
+    assert(locked.status === 429 && JSON.stringify(await locked.json()) === JSON.stringify({ code: 'pin_locked', message: 'Muitas tentativas erradas. Tente de novo mais tarde.', retryAt: '2026-10-15T12:15:00.000Z' }), 'locked card answers 429 with the retry moment');
+    reply = { ...card, pinSet: 'yes' };
+    assert((await app.request('/api/v1/participant_card', open({ token: linkToken, pin: '1234' }))).status === 503, 'a card with a malformed pinSet fails closed');
+    reply = { error: 'pin_wrong' };
+    assert((await app.request('/api/v1/participant_card', open({ token: linkToken, pin: '1234' }))).status === 503, 'a wrong-PIN answer without the tries left fails closed');
+    const count = calls.length;
+    for (const body of [{ token: linkToken, pin: '1234', extra: 1 }, { token: linkToken, pin: 1234 }, { token: linkToken, pin: null }, { pin: '1234' }, { token: 'short', pin: '1234' }]) {
+      assert((await app.request('/api/v1/participant_card', open(body))).status === 404 && calls.length === count, 'any other body shape is an unknown link, before the database');
+    }
+    failing = true;
+    assert((await app.request('/api/v1/participant_card', open({ token: linkToken, pin: '1234' }))).status === 503, 'database failure on the card is 503');
+    failing = false;
+    // PIN route.
+    reply = { pinSet: true };
+    const set = await app.request('/api/v1/participant_pin', open({ token: linkToken, pin: '1234', currentPin: null }));
+    assert(set.status === 200 && JSON.stringify(await set.json()) === JSON.stringify({ pinSet: true }) && calls.at(-1)?.name === 'participant_pin_set'
+      && calls.at(-1)?.authorization === 'Bearer server-fixture' && JSON.stringify(calls.at(-1)?.parameters) === JSON.stringify({
+        p_token_hash: await hashBytes(new TextEncoder().encode(linkToken)), p_pin: '1234', p_current_pin: null }), 'the PIN is set without a session');
+    reply = { pinSet: false };
+    const removed = await app.request('/api/v1/participant_pin', open({ token: linkToken, pin: null, currentPin: '1234' }));
+    assert(removed.status === 200 && JSON.stringify(await removed.json()) === JSON.stringify({ pinSet: false }) && calls.at(-1)?.parameters.p_pin === null && calls.at(-1)?.parameters.p_current_pin === '1234', 'the PIN is removed with the current one');
+    const sent = calls.length;
+    for (const body of [{ token: linkToken, pin: '12', currentPin: null }, { token: linkToken, pin: '12ab', currentPin: null }, { token: linkToken, pin: 1234, currentPin: null },
+      { token: linkToken, pin: '1234', currentPin: 'abcd' }, { token: linkToken, pin: '1234', currentPin: '12345' }, { token: linkToken, pin: '1234' }, { token: linkToken, pin: '1234', currentPin: null, extra: 1 }]) {
+      const invalid = await app.request('/api/v1/participant_pin', open(body));
+      assert(invalid.status === 400 && (await invalid.json()).code === 'invalid_request' && calls.length === sent, 'a PIN that is not four digits never reaches the database');
+    }
+    const malformed = await app.request('/api/v1/participant_pin', open({ token: 'short', pin: '1234', currentPin: null }));
+    assert(malformed.status === 404 && (await malformed.json()).code === 'link_unknown' && calls.length === sent, 'a malformed token never reaches the database');
+    assert((await app.request('/api/v1/participant_pin?token=' + linkToken, { method: 'GET' })).status === 401 && calls.length === sent, 'only POST skips the session');
+    const answers: [unknown, number, string][] = [
+      [{ error: 'pin_required' }, 401, 'pin_required'], [{ error: 'pin_wrong', attemptsLeft: 2 }, 401, 'pin_wrong'], [{ error: 'pin_locked', retryAt: '2026-10-15T12:15:00.000Z' }, 429, 'pin_locked'],
+      [{ error: 'pin_invalid' }, 400, 'invalid_request'], [{ error: 'link_unknown' }, 404, 'link_unknown'], [{ error: 'link_revoked' }, 410, 'link_revoked'],
+      [{ pinSet: false }, 503, 'invalid_backend_response'], [{ pinSet: 'yes' }, 503, 'invalid_backend_response'], [{}, 503, 'invalid_backend_response'], [null, 503, 'invalid_backend_response'],
+    ];
+    for (const [answer, status, code] of answers) {
+      reply = answer;
+      const response = await app.request('/api/v1/participant_pin', open({ token: linkToken, pin: '1234', currentPin: '0000' }));
+      const body = await response.json();
+      assert(response.status === status && body.code === code, `PIN route maps ${JSON.stringify(answer)} to ${status} ${code}`);
+      if (code === 'pin_required') assert(body.message === 'Digite o PIN atual.', 'the PIN route asks for the current PIN');
+      if (code === 'pin_wrong') assert(body.attemptsLeft === 2, 'the PIN route reports the tries left');
+      if (code === 'pin_locked') assert(body.retryAt === '2026-10-15T12:15:00.000Z', 'the PIN route reports the retry moment');
+    }
+    failing = true;
+    assert((await app.request('/api/v1/participant_pin', open({ token: linkToken, pin: '1234', currentPin: null }))).status === 503, 'database failure on the PIN route is 503');
   } finally { globalThis.fetch = originalFetch; }
 });
 Deno.test('person phones: organizer lists, sets and clears; invalid phones and ids never reach the database; no session 401; non-organizer 403', async () => {

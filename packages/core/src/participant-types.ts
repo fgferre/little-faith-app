@@ -1,7 +1,7 @@
 import type { LotteryId, PixReceiver } from './types';
 
 /**
- * Personal card opened from the participant link (`GET /v1/participant_card`), assembled by the server at every opening.
+ * Personal card opened from the participant link (`POST /v1/participant_card`), assembled by the server at every opening.
  * Only this person's values: games carry no owner, and no phone, document or file path is ever included. The one Pix key
  * is the group's receiver (owner's decision of 2026-10-12), so the person can pay; the code is built on the device.
  * Money is a string of cents; share values mirror the person's row of computeSettlement for that pool.
@@ -14,6 +14,8 @@ export interface ParticipantCard {
   person: { id: string; name: string };
   /** Pools of the group where this person has a quota, newest first. */
   pools: ParticipantCardPool[];
+  /** Whether the person protected the card with a PIN (owner's decision of 2026-10-15). Absent in cards served before it. */
+  pinSet?: boolean;
 }
 
 export interface ParticipantCardPool {
@@ -54,5 +56,9 @@ export interface ParticipantCardPool {
     refundRightCents: string | null;
     refundedCents: string;
   } | null;
+  /** The pool's leftover kept as the group's reserve (group-credit plan), null before expenses are confirmed. Absent in cards served before it. */
+  groupReserveCents?: string | null;
+  /** Frozen plan's limit under which a confirmed prize stays in the group cash (internal agreement); null when none. Absent in cards served before it. */
+  groupPrizeLimitCents?: string | null;
   closed: boolean;
 }

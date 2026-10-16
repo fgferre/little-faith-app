@@ -1144,6 +1144,7 @@ tr:last-child td {
   font-size: var(--t-corpo);
 }
 .modal form > label,
+.card-pin > label,
 .form-columns > label,
 .modal .planning-settings label {
   display: flex;
@@ -1155,10 +1156,12 @@ tr:last-child td {
   font-weight: 600;
 }
 /* o texto do rótulo e o "(opcional)" na mesma linha; campo e ajuda embaixo, na largura toda */
-.modal label > :is(input:not([type='checkbox']):not([type='radio']), select, textarea, small, .ui-input) {
+.modal label > :is(input:not([type='checkbox']):not([type='radio']), select, textarea, small, .ui-input),
+.card-pin > label > input {
   flex: 1 1 100%;
 }
 .modal label > input:not([type='checkbox']):not([type='radio']),
+.card-pin > label > input,
 .modal label > textarea,
 .modal label > select,
 .modal .planning-settings select {
@@ -1175,6 +1178,7 @@ tr:last-child td {
   font-weight: 500;
 }
 .modal label > input:focus-visible,
+.card-pin > label > input:focus-visible,
 .modal label > textarea:focus-visible,
 .modal label > select:focus-visible,
 .modal .planning-settings select:focus-visible {
@@ -2682,6 +2686,21 @@ tr:last-child td {
 .card-state > .pool-card-title {
   margin: 0;
 }
+/* portão do PIN: o campo e o aviso na largura do bloco, o botão do tamanho do texto */
+.card-pin {
+  justify-items: stretch;
+  width: min(100%, calc(var(--e48) * 8));
+}
+.card-pin > .ui-btn {
+  justify-self: start;
+}
+/* "Proteger meu cartão": depois dos bolões; os dois botões ficam em uma fileira (.ui-pair) */
+.card-protect {
+  margin-top: var(--e32);
+}
+.card-protect > .ui-pair {
+  margin-top: var(--e16);
+}
 .card-foot {
   display: grid;
   gap: var(--e4);
@@ -2693,6 +2712,9 @@ tr:last-child td {
 @media (min-width: 700px) {
   .card-page {
     padding-bottom: var(--e48);
+  }
+  .card-protect {
+    width: calc((100% - var(--e24)) / 2);
   }
   .card-top {
     min-height: 76px;

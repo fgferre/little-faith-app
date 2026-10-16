@@ -11,11 +11,22 @@ export interface ParticipantLink {
   personId: string;
   createdAt: string;
   revokedAt: string | null;
+  /** A pessoa protegeu o cartão deste link com PIN; ausente em respostas de antes do PIN. */
+  hasPin?: boolean;
 }
 
-/** Falha de uma chamada de link pessoal; `status` 0 quando nem chegou ao servidor (sem conta ou sem configuração). */
+/**
+ * Falha de uma chamada de link pessoal; `status` 0 quando nem chegou ao servidor (sem conta ou sem configuração).
+ * `code`, `attemptsLeft` e `retryAt` vêm do corpo da resposta quando o servidor os manda (os do PIN).
+ */
 export class ParticipantApiError extends Error {
-  constructor(message: string, readonly status: number) {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly code?: string,
+    readonly attemptsLeft?: number,
+    readonly retryAt?: string,
+  ) {
     super(message);
   }
 }
@@ -48,6 +59,9 @@ async function call<T>(
     const result = await response.json().catch(() => null) as {
       error?: string;
       message?: string;
+      code?: string;
+      attemptsLeft?: number;
+      retryAt?: string;
     } | null;
     throw new ParticipantApiError(
       response.status === 503
@@ -55,6 +69,9 @@ async function call<T>(
         : result?.message ?? result?.error ??
           `O servidor não respondeu como esperado (${response.status}).`,
       response.status,
+      result?.code,
+      result?.attemptsLeft,
+      result?.retryAt,
     );
   }
   if (response.status === 204) return undefined as T;
@@ -88,9 +105,26 @@ async function organizer<T>(
   );
 }
 
-/** O cartão aberto pelo link: sem conta e sem Authorization; o token é a única chave. */
-export function fetchParticipantCard(token: string) {
-  return call<ParticipantCard>("participant_card", {}, { token });
+/** O cartão aberto pelo link: sem conta e sem Authorization; o token é a única chave, mais o PIN quando o cartão tem um. */
+export function fetchParticipantCard(token: string, pin?: string) {
+  return call<ParticipantCard>(
+    "participant_card",
+    {},
+    pin ? { token, pin } : { token },
+  );
+}
+
+/** Cria, troca (`pin`) ou tira (`pin` nulo) o PIN do cartão; `currentPin` é o PIN de agora, nulo quando o cartão ainda não tem um. */
+export function setParticipantPin(
+  token: string,
+  pin: string | null,
+  currentPin: string | null,
+) {
+  return call<{ pinSet: boolean }>("participant_pin", {}, {
+    token,
+    pin,
+    currentPin,
+  });
 }
 
 /** Cria o link de uma pessoa; o token só existe nesta resposta. */

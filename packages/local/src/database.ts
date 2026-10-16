@@ -153,6 +153,9 @@ export interface SettlementSnapshotMetadata {
   sources: SettlementSourceReferences;
 }
 
+/** Device-only message of a personal link (id = the link id): never synced or exported, because the server keeps only the link's hash. */
+export interface LinkMessage { id: string; groupId: string; personId: string; text: string; createdAt: string }
+
 export class BolaoDatabase extends Dexie {
   readonly installationId: string;
   readonly accountId: string;
@@ -204,6 +207,7 @@ export class BolaoDatabase extends Dexie {
   settlementSnapshots!: Table<SettlementSnapshotMetadata, string>;
   settlementCommands!: Table<PersistentSettlementCommand, string>;
   settlementReceipts!: Table<SettlementReceipt, string>;
+  linkMessages!: Table<LinkMessage, string>;
 
   constructor(options: LocalStoreOptions) {
     if (!options.installationId.trim() || !options.accountId.trim()) {
@@ -273,6 +277,10 @@ export class BolaoDatabase extends Dexie {
       settlementSnapshots: '&groupId, groupRevision',
       settlementCommands: '&idempotencyKey, groupId, status, createdAt',
       settlementReceipts: '&idempotencyKey, groupId, status',
+    });
+    // The text of each personal link stays on this device; the server cannot return the token later.
+    this.version(6).stores({
+      linkMessages: '&id, groupId, personId',
     });
   }
 }
