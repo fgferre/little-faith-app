@@ -126,6 +126,21 @@ describe('confirmed-budget plan heuristics and contracts',()=>{
     expect(()=>validatePlanningCommand({apiVersion:'v1',idempotencyKey:id(99),groupId:GROUP,expectedRevision:11,action:{type:'plan_apply',plan}})).toThrow('revisão');
     expect(()=>validatePlanningCommand({apiVersion:'v1',idempotencyKey:id(99),groupId:GROUP,expectedRevision:10,action:{type:'plan_apply',plan},actorId:id(20)})).toThrow('Campo');
   });
+  it('accepts the group prize limit absent, null or valid and rejects an invalid one or one on official participation',()=>{
+    const plan=suggestPlans(input()).plans[0]!;expect(plan.groupPrizeLimitCents).toBeNull();
+    const legacy:Record<string,unknown>={...plan};delete legacy.groupPrizeLimitCents;
+    expect(validatePreparedPlan(legacy)).toEqual(legacy);expect('groupPrizeLimitCents' in validatePreparedPlan(legacy)).toBe(false);
+    expect(validatePreparedPlan({...plan,groupPrizeLimitCents:null}).groupPrizeLimitCents).toBeNull();
+    const limited=suggestPlans({...input(),groupPrizeLimitCents:'2500'}).plans;
+    expect(limited.length).toBeGreaterThan(0);expect(limited.every((p)=>p.groupPrizeLimitCents==='2500')).toBe(true);
+    expect(validatePreparedPlan({...plan,groupPrizeLimitCents:'9007199254740991'}).groupPrizeLimitCents).toBe('9007199254740991');
+    for (const bad of ['0','-5','1.5','01','','9007199254740992',2500,undefined]) expect(()=>validatePreparedPlan({...plan,groupPrizeLimitCents:bad})).toThrow();
+    expect(()=>suggestPlans({...input(),groupPrizeLimitCents:'0'})).toThrow();
+    const official=suggestPlans(input('1500','official')).plans[0]!;expect(official.groupPrizeLimitCents).toBeNull();
+    expect(validatePreparedPlan({...official,groupPrizeLimitCents:null}).groupPrizeLimitCents).toBeNull();
+    expect(()=>validatePreparedPlan({...official,groupPrizeLimitCents:'2500'})).toThrow('só vale no combinado interno');
+    expect(()=>suggestPlans({...input('1500','official'),groupPrizeLimitCents:'2500'})).toThrow('só vale no combinado interno');
+  });
   it('preserves external fees and a residual cent without manufacturing an official service charge',()=>{
     const value=input();value.feeCents='1';value.feeLabel='Despesa externa autorizada';
     const plan=suggestPlans(value).plans[0]!;
@@ -231,15 +246,26 @@ describe('immutable private manifests and approval protocol',()=>{
     const forged=structuredClone(m.content);forged.catalog={...forged.catalog,rules:{...forged.catalog.rules,6:{...forged.catalog.rules[6]!,betPriceCents:'1'}}};
     expect(()=>canonicalManifest(forged)).toThrow('Regras');
   });
-  it('rejects incoherent frozen quota prices, late locks and missing internal ticket holders',()=>{
+  it('freezes the group prize limit in the canonical manifest and still verifies manifests made without it',async()=>{
+    const plan=suggestPlans({...input(),groupPrizeLimitCents:'2500'}).plans[0]!;
+    const m=manifest(frozen(plan,input().financial));
+    expect(m.canonical).toContain('"groupPrizeLimitCents":"2500"');expect(validatePoolManifest(m)).toEqual(m);expect(await verifyManifest(m)).toBe(true);
+    const edited=structuredClone(m);edited.content.plan.groupPrizeLimitCents='2600';expect(await verifyManifest(edited)).toBe(false);
+    const legacy=structuredClone(manifest().content);delete legacy.plan.groupPrizeLimitCents;
+    const old={...manifest(legacy)};expect(old.canonical).not.toContain('groupPrizeLimitCents');
+    expect(validatePoolManifest(old)).toEqual(old);expect(await verifyManifest(old)).toBe(true);
+  });
+  it('rejects incoherent frozen quota prices and missing internal ticket holders',()=>{
     const wrongPrice=frozen();wrongPrice.pool.data.quotaPriceCents='1501';
     expect(()=>canonicalManifest(wrongPrice)).toThrow('Preço');
     const noHolder=frozen();noHolder.responsible.ticketHolderPersonId=null;
     expect(()=>canonicalManifest(noHolder)).toThrow('Registrador');
-    const late=manifest();late.lockedAt=late.content.pool.data.deadlineAt!;
-    expect(()=>validatePoolManifest(late)).toThrow('prazo');
     const changed=input();changed.pool.data.quotaPriceCents='1501';
     expect(()=>suggestPlans(changed)).toThrow('Preço');
+  });
+  it('accepts a lock confirmed after the agreed deadline',()=>{
+    const late=manifest();late.lockedAt=new Date(Date.parse(late.content.pool.data.deadlineAt!)+86400000).toISOString();
+    expect(validatePoolManifest(late)).toEqual(late);
   });
   it('requires versioned chronological facts and immutable financing when revising a locked pool',()=>{
     const first=snapshot();expect(()=>validatePlanningSnapshot({...first,appliedPlans:[]})).toThrow('referenciar');

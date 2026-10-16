@@ -384,7 +384,7 @@ export function DraftForm(
               maxLength={10_000}
               defaultValue={editing
                 ? group?.data.statute
-                : "Participação válida após pagamento integral confirmado no prazo. Autoria dos números não altera o direito ao prêmio. Sobras permanecem identificadas até destino autorizado."}
+                : "Participação válida após pagamento integral confirmado, até o bolão travar. Autoria dos números não altera o direito ao prêmio. Sobras permanecem identificadas até destino autorizado."}
             />
           </label>
         )}
@@ -529,8 +529,9 @@ export function DraftForm(
               </select>
             </label>
             <p className="ui-sec form-note">
-              O prazo é da turma: depois dele a cobrança para. O horário das
-              apostas e do sorteio vem da Caixa, a cada concurso.
+              O prazo é da turma: depois dele a cobrança para, mas quem pagar
+              ainda entra até o bolão travar. O horário das apostas e do
+              sorteio vem da Caixa, a cada concurso.
             </p>
           </>
         )}

@@ -152,6 +152,10 @@ do $$ declare v_group uuid := '91000000-0000-4000-8000-000000000001'; v_pool uui
   perform pg_temp.assert_true(v_result ->> 'status' = 'rejected','generated seed differs from approved plan');
   v_result := public.planning_decide(pg_temp.command(v_group,jsonb_build_object('type','plan_apply','plan',jsonb_set(v_plan,'{tickets,0,betCostCents}','"1"'))));
   perform pg_temp.assert_true(v_result ->> 'status' = 'rejected','invented ticket price rejected');
+  for v_data in select jsonb_set(v_plan,'{groupPrizeLimitCents}',bad) from unnest(array['"0"','"-5"','"1.5"','"01"','""','"9007199254740992"','1500','{}']::jsonb[]) bad loop
+    v_result := public.planning_decide(pg_temp.command(v_group,jsonb_build_object('type','plan_apply','plan',v_data)));
+    perform pg_temp.assert_true(v_result ->> 'status' = 'rejected' and v_result ->> 'message' like 'Plano inválido%','invalid group prize limit rejected: ' || (v_data -> 'groupPrizeLimitCents')::text);
+  end loop;
   perform pg_temp.assert_true((select count(*) = 0 from public.pool_plan_versions) and (select revision = v_revision from public.groups where id = v_group),'rejected plans leave versions and revision intact');
   insert into planning_contract_samples values('bad price receipt','receipt',v_result);
 
@@ -184,9 +188,11 @@ do $$ declare v_group uuid := '91000000-0000-4000-8000-000000000001'; v_pool uui
   v_result := public.planning_decide(pg_temp.command(v_group,jsonb_build_object('type','pool_lock','poolId',v_pool,'poolVersion',1,'appliedPlanId',v_applied,
     'responsible',jsonb_build_object('registrarPersonId','93000000-0000-4000-8000-000000000003','ticketHolderPersonId','93000000-0000-4000-8000-000000000001'))));
   perform pg_temp.assert_true(v_result ->> 'status' = 'rejected','changed fixed game forces reapplication before lock');
-  v_plan := pg_temp.prepared(v_group,v_pool);
+  v_plan := jsonb_set(pg_temp.prepared(v_group,v_pool),'{groupPrizeLimitCents}','"1500"');
   v_result := public.planning_decide(pg_temp.command(v_group,jsonb_build_object('type','plan_apply','plan',v_plan)));
   perform pg_temp.assert_true(v_result ->> 'status' = 'accepted' and (select max(version) = 2 from public.pool_plan_versions where pool_id = v_pool),'reapplication appends a new plan version');
+  perform pg_temp.assert_true((select prepared_plan ->> 'groupPrizeLimitCents' = '1500' and not (select prepared_plan ? 'groupPrizeLimitCents' from public.pool_plan_versions where pool_id = v_pool and version = 1)
+    from public.pool_plan_versions where pool_id = v_pool and version = 2),'plan accepted with and without the group prize limit key');
   select id into v_applied from public.pool_plan_versions where pool_id = v_pool order by version desc limit 1;
   v_result := public.planning_decide(pg_temp.command(v_group,jsonb_build_object('type','pool_lock','poolId',v_pool,'poolVersion',1,
     'appliedPlanId',(select id from public.pool_plan_versions where pool_id = v_pool and version = 1),
@@ -204,6 +210,7 @@ do $$ declare v_group uuid := '91000000-0000-4000-8000-000000000001'; v_pool uui
   perform pg_temp.assert_true((select version = 2 and data ->> 'status' = 'locked' from public.draft_records where id = v_pool),'lock advances pool version/status');
   perform pg_temp.assert_true((select sha256 = encode(sha256(convert_to(canonical,'UTF8')),'hex') and content -> 'responsible' ->> 'organizerUserId' = '00000000-0000-4000-8000-000000000951' from public.pool_manifests where pool_id = v_pool),'canonical SHA and organizer come from server');
   perform pg_temp.assert_true((select jsonb_array_length(content -> 'persons') = 3 and content -> 'financial' -> 'groupRevision' < v_original -> 'groupRevision' from public.pool_manifests where pool_id = v_pool),'snapshot freezes people and historical financial revision');
+  perform pg_temp.assert_true((select content -> 'plan' ->> 'groupPrizeLimitCents' = '1500' and canonical like '%"groupPrizeLimitCents":"1500"%' from public.pool_manifests where pool_id = v_pool and version = 1),'manifest freezes the group prize limit');
   insert into planning_contract_samples values('initial lock receipt','receipt',v_original);
 end; $$;
 
@@ -239,16 +246,20 @@ do $$ declare v_group uuid := '91000000-0000-4000-8000-000000000001'; v_pool uui
   perform pg_temp.assert_true((select count(*) = 2 from public.pool_manifests where pool_id = v_pool),'both manifest versions retained');
   perform pg_temp.assert_true((select content -> 'financial' = v_first -> 'financial' and content -> 'persons' = v_first -> 'persons'
     and content -> 'responsible' = v_first -> 'responsible' and content -> 'pool' ->> 'version' = '3' from public.pool_manifests where pool_id = v_pool and version = 2),'revision preserves funding/persons/responsible and advances pool version');
+  perform pg_temp.assert_true((select not (content -> 'plan' ? 'groupPrizeLimitCents') and canonical not like '%groupPrizeLimitCents%' from public.pool_manifests where pool_id = v_pool and version = 2),'plan without the key locks without inventing it');
   insert into planning_contract_samples values('revised lock receipt','receipt',v_result);
   v_pool := '94000000-0000-4000-8000-000000000002'; v_plan := pg_temp.prepared(v_group,v_pool);
   v_result := public.planning_decide(pg_temp.command(v_group,jsonb_build_object('type','plan_apply','plan',jsonb_set(v_plan,'{tickets,0,officialQuotaCount}','100'))));
   perform pg_temp.assert_true(v_result ->> 'status' = 'rejected','number-count specific official quota maximum enforced');
-  v_result := public.planning_decide(pg_temp.command(v_group,jsonb_build_object('type','plan_apply','plan',v_plan)));
-  perform pg_temp.assert_true(v_result ->> 'status' = 'accepted','2:1 rights fit exact official count/value');
+  v_result := public.planning_decide(pg_temp.command(v_group,jsonb_build_object('type','plan_apply','plan',jsonb_set(v_plan,'{groupPrizeLimitCents}','"1500"'))));
+  perform pg_temp.assert_true(v_result ->> 'status' = 'rejected' and v_result ->> 'message' = 'O limite de prêmio para o caixa do grupo só vale no combinado interno.','group prize limit refused on official participation');
+  v_result := public.planning_decide(pg_temp.command(v_group,jsonb_build_object('type','plan_apply','plan',jsonb_set(v_plan,'{groupPrizeLimitCents}','null'))));
+  perform pg_temp.assert_true(v_result ->> 'status' = 'accepted','2:1 rights fit exact official count/value, with a null group prize limit');
   select id into v_applied from public.pool_plan_versions where pool_id = v_pool order by version desc limit 1;
   v_result := public.planning_decide(pg_temp.command(v_group,jsonb_build_object('type','pool_lock','poolId',v_pool,'poolVersion',1,'appliedPlanId',v_applied,
     'responsible',jsonb_build_object('registrarPersonId','93000000-0000-4000-8000-000000000003','ticketHolderPersonId',null))));
   perform pg_temp.assert_true(v_result ->> 'status' = 'accepted','official planning lock does not fabricate ticket holder or receipt');
+  perform pg_temp.assert_true((select content #> '{plan,groupPrizeLimitCents}' = 'null'::jsonb from public.pool_manifests where pool_id = v_pool and version = 1),'manifest keeps an explicit null group prize limit');
   insert into planning_contract_samples values('official lock receipt','receipt',v_result);
   insert into planning_contract_samples values('complete planning snapshot','snapshot',public.plan_pull(v_group));
   begin insert into public.pool_manifests(id,group_id,pool_id,version,applied_plan_id,content,canonical,sha256,locked_at,receipt_id)
@@ -269,23 +280,24 @@ do $$ declare v_group uuid := '91000000-0000-4000-8000-000000000001'; v_pool uui
   v_data := (select data from public.draft_records where id = v_pool);
   v_revision := (select revision from public.groups where id = v_group);
   v_plan := pg_temp.prepared(v_group,v_pool);
-  select id into v_applied from public.pool_plan_versions where pool_id = v_pool order by version desc limit 1;
   alter table public.draft_records disable trigger financial_drafts_guard;
-  update public.draft_records set data = jsonb_set(v_data,'{deadlineAt}','"2000-01-01T00:00:00.000Z"') where id = v_pool;
-  v_result := public.planning_decide(pg_temp.command(v_group,jsonb_build_object('type','plan_apply','plan',v_plan)));
-  perform pg_temp.assert_true(v_result ->> 'status' = 'rejected' and v_result ->> 'message' like '%prazo%','server rejects apply after deadline');
-  v_result := public.planning_decide(pg_temp.command(v_group,jsonb_build_object('type','pool_lock','poolId',v_pool,'poolVersion',3,'appliedPlanId',v_applied,
-    'responsible',jsonb_build_object('registrarPersonId','93000000-0000-4000-8000-000000000003','ticketHolderPersonId','93000000-0000-4000-8000-000000000001'))));
-  perform pg_temp.assert_true(v_result ->> 'status' = 'rejected','server rejects revision lock after deadline');
   update public.draft_records set data = jsonb_set(v_data,'{deadlineAt}','null') where id = v_pool;
   v_result := public.planning_decide(pg_temp.command(v_group,jsonb_build_object('type','plan_apply','plan',v_plan)));
   perform pg_temp.assert_true(v_result ->> 'status' = 'rejected','missing deadline cannot apply');
   update public.draft_records set data = jsonb_set(v_data,'{status}','"registered"') where id = v_pool;
   v_result := public.planning_decide(pg_temp.command(v_group,jsonb_build_object('type','plan_apply','plan',v_plan)));
   perform pg_temp.assert_true(v_result ->> 'status' = 'rejected','registered pool cannot revise plan');
+  perform pg_temp.assert_true((select revision = v_revision from public.groups where id = v_group),'deadline/state rejections do not advance group');
+  update public.draft_records set data = jsonb_set(v_data,'{deadlineAt}','"2000-01-01T00:00:00.000Z"') where id = v_pool;
+  v_result := public.planning_decide(pg_temp.command(v_group,jsonb_build_object('type','plan_apply','plan',v_plan)));
+  perform pg_temp.assert_true(v_result ->> 'status' = 'accepted','server accepts a plan revision after the deadline while the pool is not registered');
+  select id into v_applied from public.pool_plan_versions where pool_id = v_pool order by version desc limit 1;
+  v_result := public.planning_decide(pg_temp.command(v_group,jsonb_build_object('type','pool_lock','poolId',v_pool,'poolVersion',3,'appliedPlanId',v_applied,
+    'responsible',jsonb_build_object('registrarPersonId','93000000-0000-4000-8000-000000000003','ticketHolderPersonId','93000000-0000-4000-8000-000000000001'))));
+  perform pg_temp.assert_true(v_result ->> 'status' = 'accepted','server accepts a revision lock after the deadline');
+  v_revision := (select revision from public.groups where id = v_group);
   update public.draft_records set data = v_data where id = v_pool;
   alter table public.draft_records enable trigger financial_drafts_guard;
-  perform pg_temp.assert_true((select revision = v_revision from public.groups where id = v_group),'deadline/state rejections do not advance group');
   v_pull := public.sync_pull(v_group,0);
   perform pg_temp.assert_true(v_pull -> 'hasMore' = 'false' and (v_pull ->> 'nextCursor')::bigint = v_revision,'draft cursor reaches current head including financial and planning markers');
   perform pg_temp.assert_true(jsonb_array_length(v_pull -> 'changes') = v_revision,'every accepted draft/finance/planning action occupies one feed revision');

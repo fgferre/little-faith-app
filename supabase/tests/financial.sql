@@ -154,7 +154,7 @@ do $$ declare v_group uuid := '81000000-0000-4000-8000-000000000001'; v_result j
   v_result := public.review_decide(pg_temp.command(v_group,jsonb_build_object('type','quota_confirm','quotaId','85000000-0000-4000-8000-000000000003','quotaVersion',1,'statuteId',v_new_statute)));
   perform pg_temp.assert_true(v_result ->> 'status' = 'rejected' and v_result ->> 'message' like '%prazo%','quota cannot be confirmed without a deadline');
   v_result := public.review_decide(pg_temp.command(v_group,jsonb_build_object('type','quota_confirm','quotaId','85000000-0000-4000-8000-000000000004','quotaVersion',1,'statuteId',v_new_statute)));
-  perform pg_temp.assert_true(v_result ->> 'status' = 'rejected' and v_result ->> 'message' like '%prazo%','server blocks quota after deadline');
+  perform pg_temp.assert_true(v_result ->> 'status' = 'rejected' and v_result ->> 'message' like '%integral%','a past deadline is not the reason to refuse; the unfunded quota still is');
 end; $$;
 
 -- A locked state is a test-admin fixture; no pool_lock endpoint is claimed here.
@@ -178,6 +178,8 @@ do $$ declare v_group uuid := '81000000-0000-4000-8000-000000000001'; v_payment 
   perform pg_temp.assert_true(v_result ->> 'status' = 'rejected' and v_result ->> 'message' like '%rascunho%','reversal blocked after allocated pool locked');
   perform pg_temp.assert_true((select count(*) = 0 from public.quota_revocations),'locked rejection revokes no rights');
   perform pg_temp.assert_true((select revision = v_revision from public.groups where id = v_group),'locked reversal writes no revision');
+  v_result := public.review_decide(pg_temp.command(v_group,jsonb_build_object('type','quota_confirm','quotaId','85000000-0000-4000-8000-000000000002','quotaVersion',1,'statuteId',(select id from public.statute_versions where group_id = v_group and version = 2))));
+  perform pg_temp.assert_true(v_result ->> 'status' = 'rejected' and v_result ->> 'message' like '%rascunho%','a quota on a locked pool is refused');
 end; $$;
 reset role;
 alter table public.draft_records disable trigger financial_drafts_guard;
@@ -232,7 +234,7 @@ do $$ declare v_group uuid := '81000000-0000-4000-8000-000000000001'; v_result j
   v_result := public.review_decide(pg_temp.command(v_group,'{"type":"payment_confirm","proposalId":"86000000-0000-4000-8000-000000000005","proposalVersion":1,"bankReference":"Pix-late","declaredReceivedAt":"1999-01-01T00:00:00.000Z","allocations":[{"poolId":"84000000-0000-4000-8000-000000000004","amountCents":"2500"}]}'));
   perform pg_temp.assert_true(v_result ->> 'status' = 'accepted','late payment can be received and allocated');
   v_result := public.review_decide(pg_temp.command(v_group,jsonb_build_object('type','quota_confirm','quotaId','85000000-0000-4000-8000-000000000004','quotaVersion',1,'statuteId',v_statute)));
-  perform pg_temp.assert_true(v_result ->> 'status' = 'rejected','backdated declared receipt does not bypass server deadline');
+  perform pg_temp.assert_true(v_result ->> 'status' = 'accepted' and exists (select 1 from public.confirmed_quotas where source_quota_id = '85000000-0000-4000-8000-000000000004'),'quota funded after the deadline is confirmed while the pool is a draft');
   insert into financial_contract_samples values('late payment current snapshot','snapshot',public.finance_pull(v_group));
   begin insert into public.financial_movements(id,group_id,payment_id,person_id,kind,amount_cents,reason,created_at,receipt_id)
     values(gen_random_uuid(),v_group,gen_random_uuid(),'83000000-0000-4000-8000-000000000001','payment-received',1000,'',now(),gen_random_uuid()); raise exception 'direct browser ledger insert accepted';

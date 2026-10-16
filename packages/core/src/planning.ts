@@ -80,8 +80,6 @@ export function validateManifestContent(input: unknown): ManifestContent {
   const ticketHolderPersonId=responsible.ticketHolderPersonId===null?null:planningUid(responsible.ticketHolderPersonId,'ticketHolderPersonId');
   if (!byPerson.get(registrarPersonId)?.data.adultDeclared || (plan.participationMode==='internal' && (!ticketHolderPersonId || !byPerson.get(ticketHolderPersonId)?.data.adultDeclared)) || (plan.participationMode==='official' && ticketHolderPersonId!==null)) planningInvalid('responsible','Registrador adulto e titular conforme o modo de participação são obrigatórios.');
   if (BigInt(plan.leftoverCents)>0n && plan.leftoverPolicy==='unassigned') planningInvalid('leftoverPolicy','Trava exige destino explícito para a sobra, ainda pendente de execução.');
-  const activeIds=new Set(plan.rights.map((r)=>r.quotaId));
-  for (const quota of financial.quotas) if (activeIds.has(quota.id) && quota.confirmedAt>=data.deadlineAt) planningInvalid('financial','Direito confirmado no prazo encerrado do bolão.');
   return {schemaVersion:'pool-manifest-v1',catalog:PLANNING_CATALOG[plan.lotteryId],responsible:{organizerUserId:planningUid(responsible.organizerUserId,'organizerUserId'),registrarPersonId,ticketHolderPersonId},pool:{id:poolId,version:poolVersion,data},plan,persons,financial};
 }
 export function canonicalManifest(content: ManifestContent): string { return canonicalJSON(validateManifestContent(content)); }
@@ -102,7 +100,6 @@ export function validatePoolManifest(input: unknown): PoolManifest {
   if (groupId!==content.plan.groupId || poolId!==content.plan.poolId || canonical!==canonicalJSON(content)) planningInvalid('canonical','Manifesto e texto canônico divergentes.');
   if (typeof source.sha256!=='string' || !/^[0-9a-f]{64}$/.test(source.sha256) || sha256Hex(canonical)!==source.sha256) planningInvalid('sha256','SHA-256 do manifesto não confere.');
   const lockedAt=time(source.lockedAt,'lockedAt');
-  if (content.pool.data.deadlineAt && lockedAt>=content.pool.data.deadlineAt) planningInvalid('lockedAt','Trava confirmada no prazo encerrado do bolão.');
   if (content.financial.statutes.some((s)=>s.publishedAt>lockedAt) || content.financial.acceptances.some((a)=>a.acceptedAt>lockedAt) || content.financial.movements.some((m)=>m.createdAt>lockedAt) || content.financial.quotas.some((q)=>q.confirmedAt>lockedAt) || content.financial.revocations.some((r)=>r.revokedAt>lockedAt)) planningInvalid('lockedAt','Manifesto contém fatos posteriores à trava.');
   return {id:planningUid(source.id,'id'),groupId,poolId,version:planningInt(source.version,'version',1),appliedPlanId:planningUid(source.appliedPlanId,'appliedPlanId'),content,canonical,sha256:source.sha256,lockedAt,receiptId:planningUid(source.receiptId,'receiptId')};
 }

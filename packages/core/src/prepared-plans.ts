@@ -1,5 +1,5 @@
 import type { LotteryId } from './types';
-import type { PlanBet, PlanRight, PreparedPlan, SuggestPlansInput, PlanSuggestionResult, PlanStrategy } from './planning-types';
+import type { PlanBet, PlanParticipationMode, PlanRight, PreparedPlan, SuggestPlansInput, PlanSuggestionResult, PlanStrategy } from './planning-types';
 import { betCost, betSignature, lotteryRule, validateBet } from './lotteries';
 import { GENERATION_ALGORITHM_VERSION, generateBets } from './generation';
 import { createFinancialView } from './financial';
@@ -56,9 +56,17 @@ function unique<T>(values: T[], project: (value:T)=>string, field: string): T[] 
   if (new Set(values.map(project)).size!==values.length) planningInvalid(field,'Identificador repetido.');
   return values;
 }
+/** Same rule for the plan input and the stored plan: positive cents or null, and only for the internal agreement. */
+function planningGroupPrizeLimit(value: unknown, mode: PlanParticipationMode): string|null {
+  if (value===null) return null;
+  const cents=planningMoney(value,'groupPrizeLimitCents',true);
+  if (mode==='official') planningInvalid('groupPrizeLimitCents','O limite de prêmio para o caixa do grupo só vale no combinado interno.');
+  return cents;
+}
 export function validatePreparedPlan(input: unknown): PreparedPlan {
   const source=planningRecord(input,'plan');
-  planningShape(source,['id','groupId','poolId','poolVersion','groupRevision','lotteryId','contestNumber','participationMode','strategy','seed','catalogVersion','sourceBets','rights','budgetCents','betCostCents','feeCents','feeLabel','totalCostCents','leftoverCents','leftoverPolicy','bets','tickets','explanation'],'plan');
+  const hasGroupPrizeLimit=Object.hasOwn(source,'groupPrizeLimitCents');
+  planningShape(source,[...(hasGroupPrizeLimit?['groupPrizeLimitCents']:[]),'id','groupId','poolId','poolVersion','groupRevision','lotteryId','contestNumber','participationMode','strategy','seed','catalogVersion','sourceBets','rights','budgetCents','betCostCents','feeCents','feeLabel','totalCostCents','leftoverCents','leftoverPolicy','bets','tickets','explanation'],'plan');
   const lotteryId=planningOption<LotteryId>(source.lotteryId,['mega-sena','lotofacil','quina'],'lotteryId');
   const seed=planningSeed(source.seed);
   if (source.catalogVersion!==PLANNING_CATALOG_VERSION) planningInvalid('catalogVersion','Catálogo de planejamento não suportado.');
@@ -106,7 +114,7 @@ export function validatePreparedPlan(input: unknown): PreparedPlan {
   if (bets.reduce((sum,b)=>sum+BigInt(betCost(lotteryId,b.numbers)),0n)!==BigInt(betCostCents)) planningInvalid('betCostCents','Custo dos jogos divergente dos preços oficiais.');
   if (BigInt(betCostCents)+BigInt(feeCents)!==BigInt(totalCostCents) || BigInt(totalCostCents)+BigInt(leftoverCents)!==BigInt(budgetCents)) planningInvalid('totalCostCents','Custos, taxas e sobra não reconciliam com o orçamento.');
   const feeLabel=planningText(source.feeLabel,'feeLabel',200,BigInt(feeCents)>0n);
-  return {id:planningUid(source.id,'id'),groupId:planningUid(source.groupId,'groupId'),poolId:planningUid(source.poolId,'poolId'),poolVersion:planningInt(source.poolVersion,'poolVersion'),groupRevision:planningInt(source.groupRevision,'groupRevision'),lotteryId,contestNumber:planningInt(source.contestNumber,'contestNumber',1,999_999),participationMode,strategy:planningOption(source.strategy,['spread','balanced','concentrated'],'strategy'),seed,catalogVersion:PLANNING_CATALOG_VERSION,sourceBets,rights,budgetCents,betCostCents,feeCents,feeLabel,totalCostCents,leftoverCents,leftoverPolicy:planningOption(source.leftoverPolicy,['unassigned','refund-pro-rata','group-credit'],'leftoverPolicy'),bets,tickets,explanation:planningText(source.explanation,'explanation',2_000,true)};
+  return {id:planningUid(source.id,'id'),groupId:planningUid(source.groupId,'groupId'),poolId:planningUid(source.poolId,'poolId'),poolVersion:planningInt(source.poolVersion,'poolVersion'),groupRevision:planningInt(source.groupRevision,'groupRevision'),lotteryId,contestNumber:planningInt(source.contestNumber,'contestNumber',1,999_999),participationMode,strategy:planningOption(source.strategy,['spread','balanced','concentrated'],'strategy'),seed,catalogVersion:PLANNING_CATALOG_VERSION,sourceBets,rights,budgetCents,betCostCents,feeCents,feeLabel,totalCostCents,leftoverCents,leftoverPolicy:planningOption(source.leftoverPolicy,['unassigned','refund-pro-rata','group-credit'],'leftoverPolicy'),...(hasGroupPrizeLimit?{groupPrizeLimitCents:planningGroupPrizeLimit(source.groupPrizeLimitCents,participationMode)}:{}),bets,tickets,explanation:planningText(source.explanation,'explanation',2_000,true)};
 }
 export function assertConfirmedPlanSources(plan: PreparedPlan): void {
   if (plan.poolVersion<1 || plan.sourceBets.some((source)=>source.version<1) || plan.bets.some((bet)=>bet.sourceBetVersion!==null && bet.sourceBetVersion<1)) planningInvalid('sourceBets','Confirmação exige bolão e todos os jogos fixos sincronizados com versão positiva.');
@@ -136,6 +144,7 @@ export function suggestPlans(input: SuggestPlansInput): PlanSuggestionResult {
   const feeCents=planningMoney(input.feeCents,'feeCents');
   const feeLabel=planningText(input.feeLabel,'feeLabel',200,BigInt(feeCents)>0n);
   const leftoverPolicy=planningOption(input.leftoverPolicy,['unassigned','refund-pro-rata','group-credit'],'leftoverPolicy');
+  const groupPrizeLimitCents=planningGroupPrizeLimit(input.groupPrizeLimitCents??null,mode);
   const fixed:PlanBet[]=input.sourceBets.slice().sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0).map((record,index)=>{
     if (record.kind!=='bet' || record.groupId!==groupId || record.data.poolId!==poolId || record.data.lotteryId!==lottery.id) planningInvalid('sourceBets','Jogo de outro grupo, bolão ou modalidade.');
     return {key:`fixed-${index+1}`,sourceBetId:planningUid(record.id,'sourceBetId'),sourceBetVersion:planningInt(record.serverVersion,'sourceBetVersion'),numbers:validateBet(lottery.id,record.data.numbers),authorIds:record.data.authorIds.slice(),seed:record.data.seed,generationAlgorithmVersion:record.data.generationAlgorithmVersion};
@@ -192,7 +201,7 @@ export function suggestPlans(input: SuggestPlansInput): PlanSuggestionResult {
         }
       }
       const explanation=strategy==='spread'?'Prioriza jogos simples distintos dentro do orçamento.':strategy==='balanced'?'Combina jogos ampliados menores e jogos simples quando o orçamento permite.':'Prioriza jogos com mais dezenas que cabem no orçamento.';
-      const draft:Omit<PreparedPlan,'id'>={groupId,poolId,poolVersion,groupRevision,lotteryId:lottery.id,contestNumber,participationMode:mode,strategy,seed,catalogVersion:PLANNING_CATALOG_VERSION,sourceBets:fixed.map((b)=>({id:b.sourceBetId!,version:b.sourceBetVersion!})),rights,budgetCents:budget.toString(),betCostCents:cost.toString(),feeCents,feeLabel,totalCostCents:(cost+BigInt(feeCents)).toString(),leftoverCents:(available-cost).toString(),leftoverPolicy,bets,tickets:packPlanTickets(lottery.id,bets,rights,mode),explanation};
+      const draft:Omit<PreparedPlan,'id'>={groupId,poolId,poolVersion,groupRevision,lotteryId:lottery.id,contestNumber,participationMode:mode,strategy,seed,catalogVersion:PLANNING_CATALOG_VERSION,sourceBets:fixed.map((b)=>({id:b.sourceBetId!,version:b.sourceBetVersion!})),rights,budgetCents:budget.toString(),betCostCents:cost.toString(),feeCents,feeLabel,totalCostCents:(cost+BigInt(feeCents)).toString(),leftoverCents:(available-cost).toString(),leftoverPolicy,groupPrizeLimitCents,bets,tickets:packPlanTickets(lottery.id,bets,rights,mode),explanation};
       result.plans.push(validatePreparedPlan({id:deterministicId(draft),...draft}));
     } catch (error) { result.unavailable.push({strategy,reason:error instanceof Error?error.message:'Plano indisponível.'}); }
   }

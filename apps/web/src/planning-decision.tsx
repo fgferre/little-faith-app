@@ -26,6 +26,7 @@ import { formatInstant } from "./ui/texto";
 import { assertCurrentPlan } from "./planning-preview";
 import { readReviewSnapshot } from "./review-snapshot";
 import {
+  groupPrizeLimitSentence,
   latestApplied,
   latestManifest,
   PlanDetails,
@@ -283,6 +284,7 @@ export function PlanningDialog(
   }, [db, groupId, request, enabled, reload]);
 
   function decisionSummary(current: Preview): DecisionSummary {
+    const groupPrizeLimit = groupPrizeLimitSentence(current.plan);
     const lines = [
       `${current.pool.data.title} · concurso ${current.plan.contestNumber}.`,
       `${current.plan.bets.length} jogos em ${current.plan.tickets.length} cartela(s), preservando ${current.plan.sourceBets.length} jogos fixos.`,
@@ -300,6 +302,7 @@ export function PlanningDialog(
           ? "reserva identificada no grupo"
           : "ainda não definido"
       }.`,
+      ...(groupPrizeLimit ? [groupPrizeLimit] : []),
       ...current.plan.rights.map((right) =>
         `${
           current.persons.find((person) => person.id === right.personId)?.data
@@ -325,13 +328,13 @@ export function PlanningDialog(
         );
       }
       lines.push(
-        `Prazo interno: ${
+        `Prazo combinado: ${
           current.pool.data.deadlineAt
             ? `${
               formatInstant(current.pool.data.deadlineAt, "America/Sao_Paulo")
             } (Brasília)`
             : "não definido"
-        }. A confirmação do servidor congela esta versão; o registro da aposta continua externo.`,
+        }. Depois dele ainda dá para aplicar o plano e travar. A confirmação do servidor congela esta versão; o registro da aposta continua externo.`,
       );
     }
     return {

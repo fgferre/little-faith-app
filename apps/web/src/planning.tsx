@@ -145,6 +145,7 @@ export function Planner(
   const [leftoverPolicy, setLeftoverPolicy] = useState<LeftoverPolicy>(
     "unassigned",
   );
+  const [groupPrizeLimit, setGroupPrizeLimit] = useState("");
   const [generating, setGenerating] = useState(false);
   const [starting, setStarting] = useState(false);
   const [runningId, setRunningId] = useState<string | null>(null);
@@ -224,6 +225,7 @@ export function Planner(
   const budget = sumCents(rights.map((right) => right.dueCents));
   const setupMissing = !isDemo &&
     (!pool.data.contestNumber || pool.data.participationMode === "undecided");
+  const officialMode = !isDemo && pool.data.participationMode === "official";
   const busy = generating || starting || !!runningId;
 
   useEffect(() => {
@@ -273,6 +275,9 @@ export function Planner(
         feeCents: parseBRL(fee),
         feeLabel: feeLabel.trim(),
         leftoverPolicy,
+        groupPrizeLimitCents: !officialMode && groupPrizeLimit.trim()
+          ? parseBRL(groupPrizeLimit)
+          : null,
       };
       const result = await new Promise<SuggestionMessage>((resolve, reject) => {
         worker.onmessage = (
@@ -515,6 +520,21 @@ export function Planner(
               </option>
             </select>
           </label>
+          {!officialMode && (
+            <label>
+              Prêmio que fica no caixa do grupo (opcional)<input
+                inputMode="decimal"
+                value={groupPrizeLimit}
+                disabled={busy}
+                placeholder="até R$ 0,00"
+                onChange={(event) => setGroupPrizeLimit(event.target.value)}
+              />
+              <small>
+                Se o prêmio confirmado for até esse valor, ele não é dividido:
+                fica no caixa do grupo. Vale só no combinado interno.
+              </small>
+            </label>
+          )}
         </div>
         <div className="pool-actions">
           <Button
@@ -695,7 +715,14 @@ export function Planner(
   );
 }
 
+export function groupPrizeLimitSentence(plan: PreparedPlan): string | null {
+  return plan.groupPrizeLimitCents
+    ? `Prêmio até ${formatBRL(plan.groupPrizeLimitCents)} fica no caixa do grupo.`
+    : null;
+}
+
 export function PlanValues({ plan }: { plan: PreparedPlan }) {
+  const groupPrizeLimit = groupPrizeLimitSentence(plan);
   return (
     <dl className="plan-values">
       <div>
@@ -722,6 +749,12 @@ export function PlanValues({ plan }: { plan: PreparedPlan }) {
         <dt>Destino da sobra</dt>
         <dd>{leftoverLabels[plan.leftoverPolicy]}</dd>
       </div>
+      {groupPrizeLimit && (
+        <div>
+          <dt>Prêmio pequeno</dt>
+          <dd>{groupPrizeLimit}</dd>
+        </div>
+      )}
     </dl>
   );
 }

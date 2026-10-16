@@ -8,6 +8,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import {
+  brasiliaDateTimeToUTC,
   computeFinance,
   createFinancialView,
   formatBRL,
@@ -55,6 +56,34 @@ const titles: Record<FinancialRequest["type"], string> = {
 const date = (value: string) =>
   new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" })
     .format(new Date(value));
+const brasiliaParts = (instant: number) => {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(instant));
+  const part = (type: string) => parts.find((p) => p.type === type)!.value;
+  return {
+    year: part("year"),
+    month: part("month"),
+    day: part("day"),
+    hour: part("hour"),
+    minute: part("minute"),
+  };
+};
+/** Agora no relógio de Brasília, no formato do campo de data e hora. */
+const brasiliaNowInput = () => {
+  const t = brasiliaParts(Date.now());
+  return `${t.year}-${t.month}-${t.day}T${t.hour}:${t.minute}`;
+};
+const brasiliaShort = (value: string) => {
+  const t = brasiliaParts(Date.parse(value));
+  return `${t.day}/${t.month}, ${t.hour}:${t.minute}`;
+};
 const message = (error: unknown) =>
   error instanceof Error
     ? error.message
@@ -209,8 +238,9 @@ export function FinancialReview(
         <Card className="finance-card" label="Cotas para conferir">
           <Eyebrow>Cotas para conferir</Eyebrow>
           <p className="ui-sec">
-            A cota vale quando a pessoa pagou tudo no prazo, é maior de idade e
-            aceitou os combinados. Receber dinheiro sozinho não confirma a cota.
+            A cota vale quando a pessoa pagou tudo, é maior de idade e aceitou os
+            combinados. Depois do prazo combinado ela ainda entra, até o bolão
+            travar. Receber dinheiro sozinho não confirma a cota.
           </p>
           <div className="table-wrapper">
             <table>
@@ -506,7 +536,9 @@ export function FinancialDialog(
   const [amount, setAmount] = useState("");
   const [allocate, setAllocate] = useState(true);
   const [bankReference, setBankReference] = useState("");
-  const [receivedAt, setReceivedAt] = useState("");
+  const [receivedAt, setReceivedAt] = useState(() =>
+    request.type === "payment_confirm" ? brasiliaNowInput() : ""
+  );
   const [evidence, setEvidence] = useState("");
   const [reason, setReason] = useState("");
   const [reviewed, setReviewed] = useState(false);
@@ -634,6 +666,21 @@ export function FinancialDialog(
   const selectedPool = pools.find((p) =>
     p.id === (quota?.data.poolId ?? poolId)
   );
+  const afterDeadline = (() => {
+    const deadlineAt = selectedPool?.data.deadlineAt;
+    if (
+      request.type !== "payment_confirm" || !allocate || !deadlineAt ||
+      !receivedAt
+    ) return null;
+    try {
+      const received = Date.parse(brasiliaDateTimeToUTC(receivedAt));
+      return received >= Date.parse(deadlineAt)
+        ? brasiliaShort(deadlineAt)
+        : null;
+    } catch {
+      return null;
+    }
+  })();
   const paymentAssigned =
     preview?.snapshot.movements.filter((m) =>
       m.paymentId === payment?.id &&
@@ -701,7 +748,7 @@ export function FinancialDialog(
           proposalVersion: proposal.serverVersion,
           bankReference: bankReference.trim() || null,
           declaredReceivedAt: receivedAt
-            ? new Date(receivedAt).toISOString()
+            ? brasiliaDateTimeToUTC(receivedAt)
             : null,
           allocations: allocate ? [{ poolId, amountCents }] : [],
         };
@@ -1044,7 +1091,7 @@ export function FinancialDialog(
                         </label>
                         <label>
                           Data do recebimento{" "}
-                          <span className="muted">(seu fuso, opcional)</span>
+                          <span className="muted">(horário de Brasília)</span>
                           <input
                             type="datetime-local"
                             value={receivedAt}
@@ -1053,6 +1100,13 @@ export function FinancialDialog(
                               revise(setReceivedAt, event.target.value)}
                           />
                         </label>
+                        {afterDeadline && (
+                          <p className="modal-why" role="status">
+                            Depois do prazo combinado ({afterDeadline}). Confira
+                            a hora; se estiver certa, pode salvar: a cota ainda
+                            entra até o bolão travar.
+                          </p>
+                        )}
                         <label className="checkbox-label">
                           <input
                             type="checkbox"
@@ -1165,12 +1219,12 @@ export function FinancialDialog(
                           </strong>.
                         </p>
                         <p>
-                          Combinados: versão {statute?.version}. Prazo interno:
-                          {" "}
+                          Combinados: versão {statute?.version}. Prazo
+                          combinado:{" "}
                           {selectedPool.data.deadlineAt
                             ? date(selectedPool.data.deadlineAt)
-                            : "A definir"}. O horário do servidor decide a
-                          validade.
+                            : "A definir"}. Depois dele a cota ainda entra, até
+                          o bolão travar.
                         </p>
                       </>
                     )}
