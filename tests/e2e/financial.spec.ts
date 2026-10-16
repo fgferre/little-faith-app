@@ -1435,6 +1435,64 @@ test("the Sorteio screen stays on screen when the result is in but the registrat
   await expect(page.locator('[aria-label="Números sorteados"]')).toBeVisible();
 });
 
+test("the manual result form fills itself from the official CAIXA data fetched by the device and confirms nothing until the review", async ({ page, request }) => {
+  test.setTimeout(90_000);
+  await lockRegistrationFixture(page, request);
+  await step(page, "Sorteio");
+  let status = 403;
+  await page.route("https://servicebus2.caixa.gov.br/portaldeloterias/api/megasena/1234", (route) =>
+    route.fulfill({
+      status,
+      contentType: "application/json",
+      headers: { "access-control-allow-origin": "*" },
+      body: status === 200
+        ? JSON.stringify({
+          numero: 1234,
+          tipoJogo: "MEGA_SENA",
+          dataApuracao: "08/10/2026",
+          listaDezenas: ["04", "11", "23", "38", "47", "59"],
+          listaRateioPremio: [
+            { faixa: 1, descricaoFaixa: "6 acertos", numeroDeGanhadores: 0, valorPremio: 0 },
+            { faixa: 2, descricaoFaixa: "5 acertos", numeroDeGanhadores: 41, valorPremio: 62345.67 },
+            { faixa: 3, descricaoFaixa: "4 acertos", numeroDeGanhadores: 3120, valorPremio: 1234.5 },
+          ],
+        })
+        : "Forbidden",
+    }));
+  const fetchButton = page.getByRole("button", { name: "Preencher com o resultado oficial", exact: true });
+  const date = page.getByLabel("Data do sorteio em Brasília");
+  // The textarea sits inside its label, so its text becomes part of the label once filled.
+  const numbers = page.getByLabel("Dezenas sorteadas");
+  await page.getByRole("button", { name: "Informar resultado", exact: true }).click();
+  await fetchButton.click();
+  await expect(page.getByText("Não deu para buscar o resultado oficial agora. Tente de novo ou digite.")).toBeVisible();
+  await expect(date).toHaveValue("");
+  await expect(numbers).toHaveValue("");
+  status = 200;
+  await fetchButton.click();
+  await expect(date).toHaveValue("2026-10-08");
+  await expect(numbers).toHaveValue("04 11 23 38 47 59");
+  await expect(page.getByLabel("Prêmio de 6 acertos (R$)")).toHaveValue("0,00");
+  await expect(page.getByLabel("Ganhadores de 6 acertos")).toHaveValue("0");
+  await expect(page.getByLabel("Prêmio de 5 acertos (R$)")).toHaveValue("62.345,67");
+  await expect(page.getByLabel("Ganhadores de 5 acertos")).toHaveValue("41");
+  await expect(page.getByLabel("Prêmio de 4 acertos (R$)")).toHaveValue("1.234,50");
+  await expect(page.getByLabel("Ganhadores de 4 acertos")).toHaveValue("3120");
+  await expect(page.getByLabel("Fonte do resultado", { exact: true })).toHaveValue(
+    /^CAIXA, resultado oficial do concurso 1234, buscado por este aparelho em \d{2}\/\d{2}\/\d{4} \d{2}:\d{2} \(Brasília\)$/,
+  );
+  await expect(page.getByLabel("Motivo do resultado manual")).toHaveValue(
+    "A busca pelo servidor foi barrada pelo site da CAIXA; o resultado oficial foi buscado por este aparelho.",
+  );
+  await settled(page);
+  expect((await fixturePost(request, "results_pull", { groupId })).results).toHaveLength(0);
+  await page.getByRole("button", { name: "Revisar resultado informado", exact: true }).click();
+  await approveRecord(page);
+  const results = (await fixturePost(request, "results_pull", { groupId })).results;
+  expect(results).toHaveLength(1);
+  expect(results[0]).toMatchObject({ source: "manual", drawDate: "2026-10-08", drawnNumbers: [4, 11, 23, 38, 47, 59] });
+});
+
 test("repeating with the same group carries the games, suggests the next contest and calls last round's people in Arrecadar", async ({ page, request }) => {
   test.setTimeout(120_000);
   const manifest = await lockRegistrationFixture(page, request);

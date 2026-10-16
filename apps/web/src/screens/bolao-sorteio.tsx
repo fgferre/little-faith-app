@@ -17,6 +17,8 @@ import {
   formatBRL,
   LOTTERIES,
   parseBRL,
+  parseCaixaResult,
+  RESULT_SOURCE_URLS,
 } from "@bolao/core";
 import type {
   ContestResultVersion,
@@ -1194,6 +1196,66 @@ function ManualForm(
     db,
     pool,
   );
+  const [fetching, setFetching] = useState(false);
+  /** O servidor pode ser barrado pelo site da CAIXA; este aparelho busca o oficial e só preenche, quem confirma é a pessoa. */
+  async function fillFromOfficial() {
+    const { lotteryId, contestNumber } = pool.data;
+    if (!contestNumber) return;
+    setFetching(true);
+    try {
+      const sourceUrl = `${RESULT_SOURCE_URLS[lotteryId]}/${contestNumber}`;
+      const response = await fetch(sourceUrl, {
+        headers: { Accept: "application/json" },
+        credentials: "omit",
+        redirect: "error",
+        signal: AbortSignal.timeout(12000),
+      });
+      if (!response.ok) throw new Error(`http_${response.status}`);
+      const collectedAt = new Date();
+      const parsed = parseCaixaResult({
+        lotteryId,
+        contestNumber,
+        rawText: await response.text(),
+        sourceUrl,
+        collectedAt: collectedAt.toISOString(),
+      });
+      if (!parsed.drawnNumbers) {
+        setError("O resultado deste concurso ainda não saiu na CAIXA.");
+        return;
+      }
+      const fetchedAt = new Intl.DateTimeFormat("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+        timeZone: BRASILIA,
+      }).format(collectedAt).replace(", ", " ");
+      update({
+        date: parsed.drawDate ?? "",
+        numbers: parsed.drawnNumbers.map(pad).join(" "),
+        payouts: Object.fromEntries(
+          (parsed.payouts ?? []).map((tier) => [tier.hits, {
+            amount: tier.prizeCents
+              ? formatBRL(tier.prizeCents).replace("R$ ", "")
+              : "",
+            winners: tier.winnerCount ?? "",
+          }]),
+        ),
+        source:
+          `CAIXA, resultado oficial do concurso ${contestNumber}, buscado por este aparelho em ${fetchedAt} (Brasília)`,
+        reason:
+          "A busca pelo servidor foi barrada pelo site da CAIXA; o resultado oficial foi buscado por este aparelho.",
+      });
+    } catch {
+      setError(
+        "Não deu para buscar o resultado oficial agora. Tente de novo ou digite.",
+      );
+    } finally {
+      setFetching(false);
+    }
+  }
   async function review() {
     try {
       await writes.current;
@@ -1239,6 +1301,24 @@ function ManualForm(
       <p className="ui-sec">
         Copie da fonte publicada. O que ainda não saiu fica vazio e pendente.
       </p>
+      {pool.data.contestNumber && (
+        <Button
+          variant="ghost"
+          icon={
+            <RefreshCw
+              aria-hidden="true"
+              className={fetching ? "spin" : undefined}
+            />
+          }
+          disabled={!loaded || fetching}
+          aria-busy={fetching}
+          onClick={() => void fillFromOfficial()}
+        >
+          {fetching
+            ? "Buscando o resultado oficial…"
+            : "Preencher com o resultado oficial"}
+        </Button>
+      )}
       <label>
         Data do sorteio em Brasília<input
           type="date"
