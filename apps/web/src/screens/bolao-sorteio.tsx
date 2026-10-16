@@ -369,7 +369,7 @@ export function BolaoSorteio(
     }
     const lines = [
       head,
-      `Números sorteados: ${drawn.map(pad).join(" ")}`,
+      `Números sorteados: ${drawn.map(pad).join(" · ")}`,
       "",
       ...(winners.length
         ? [

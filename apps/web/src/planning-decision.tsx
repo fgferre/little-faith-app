@@ -22,6 +22,7 @@ import type { BolaoDatabase, PersistentPlanningCommand } from "@bolao/local";
 import { createAccountTransport } from "./auth";
 import { Modal } from "./components";
 import { Button, ReviewItem } from "./ui";
+import { formatInstant } from "./ui/texto";
 import { assertCurrentPlan } from "./planning-preview";
 import { readReviewSnapshot } from "./review-snapshot";
 import {
@@ -325,7 +326,11 @@ export function PlanningDialog(
       }
       lines.push(
         `Prazo interno: ${
-          current.pool.data.deadlineAt ?? "não definido"
+          current.pool.data.deadlineAt
+            ? `${
+              formatInstant(current.pool.data.deadlineAt, "America/Sao_Paulo")
+            } (Brasília)`
+            : "não definido"
         }. A confirmação do servidor congela esta versão; o registro da aposta continua externo.`,
       );
     }

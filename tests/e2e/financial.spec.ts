@@ -1226,6 +1226,58 @@ test("an accepted partial registration with a lost response is recovered without
   ).toBeDisabled();
 });
 
+test("a divergent ticket without its own note keeps the registration confirmation blocked until the note is filled", async ({ page, request }) => {
+  test.setTimeout(90_000);
+  const manifest = await lockRegistrationFixture(page, request);
+  await addOriginal(page);
+  await fillObserved(page, manifest);
+  const dialog = page.getByRole("dialog");
+  const confirm = dialog.getByRole("button", {
+    name: "Confirmar conferência no servidor",
+    exact: true,
+  });
+  const close = dialog.getByRole("button", {
+    name: "Fechar revisão",
+    exact: true,
+  });
+  await expect(dialog.getByRole("checkbox")).toBeEnabled({ timeout: 15_000 });
+  await close.click();
+  await expect(dialog).not.toBeVisible();
+  // The first receipt now reads as placed one hour before the plan was locked.
+  await page.getByLabel("Cartela a conferir").selectOption("0");
+  await page.getByLabel("Horário lido no recibo (Brasília)").fill(
+    brasiliaCivil(new Date(Date.parse(manifest.lockedAt) - 3_600_000)),
+  );
+  await settled(page);
+  const review = page.getByRole("button", {
+    name: "Revisar conferência do registro",
+    exact: true,
+  });
+  await review.click();
+  await expect(dialog.getByText(
+    "Cartela 1 não bate com o planejado: explique o motivo em Observação da cartela antes de confirmar.",
+  )).toBeVisible({ timeout: 15_000 });
+  await expect(
+    dialog.getByText(
+      /Horário lido no recibo: \d{2}\/\d{2}\/\d{4}, \d{2}:\d{2} \(Brasília\)/,
+    ).first(),
+  ).toBeVisible();
+  await expect(dialog.getByRole("checkbox")).toBeEnabled();
+  await dialog.getByRole("checkbox").check();
+  await expect(confirm).toBeDisabled();
+  await close.click();
+  await expect(dialog).not.toBeVisible();
+  await page.getByLabel("Observação da cartela").fill(
+    "Aposta feita antes de congelar o plano; conferida pelo organizador.",
+  );
+  await settled(page);
+  await review.click();
+  await expect(dialog.getByRole("checkbox")).toBeEnabled({ timeout: 15_000 });
+  await dialog.getByRole("checkbox").check();
+  await expect(dialog.getByText(/não bate com o planejado/)).toHaveCount(0);
+  await expect(confirm).toBeEnabled();
+});
+
 test("manual results, official conflicts, failed collection and contest times preserve the evidence and keep calculated prizes separate", async ({ page, request }) => {
   test.setTimeout(120_000);
   const manifest = await lockRegistrationFixture(page, request);
@@ -1361,6 +1413,26 @@ test("manual results, official conflicts, failed collection and contest times pr
     resultPanel.getByText("Dois resultados não batem", { exact: true }),
   )
     .toBeVisible();
+});
+
+test("the Sorteio screen stays on screen when the result is in but the registration was never checked", async ({ page, request }) => {
+  test.setTimeout(90_000);
+  await lockRegistrationFixture(page, request);
+  await step(page, "Sorteio");
+  await page.getByRole("button", { name: "Informar resultado", exact: true }).click();
+  await page.getByLabel("Data do sorteio em Brasília").fill("2026-10-08");
+  await page.getByLabel("Dezenas sorteadas", { exact: true }).fill("1 2 3 4 5 6");
+  await page.getByLabel("Prêmio de 6 acertos (R$)").fill("1000,00");
+  await page.getByLabel("Prêmio de 5 acertos (R$)").fill("100,00");
+  await page.getByLabel("Prêmio de 4 acertos (R$)").fill("10,00");
+  await page.getByLabel("Fonte do resultado", { exact: true }).fill("Publicação sintética de integração.");
+  await page.getByLabel("Motivo do resultado manual").fill("Conferência humana sintética sem registro conferido.");
+  await settled(page);
+  await page.getByRole("button", { name: "Revisar resultado informado", exact: true }).click();
+  await approveRecord(page);
+  const resultCard = page.locator('[aria-label="Resultado"]');
+  await expect(resultCard.getByRole("heading", { name: "Falta conferir o registro" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('[aria-label="Números sorteados"]')).toBeVisible();
 });
 
 test("repeating with the same group carries the games, suggests the next contest and calls last round's people in Arrecadar", async ({ page, request }) => {

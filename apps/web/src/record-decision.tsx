@@ -31,6 +31,7 @@ import type { BolaoDatabase } from "@bolao/local";
 import { createAccountTransport } from "./auth";
 import { Modal } from "./components";
 import { Button, ReviewItem } from "./ui";
+import { formatInstant } from "./ui/texto";
 import { readReviewSnapshot } from "./review-snapshot";
 
 export type RecordRequest =
@@ -138,6 +139,8 @@ export function RecordDialog(
   const [reviewed, setReviewed] = useState(false);
   const [recoveryChecked, setRecoveryChecked] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refused, setRefused] = useState(false);
+  const [missingReason, setMissingReason] = useState<number[]>([]);
   const [reload, setReload] = useState(0);
   const mounted = useRef(true);
   const sending = useRef(false);
@@ -174,6 +177,7 @@ export function RecordDialog(
       setBusy(true);
       setReview(null);
       setError(null);
+      setMissingReason([]);
       const transport = createAccountTransport(db.accountId);
       await sync(db, transport);
       const [snapshot, calendarSnapshot] = request.family === "registration"
@@ -235,6 +239,7 @@ export function RecordDialog(
         );
       }
       let shown: Review;
+      let withoutReason: number[] = [];
       if (request.family === "registration") {
         const registration = snapshot as Awaited<
           ReturnType<typeof transport.registrationPull>
@@ -252,6 +257,14 @@ export function RecordDialog(
           request.action.items,
           registration.evidence,
           calendarSnapshot ? currentCalendar(calendarSnapshot, pool.id) : null,
+        );
+        withoutReason = request.action.items.flatMap((item, index) =>
+          !item.reason.trim() && comparison.issues.some((issue) =>
+              issue.severity === "divergence" &&
+              issue.plannedTicketKey === item.plannedTicketKey
+            )
+            ? [index + 1]
+            : []
         );
         shown = {
           title: "Conferir registro externo",
@@ -306,7 +319,14 @@ export function RecordDialog(
                     ]
                     : []),
                   `Horário lido no recibo: ${
-                    item.observed.registeredAt ?? "não informado"
+                    item.observed.registeredAt
+                      ? `${
+                        formatInstant(
+                          item.observed.registeredAt,
+                          "America/Sao_Paulo",
+                        )
+                      } (Brasília)`
+                      : "não informado"
                   }.`,
                 ]
                 : []),
@@ -448,6 +468,7 @@ export function RecordDialog(
             : validateResultCommand(prepared),
         );
         setReview(shown);
+        setMissingReason(withoutReason);
       }
     };
     void load().catch((failure) => {
@@ -462,18 +483,16 @@ export function RecordDialog(
 
   async function finish(receipt: Receipt) {
     if (!mounted.current) return;
-    onNotice({
-      text: receipt.status === "accepted"
-        ? "Conferência confirmada no servidor."
-        : receipt.message ?? "A conferência precisa ser revisada.",
-      error: receipt.status !== "accepted",
-    });
-    onClose();
-    if (receipt.status === "accepted") {
-      void sync(db, createAccountTransport(db.accountId)).catch(() =>
-        undefined
-      );
+    if (receipt.status !== "accepted") {
+      setError(receipt.message ?? "A conferência precisa ser revisada.");
+      setRefused(true);
+      return;
     }
+    onNotice({ text: "Conferência confirmada no servidor." });
+    onClose();
+    void sync(db, createAccountTransport(db.accountId)).catch(() =>
+      undefined
+    );
   }
   async function confirm() {
     if (
@@ -549,6 +568,13 @@ export function RecordDialog(
       if (mounted.current) setBusy(false);
     }
   }
+  const missingReasonLine = missingReason.length === 0
+    ? null
+    : missingReason.length === 1
+    ? `Cartela ${missingReason[0]} não bate com o planejado: explique o motivo em Observação da cartela antes de confirmar.`
+    : `Cartelas ${
+      new Intl.ListFormat("pt-BR").format(missingReason.map(String))
+    } não batem com o planejado: explique o motivo em Observação da cartela de cada uma antes de confirmar.`;
   return (
     <Modal
       title={review?.title ?? "Revisar conferência"}
@@ -568,8 +594,9 @@ export function RecordDialog(
           {review.lines.map((line, index) => <p key={index}>{line}</p>)}
         </div>
       )}
+      {missingReasonLine && <p className="form-error">{missingReasonLine}</p>}
       {error && <p className="form-error" role="alert">{error}</p>}
-      {key
+      {!refused && (key
         ? (
           <button
             className="button secondary"
@@ -590,8 +617,8 @@ export function RecordDialog(
           >
             Atualizar revisão
           </button>
-        )}
-      {(!key || recoveryChecked) && (
+        ))}
+      {!refused && (!key || recoveryChecked) && (
         <label className="planning-review-checkbox">
           <input
             type="checkbox"
@@ -609,17 +636,19 @@ export function RecordDialog(
         >
           Fechar revisão
         </button>
-        <button
-          className="button primary"
-          disabled={!enabled || busy || !reviewed || !review ||
-            !!key && !recoveryChecked}
-          onClick={() => void confirm()}
-        >
-          <ShieldCheck size={17} />
-          {key
-            ? "Reenviar conferência original"
-            : "Confirmar conferência no servidor"}
-        </button>
+        {!refused && (
+          <button
+            className="button primary"
+            disabled={!enabled || busy || !reviewed || !review ||
+              missingReason.length > 0 || !!key && !recoveryChecked}
+            onClick={() => void confirm()}
+          >
+            <ShieldCheck size={17} />
+            {key
+              ? "Reenviar conferência original"
+              : "Confirmar conferência no servidor"}
+          </button>
+        )}
       </div>
     </Modal>
   );

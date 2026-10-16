@@ -136,7 +136,7 @@ function handoffText(manifest: PoolManifest) {
         formatBRL(ticket.betCostCents)
       }`,
       ...ticket.betKeys.map((key) =>
-        plan.bets.find((bet) => bet.key === key)!.numbers.map(pad).join(" ")
+        plan.bets.find((bet) => bet.key === key)!.numbers.map(pad).join(" · ")
       ),
       "",
     ]),
@@ -600,6 +600,13 @@ function Report(
   const others = comparison.issues.filter((issue) =>
     issue.severity !== "divergence"
   );
+  const divergenceCounts = new Map<string, number>();
+  for (const issue of divergences) {
+    divergenceCounts.set(
+      issue.message,
+      (divergenceCounts.get(issue.message) ?? 0) + 1,
+    );
+  }
   const plan = manifest?.content.plan;
   const holderId = manifest?.content.responsible.ticketHolderPersonId ?? null;
   const holderLine = !manifest || !plan
@@ -626,8 +633,9 @@ function Report(
       </div>
       {comparison.status === "divergent" && (
         <ProblemBox title="Divergência">
-          {divergences.map((issue) => issue.message).join(" ") ||
-            "O comprovante não bate com o planejado."}
+          {[...divergenceCounts].map(([message, count]) =>
+            count > 1 ? `${message} (${count} cartelas)` : message
+          ).join(" ") || "O comprovante não bate com o planejado."}
         </ProblemBox>
       )}
       <p className="ui-sec">
