@@ -6,12 +6,15 @@ Número é identidade, não posição: item novo entra no fim da sua seção. **
 
 ## O BASTÃO — onde a rodada parou (16/10) — CONCEITO NOVO NO QUADRO, NADA PUBLICADO; PRÓXIMO: RESPONDER PELO CARTÃO
 
-**Para quem pega agora:** leia este bastão e o `PLAN-cartao.md` (próxima tarefa: responder pelo cartão, depois o próximo
-sorteio automático e o gancho da doação; decisões fechadas lá). `PLAN.md` é o quadro (conceito novo aplicado; falta ele escolher a
-versão da linha). Antes de começar, leia `.tmp/critica/astra-2.md` (crítica do GPT-6 Astra com leitura do repositório) e, para
-frases, `.tmp/mkt/`. `main` local = 719e864, 21 commits à frente do GitHub; nada de 15 e 16/10 foi publicado (item 14 tem a ordem e
-uma conferência antes). `npm run done` verde em 16/10 (338 unitários, 48 fluxos). Conceito decidido por ele em 16/10: o app é o
-organizador, a pessoa do dinheiro e do bilhete é o tesoureiro, o app lembra e nunca cobra, "little faith" brinca com "fezinha".
+**Para quem pega agora:** leia este bastão e o `PLAN-cartao.md` (próxima tarefa, nesta ordem: responder pelo cartão, próximo
+sorteio automático, botão de doação com QR; decisões fechadas lá, inclusive chave, nome e cidade do Pix da doação). Antes de começar,
+leia `.tmp/critica/astra-2.md` (crítica do GPT-6 Astra com leitura do repositório: cuidados do cartão e do próximo sorteio). `PLAN.md`
+é o quadro https://claude.ai/artifact/AfAkydz8o4DtoQjhmRVWFU (versão 16, conceito novo; falta ele escolher a versão da linha, A
+recomendada). `main` local 27 commits à frente do GitHub; nada de 15 e 16/10 foi publicado (item 5 da fila e item 14: ordem e
+conferência antes). `npm run done` verde em 16/10 (338 unitários, 48 fluxos). Decidido por ele em 16/10: o app é o organizador, a pessoa
+do dinheiro e do bilhete é o tesoureiro, o app lembra e nunca cobra, "little faith" brinca com "fezinha", os apps dele assinam "um app da
+Pipo Labs" (pipolabs.com está à venda por US$ 10.595; sugerido pipo-labs.com, livre, compra dele). Esperando ele: ler a política de
+privacidade (`apps/web/public/privacidade.html`), que destrava tirar o login do Google do modo de teste depois de publicada (item 11).
 
 **Revisão externa (15/10, sobre b7baa26):** consertado e verificado no mesmo dia: o cartão mostrava e contava acertos no plano,
 não no bilhete registrado (podia anunciar prêmio que não existe); o "Manter o Supabase acordado" mandava um token mal formado e
