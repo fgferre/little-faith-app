@@ -38,7 +38,7 @@ async function createPool(page: Page, lottery = "mega-sena") {
 test("demo is clearly marked and never mixes with the organizer drafts", async ({ page }) => {
   await page.goto("/");
   await expect(
-    page.getByText("Um gostinho do app: estes são dados de exemplo."),
+    page.getByText("Veja como funciona: os dados são de exemplo."),
   ).toBeVisible();
   // o valor aparece duas vezes na Início (bolão da vez e lista); basta o primeiro
   await expect(page.getByText("R$ 360,00", { exact: true }).first()).toBeVisible();
@@ -48,7 +48,7 @@ test("demo is clearly marked and never mixes with the organizer drafts", async (
   await page.reload();
   await expect(page.getByRole("button", { name: "Novo bolão" })).toBeVisible();
   await expect(
-    page.getByText("Um gostinho do app: estes são dados de exemplo."),
+    page.getByText("Veja como funciona: os dados são de exemplo."),
   ).not.toBeVisible();
 });
 

@@ -75,17 +75,17 @@ const TIER: Record<LotteryId, (hits: number) => string> = {
   quina: (h) => ({ 2: "duque", 3: "terno", 4: "quadra", 5: "quina" })[h] ?? "",
   lotofacil: (h) => `${h} pontos`,
 };
-/** "Acertamos a quadra!" · "Acertamos o terno!" · "Acertamos 13 pontos!" */
+/** "Acertamos a quadra!" · "Acertamos o terno!" · "Acertamos 13 pontos!" (prêmio pede exclamação; o resto do app não usa) */
 function winTitle(lotteryId: LotteryId, hits: number) {
   const tier = TIER[lotteryId](hits);
   if (lotteryId === "lotofacil") return `Acertamos ${tier}!`;
   return `Acertamos ${tier === "duque" || tier === "terno" ? "o" : "a"} ${tier}!`;
 }
-/** Selo do jogo premiado: "Quadra!" · "Terno!" · "13 acertos!" */
+/** Selo do jogo premiado: "Quadra" · "Terno" · "13 acertos" */
 function winTag(lotteryId: LotteryId, hits: number) {
-  if (lotteryId === "lotofacil") return `${hits} acertos!`;
+  if (lotteryId === "lotofacil") return `${hits} acertos`;
   const tier = TIER[lotteryId](hits);
-  return `${tier[0]!.toUpperCase()}${tier.slice(1)}!`;
+  return `${tier[0]!.toUpperCase()}${tier.slice(1)}`;
 }
 const bestTier = (game: RegisteredPrize) =>
   Math.max(
@@ -654,8 +654,8 @@ export function BolaoSorteio(
   const gamesList = <GameGroups groups={groups} row={gameRow} />;
   const stageHead = (
     <>
-      <p className="sorteio-eyebrow">A torcida é de todo mundo.</p>
-      <p className="sorteio-frase">Uma pequena dose de fé.</p>
+      <p className="sorteio-eyebrow">Agora é torcer.</p>
+      <p className="sorteio-frase">O app confere os jogos quando o resultado sair.</p>
     </>
   );
 
@@ -665,7 +665,7 @@ export function BolaoSorteio(
       <div className={manualCard ? "pool-cols" : "pool-cols pool-solo"}>
         <Card className="pool-card sorteio-palco" label="Sorteio">
           {stageHead}
-          <p className="ui-sec">Vamos conferir a sorte da turma?</p>
+          <p className="ui-sec">Ver os jogos da turma</p>
           <Eyebrow>{future ? "Sorteio em" : "Sorteio"}</Eyebrow>
           {future && drawAt
             ? <Countdown target={drawAt} timeZone={timeZone} />
@@ -716,10 +716,10 @@ export function BolaoSorteio(
   const rollover = rolled && (
     <h2 className="pool-card-title sorteio-titulo">
       {rolledOver!.nextEstimatedPrizeCents !== null
-        ? `Acumulou! Próximo prêmio estimado ${
+        ? `Acumulou. Prêmio estimado para o próximo concurso: ${
           formatBRL(rolledOver!.nextEstimatedPrizeCents).replace(" ", "\u00a0")
-        }`
-        : "Acumulou!"}
+        }.`
+        : "Acumulou."}
     </h2>
   );
   const nextLine = next?.expectedDrawAt && (

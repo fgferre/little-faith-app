@@ -529,9 +529,9 @@ export function DraftForm(
               </select>
             </label>
             <p className="ui-sec form-note">
-              O prazo é da turma: depois dele a cobrança para, mas quem pagar
-              ainda entra até o bolão travar. O horário das apostas e do
-              sorteio vem da Caixa, a cada concurso.
+              Depois do prazo, os lembretes param. Quem pagar ainda entra até
+              o bolão travar. O horário das apostas e do sorteio vem da Caixa,
+              a cada concurso.
             </p>
           </>
         )}

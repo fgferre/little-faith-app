@@ -94,7 +94,7 @@ function chargeText(view: PoolView, pix: PixReceiver | null) {
   const coded = lines.length > view.owing.length;
   return [
     `${pool.data.title} (${LOTTERIES[pool.data.lotteryId].label})`,
-    "Falta pagar a cota:",
+    "Lembrete da cota:",
     ...lines,
     ...(coded && pix
       ? [
@@ -112,6 +112,7 @@ function chargeText(view: PoolView, pix: PixReceiver | null) {
         } (Brasília).`,
       ]
       : []),
+    "Se desta vez ficar de fora, avise aqui.",
   ].join("\n");
 }
 
@@ -125,17 +126,17 @@ function callText(view: PoolView, rollover?: ReturnType<typeof rolloverOf>) {
     ? "o próximo concurso"
     : `o concurso ${contestNumber}`;
   const until = deadlineAt
-    ? `, pagar até ${diaMes(deadlineAt, "America/Sao_Paulo")}`
+    ? `, Pix até ${diaMes(deadlineAt, "America/Sao_Paulo")}`
     : "";
-  const call = `${title} para ${contest}! Quem continua? Cota ${
+  const call = `${title}, ${contest}. Vai entrar nesta rodada? Cota de ${
     formatBRL(quotaPriceCents)
-  }${until}. Responde aqui: dentro ou fora.`;
+  }${until}. Responda aqui: dentro ou fora.`;
   if (!rollover) return call;
   const { nextContestNumber, nextEstimatedPrizeCents } = rollover;
   return `${call}\n${
     nextEstimatedPrizeCents === null
-      ? "Acumulou!"
-      : `Acumulou! Prêmio estimado para o concurso ${nextContestNumber}: ${
+      ? "Acumulou."
+      : `Acumulou. Prêmio estimado para o concurso ${nextContestNumber}: ${
         formatBRL(nextEstimatedPrizeCents)
       }.`
   }`;
@@ -174,7 +175,7 @@ function rollCall(snapshot: Snapshot, view: PoolView) {
 /** A mensagem com o link pessoal; o token só existe agora, na criação. */
 function linkText(name: string, group: string, token: string) {
   const url = `${location.origin}${location.pathname}#/p/${token}`;
-  return `Oi ${name}! Seu cartão do bolão ${group}: ${url}. Nele você vê suas cotas, os jogos, o resultado e a sua parte.`;
+  return `Oi, ${name}. Este é seu cartão do bolão ${group}:\n${url}\nNele você vê sua cota, os jogos, o resultado e sua parte no prêmio, se houver.`;
 }
 
 /**
@@ -381,7 +382,7 @@ export function BolaoArrecadar(
     [results, previousId],
   );
   const pix = group?.data.pix ?? null;
-  // Quem está no painel "Cobrar por Pix"; o código é montado com o que falta agora.
+  // Quem está no painel "Pix da cota"; o código é montado com o que falta agora.
   const [pixId, setPixId] = useState<string | null>(null);
   const pixPerson = people.find((person) => person.id === pixId) ?? null;
   const pixMissing = pixPerson && missingCents(pixPerson);
@@ -677,7 +678,7 @@ export function BolaoArrecadar(
             icon={<QrCode aria-hidden="true" />}
             onClick={() => setPixId(person.id)}
           >
-            Cobrar por Pix
+            Pix da cota
           </Button>
         )
         : (
@@ -913,7 +914,7 @@ export function BolaoArrecadar(
           )}
           <AnimatePresence>
             {pixPerson && pix && pixMissing && pixPayload && (
-              <Modal title="Cobrar por Pix" onClose={() => setPixId(null)}>
+              <Modal title="Pix da cota" onClose={() => setPixId(null)}>
                 <p className="pix-who">
                   <span>{pixPerson.name}</span>
                   <b>{formatBRL(pixMissing)}</b>

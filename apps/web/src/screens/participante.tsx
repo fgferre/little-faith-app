@@ -477,7 +477,7 @@ function Welcome({ personId }: { personId: string }) {
   if (closed) return null;
   return (
     <aside className="card-aviso" aria-label="Boas-vindas">
-      <p className="card-aviso-titulo">Surpresa!</p>
+      <p className="card-aviso-titulo">Seu cartão do bolão</p>
       <button
         type="button"
         className="icon-button"
@@ -494,8 +494,8 @@ function Welcome({ personId }: { personId: string }) {
         <X aria-hidden="true" />
       </button>
       <p className="card-line">
-        Este cartão é só seu: aqui ficam sua cota, os jogos, o resultado e a sua
-        parte. Guarde este link.
+        Aqui ficam sua cota, os jogos, o resultado e sua parte no prêmio, se
+        houver. Guarde este link.
       </p>
     </aside>
   );

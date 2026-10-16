@@ -885,7 +885,7 @@ function OrganizerApp() {
                 {isDemo && (
                   <div className="demo-banner">
                     <Sparkles aria-hidden="true" />
-                    <span>Um gostinho do app: estes são dados de exemplo.</span>
+                    <span>Veja como funciona: os dados são de exemplo.</span>
                     <Button
                       variant="ghost"
                       small

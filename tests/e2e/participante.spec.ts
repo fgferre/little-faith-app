@@ -128,7 +128,7 @@ async function sendLink(browser: Browser) {
   await send.click();
   await expect(page.getByText(/Link enviado em/)).toBeVisible();
   const message = await page.evaluate(() => navigator.clipboard.readText());
-  server.name = message.match(/^Oi (.+)! Seu cartão/)![1];
+  server.name = message.match(/^Oi, (.+)\. Este é seu cartão/)![1];
   const link = message.match(/https?:\/\/\S+#\/p\/[\w-]+/)![0];
   await expect(
     page.locator(".pool-person-link").getByRole("link", {
@@ -256,7 +256,7 @@ test("the group's Pix key gives a Pix code in Arrecadar and on the participant's
   const page = await context.newPage();
   await page.goto(`${demo}/`);
   await expect(
-    page.getByText("Um gostinho do app: estes são dados de exemplo."),
+    page.getByText("Veja como funciona: os dados são de exemplo."),
   ).toBeVisible();
   await page.goto(`${demo}/#/boloes/d0000000-0000-4000-8000-000000000011/arrecadar`);
   await page.getByRole("button", { name: "Preparar cota" }).click();
@@ -271,8 +271,8 @@ test("the group's Pix key gives a Pix code in Arrecadar and on the participant's
   await form.getByLabel("Nome de quem recebe").fill("Ana Cláudia");
   await form.getByLabel("Cidade").fill("Niterói");
   await form.getByRole("button", { name: "Salvar neste aparelho" }).click();
-  await page.getByRole("button", { name: "Cobrar por Pix" }).click();
-  const panel = page.getByRole("dialog", { name: "Cobrar por Pix" });
+  await page.getByRole("button", { name: "Pix da cota" }).click();
+  const panel = page.getByRole("dialog", { name: "Pix da cota" });
   const code = panel.getByText(/^000201/);
   await expect(code).toHaveText(
     /^000201.+0117chave@exemplo\.com.+540535\.00.+5911Ana Claudia6007Niteroi.+6304[0-9A-F]{4}$/,
@@ -445,8 +445,8 @@ test("after the draw the card opens with the result and the games with most hits
 test("the welcome band closes and stays closed on this device", async ({ page }) => {
   await page.goto("/#/p/demo");
   const band = page.getByRole("complementary", { name: "Boas-vindas" });
-  await expect(band).toContainText("Surpresa!");
-  await expect(band).toContainText("Este cartão é só seu");
+  await expect(band).toContainText("Seu cartão do bolão");
+  await expect(band).toContainText("Aqui ficam sua cota");
   await band.getByRole("button", { name: "Fechar aviso" }).click();
   await expect(band).toHaveCount(0);
   await page.reload();

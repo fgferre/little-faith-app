@@ -9,7 +9,7 @@ async function step(page: Page, name: string) {
 test("demo shows a drawn pool with its prize confirmed, redeemed and partly paid", async ({ page }) => {
   await page.goto("/");
   await expect(
-    page.getByText("Um gostinho do app: estes são dados de exemplo."),
+    page.getByText("Veja como funciona: os dados são de exemplo."),
   ).toBeVisible();
   await page.goto("/#/boloes");
   await page.getByRole("button", { name: /Mega da sexta/ }).click();

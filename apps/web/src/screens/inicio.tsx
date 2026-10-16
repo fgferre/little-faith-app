@@ -115,7 +115,7 @@ export function InicioScreen(
           <h1>
             Seu bolão em <em>boa companhia.</em>
           </h1>
-          <p>Os jogos, os pagamentos e a torcida. Tudo no mesmo lugar.</p>
+          <p>Os jogos, as cotas e o resultado da turma, num lugar só.</p>
           <Button
             className="gold"
             onClick={() =>
@@ -144,10 +144,10 @@ export function InicioScreen(
         ? (
           <Card className="home-hero">
             <Eyebrow>Primeiro passo</Eyebrow>
-            <h2 className="ui-title">Sua próxima boa história começa aqui</h2>
+            <h2 className="ui-title">Comece pelo grupo</h2>
             <p className="ui-sec">
-              Crie um grupo e prepare seu primeiro bolão. Participantes não
-              precisam criar conta.
+              Reúna a turma e prepare o primeiro bolão. Cada pessoa recebe um
+              cartão, sem precisar criar conta.
             </p>
             <Button
               icon={<Plus aria-hidden="true" />}
@@ -219,7 +219,7 @@ export function InicioScreen(
                           max={4}
                         />
                         <p>
-                          <span className="home-amber">Falta pagar:</span>{" "}
+                          <span className="home-amber">Ainda não pagaram:</span>{" "}
                           {joinNames(hero.owing.map((p) => p.name))}
                         </p>
                       </div>
@@ -228,7 +228,7 @@ export function InicioScreen(
                         onClick={() =>
                           route.navigate("boloes", hero.pool.id, "arrecadar")}
                       >
-                        Cobrar no WhatsApp
+                        Lembrar a turma
                       </Button>
                     </>
                   )}
@@ -237,9 +237,9 @@ export function InicioScreen(
               : (
                 <Card className="home-hero">
                   <Eyebrow>Primeiro bolão</Eyebrow>
-                  <h2 className="ui-title">Seu grupo está pronto</h2>
+                  <h2 className="ui-title">Grupo criado</h2>
                   <p className="ui-sec">
-                    Agora é só preparar o primeiro bolão.
+                    Prepare o primeiro bolão da turma.
                   </p>
                   <Button
                     icon={<Plus aria-hidden="true" />}

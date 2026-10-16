@@ -1573,7 +1573,7 @@ test("an official result that rolled over says so and calls the group to the nex
   await step(page, "Sorteio");
   await page.getByRole("button", { name: "Consultar resultado da CAIXA", exact: true }).click();
   const resultCard = page.locator('[aria-label="Resultado"]');
-  await expect(resultCard.getByText("Acumulou! Próximo prêmio estimado R$ 115.000.000,00", { exact: true })).toBeVisible();
+  await expect(resultCard.getByText("Acumulou. Prêmio estimado para o próximo concurso: R$ 115.000.000,00.", { exact: true })).toBeVisible();
   await expect(resultCard.getByRole("button", { name: "Chamar a turma: concurso 1235", exact: true })).toBeVisible();
 });
 
