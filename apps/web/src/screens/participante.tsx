@@ -175,13 +175,19 @@ function GamesCard({ pool }: { pool: Pool }) {
   const drawn = pool.result?.drawnNumbers ?? null;
   const hits = drawn ? new Set(drawn) : undefined;
   const count = pool.games.length;
+  // Acerto só se conta em jogo lido do bilhete registrado; o do plano ainda pode não ser o que a lotérica registrou.
   const rows = pool.games.map((game, index) => ({
     game,
     index,
-    result: drawn ? gameHits(pool.modality, game.numbers, drawn) : null,
+    result: drawn && game.registered
+      ? gameHits(pool.modality, game.numbers, drawn)
+      : null,
   }));
-  // Depois do sorteio, quem mais acertou vem primeiro; o sort é estável, então o empate fica na ordem do plano.
-  if (drawn) rows.sort((a, b) => b.result!.hits - a.result!.hits);
+  // Depois do sorteio, quem mais acertou vem primeiro e os não conferidos por último; o sort é estável, então o empate fica na
+  // ordem do plano.
+  if (drawn) {
+    rows.sort((a, b) => (b.result?.hits ?? -1) - (a.result?.hits ?? -1));
+  }
   const folded = !!drawn && count > VISIBLE_GAMES;
   const shown = folded && !all ? rows.slice(0, VISIBLE_GAMES) : rows;
   return (
@@ -198,10 +204,12 @@ function GamesCard({ pool }: { pool: Pool }) {
                 <li className="pool-game" key={index}>
                   <Balls
                     numbers={game.numbers}
-                    hits={hits}
+                    hits={result ? hits : undefined}
                     winner={!!result?.wins}
                     detail={ampliado(pool.modality, game.numbers.length)}
-                    note={!result ? undefined : result.wins
+                    note={!drawn ? undefined : !result
+                      ? <span className="ui-hits">Ainda não conferido</span>
+                      : result.wins
                       ? <span className="ui-tag">{acertos(result.hits)}</span>
                       : <span className="ui-hits">{acertos(result.hits)}</span>}
                   />
@@ -257,9 +265,11 @@ function ResultCard({ pool }: { pool: Pool }) {
       </Card>
     );
   }
-  const games = pool.games.map((game) =>
+  // Só os jogos lidos do bilhete registrado entram na conta, os mesmos da divisão do prêmio.
+  const games = pool.games.filter((game) => game.registered).map((game) =>
     gameHits(pool.modality, game.numbers, result.drawnNumbers)
   );
+  const unchecked = pool.games.length - games.length;
   const winners = games.filter((game) => game.wins).length;
   const best = Math.max(0, ...games.map((game) => game.hits));
   const confirmed = positive(result.prizeConfirmedCents);
@@ -277,10 +287,21 @@ function ResultCard({ pool }: { pool: Pool }) {
       <h2 className="pool-card-title">
         {winners
           ? `${winners} ${winners === 1 ? "jogo premiado" : "jogos premiados"}`
-          : "Não foi dessa vez."}
+          : games.length
+          ? "Não foi dessa vez."
+          : "O resultado saiu."}
       </h2>
       {!!games.length && (
         <p className="ui-sec">Melhor jogo: {acertos(best)}</p>
+      )}
+      {!!unchecked && (
+        <p className="ui-sec">
+          {games.length
+            ? `${unchecked} ${
+              unchecked === 1 ? "jogo ainda não foi conferido" : "jogos ainda não foram conferidos"
+            } com o bilhete.`
+            : "Os jogos ainda não foram conferidos com o bilhete registrado."}
+        </p>
       )}
       {confirmed
         ? (

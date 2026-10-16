@@ -78,7 +78,7 @@ export function demoParticipantCard(now = new Date()): ParticipantCard {
         status: "registered",
         participationMode: "internal",
         quota: { units: 100, dueCents: "600", paidCents: "600", paid: true },
-        games: DRAWN_BETS.map((numbers) => ({ numbers })),
+        games: DRAWN_BETS.map((numbers) => ({ numbers, registered: true })),
         registration: { status: "registered", ticketHolderName: holder },
         result: {
           drawnNumbers: DRAWN_NUMBERS,

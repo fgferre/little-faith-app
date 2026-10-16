@@ -245,7 +245,7 @@ begin
     and pool -> 'contest' = '42' and pool ->> 'drawAt' = '2026-10-08' and pool ->> 'participationMode' = 'internal'
     and pool ->> 'status' = 'registered' and pool -> 'closed' = 'false','B pool facts');
   perform pg_temp.assert_true(pool -> 'quota' = '{"units":100,"dueCents":"1000","paidCents":"1000","paid":true}','B quota paid in full');
-  perform pg_temp.assert_true(jsonb_array_length(pool -> 'games') = 4 and pool -> 'games' -> 0 = '{"numbers":[1,2,3,4,5,6]}'
+  perform pg_temp.assert_true(jsonb_array_length(pool -> 'games') = 4 and pool -> 'games' -> 0 = '{"numbers":[1,2,3,4,5,6],"registered":true}'
     and pool -> 'registration' = '{"status":"registered","ticketHolderName":"Pessoa A"}'
     and pool -> 'result' = '{"drawnNumbers":[1,2,3,4,5,7],"prizeCalculatedCents":"100000","prizeConfirmedCents":"100000",
       "redemptionDeadlineDate":"2027-01-06","prizeRedeemed":true}','B games, registration, result and the official deadline of a prize already redeemed');
@@ -260,7 +260,7 @@ begin
     '{"rightCents":"25000","receivedCents":"0","pendingCents":"25000","paidByName":"Pessoa A","refundRightCents":"400","refundedCents":"0"}','A share as ticket holder');
   pool := a -> 'pools' -> 0;
   perform pg_temp.assert_true(pool ->> 'id' = 'c4000000-0000-4000-8000-000000000001' and pool ->> 'status' = 'draft' and pool -> 'contest' = '43' and pool -> 'drawAt' = 'null'
-    and pool -> 'quota' = '{"units":100,"dueCents":"1000","paidCents":"0","paid":false}' and pool -> 'games' = '[{"numbers":[10,20,30,40,50,60]}]'
+    and pool -> 'quota' = '{"units":100,"dueCents":"1000","paidCents":"0","paid":false}' and pool -> 'games' = '[{"numbers":[10,20,30,40,50,60],"registered":false}]'
     and pool -> 'registration' = 'null' and pool -> 'result' = 'null' and pool -> 'share' = 'null' and pool -> 'closed' = 'false','newest draft pool first, nothing confirmed yet');
   pool := d -> 'pools' -> 0;
   perform pg_temp.assert_true(jsonb_array_length(d -> 'pools') = 1 and pool ->> 'id' = 'c4000000-0000-4000-8000-000000000001'
@@ -282,6 +282,26 @@ do $$ begin
   perform pg_temp.assert_true(public.participant_card(pg_temp.hash('token-2')) -> 'group'
     = '{"name":"Bolão da firma","pix":{"key":"chave@exemplo.com","keyType":"email","name":"Pessoa A","city":"Sao Paulo"}}','card carries the group Pix receiver');
   perform pg_temp.assert_true(public.participant_card(pg_temp.hash('token-old')) = '{"error":"link_revoked"}'::jsonb,'revoked link still closed');
+end; $$;
+-- The card shows the games of the receipt, not the plan: a new registration reads other numbers on the known game's ticket
+-- and has no receipt for the second one. The plan's [1,2,3,4,5,6] would have five hits; the receipt's numbers have none.
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000981","role":"authenticated","session_id":"00000000-0000-4000-8000-100000000981","app_metadata":{}}',true);
+do $$ declare g uuid := 'c1000000-0000-4000-8000-000000000001'; p uuid := 'c4000000-0000-4000-8000-000000000002'; items jsonb := pg_temp.observed_items(p); r jsonb;
+begin
+  items := jsonb_set(jsonb_set(items,'{0,observed,betNumbers}','[[20,21,22,23,24,25]]'),'{0,reason}','"A lotérica registrou outros números"');
+  items := jsonb_set(jsonb_set(items,'{1,evidenceIds}','[]'),'{1,observed}','null');
+  r := public.registration_decide(pg_temp.command(g,jsonb_build_object('type','registration_confirm','poolId',p,'poolVersion',pg_temp.pool_version(p),
+    'manifestId',(select id from public.pool_manifests where pool_id = p order by version desc limit 1),'items',items,'reason','Bilhete conferido de novo')));
+  perform pg_temp.assert_true(r ->> 'status' = 'accepted','second registration with other numbers recorded');
+end; $$;
+set local role service_role;
+select set_config('request.jwt.claims','{"role":"service_role"}',true);
+do $$ declare games jsonb := public.participant_card(pg_temp.hash('token-2')) -> 'pools' -> 0 -> 'games';
+begin
+  perform pg_temp.assert_true(jsonb_array_length(games) = 4 and games -> 0 = '{"numbers":[20,21,22,23,24,25],"registered":true}'
+    and games -> 1 -> 'registered' = 'false' and games -> 1 -> 'numbers' <> '[20,21,22,23,24,25]'
+    and games -> 2 -> 'registered' = 'true' and games -> 3 -> 'registered' = 'true','card shows the receipt numbers; a ticket without receipt stays planned');
 end; $$;
 select label,kind,data from participant_samples order by label;
 rollback;

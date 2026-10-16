@@ -164,7 +164,7 @@ async function openCard(
         status: "registered",
         participationMode: "internal",
         quota: { units: 100, dueCents: "6000", paidCents: "6000", paid: true },
-        games: [{ numbers: [4, 15, 17, 26, 40, 55] }],
+        games: [{ numbers: [4, 15, 17, 26, 40, 55], registered: true }],
         registration: { status: "registered", ticketHolderName: "Rafael" },
         result: null,
         share: null,
@@ -321,7 +321,7 @@ test("after the draw the card opens with the result and the games with most hits
     [10, 21, 33, 40, 52, 60],
     [6, 17, 24, 36, 43, 55],
     [8, 19, 29, 34, 47, 57],
-  ].map((numbers) => ({ numbers }));
+  ].map((numbers) => ({ numbers, registered: true }));
   const cards = (page: Page) =>
     page.locator(".card-grid > .ui-card").evaluateAll((all) =>
       all.map((card) => card.getAttribute("aria-label"))
@@ -380,6 +380,38 @@ test("after the draw the card opens with the result and the games with most hits
   await drawn.page.getByRole("button", { name: "Mostrar menos" }).click();
   await expect(list).toHaveText(best);
   await drawn.context.close();
+
+  // The 4-hit game was not read from the registered receipt: it gets no hits, no prize and goes last.
+  const unchecked = await openCard(
+    browser,
+    `${origin}/#/p/${server.token}`,
+    server,
+    {
+      pool: {
+        status: "registered",
+        games: games.map((game, index) =>
+          index === 2 ? { ...game, registered: false } : game
+        ),
+        result: {
+          drawnNumbers: [7, 18, 26, 33, 49, 54],
+          prizeCalculatedCents: "0",
+          prizeConfirmedCents: null,
+        },
+      },
+    },
+  );
+  const result = unchecked.page.getByRole("region", { name: "Resultado" });
+  await expect(result.getByRole("heading")).toHaveText("Não foi dessa vez.");
+  await expect(result).toContainText("Melhor jogo: 3 acertos");
+  await expect(result).toContainText(
+    "1 jogo ainda não foi conferido com o bilhete.",
+  );
+  await unchecked.page.getByRole("button", { name: "Ver os 8 jogos" }).click();
+  await expect(
+    unchecked.page.getByRole("region", { name: "Jogos" }).locator(".pool-game")
+      .last(),
+  ).toHaveText(/^0718.*Ainda não conferido$/);
+  await unchecked.context.close();
 
   const waiting = await openCard(
     browser,

@@ -27,7 +27,11 @@ export interface ParticipantCardPool {
   participationMode: 'undecided' | 'internal' | 'official';
   /** units in hundredths of a quota, like QuotaData.units; dueCents and paid stay null until the quota is confirmed. */
   quota: { units: number; dueCents: string | null; paidCents: string; paid: boolean | null };
-  games: { numbers: number[] }[];
+  /**
+   * registered is true for numbers read from a confirmed receipt (the games the prize is calculated on) and false for planned
+   * or draft games not yet checked against a receipt. Absent in cards served before it: treat as false.
+   */
+  games: { numbers: number[]; registered?: boolean }[];
   /** Null until the pool is locked; 'planned' while no registration was confirmed. */
   registration: { status: 'planned' | 'registered' | 'partial' | 'divergent'; ticketHolderName: string | null } | null;
   /**
