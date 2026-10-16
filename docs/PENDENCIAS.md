@@ -12,6 +12,11 @@ página de venda). `main` local = 863189c, 8 commits à frente do GitHub (`origi
 endereçar" (15/10), então publicar só com o sim dele, na ordem do item 14. `npm run done` verde em 15/10 (327 unitários,
 47 fluxos).
 
+**Revisão externa (15/10, sobre b7baa26):** consertado e verificado no mesmo dia: o cartão mostrava e contava acertos no plano,
+não no bilhete registrado (podia anunciar prêmio que não existe); o "Manter o Supabase acordado" mandava um token mal formado e
+nunca chegava ao banco; o demonstrativo privado voltou a Dividir. Já resolvidos antes: colar bilhetes, busca do resultado pelo aparelho,
+tela branca (bundle velho). Dependem dele: a sobra como reserva (item 15) e o reenvio do link (junto com o quadro).
+
 **Rodada de 15/10:** ensaio retroativo do bolão real "Mega 14/10 150MM" (concurso 3070) até a divisão, com o resultado, a
 mensagem da surpresa e os 10 links pessoais mandados só para o grupo "Teste" dele (só ele está lá); nada foi ao grupo da
 turma. No app publicado esse bolão está completo: 10 pessoas pagas, 17 bilhetes conferidos, travado, resultado manual,
@@ -56,8 +61,9 @@ cartão por URL temporária; limite de taxa na rota pública (ver BACKLOG).
 
 ## ALTA — bloqueia a entrega ou pode perder trabalho
 
-**14. Publicar a rodada de 15/10 (pede o sim dele).** Ordem: 1) aplicar `20261015000000_person_phones.sql` pelo SQL Editor
-(texto da migração mais o `insert` em `supabase_migrations.schema_migrations`, como em 14/10); 2) publicar a função `api` (rotas de
+**14. Publicar a rodada de 15/10 (pede o sim dele).** Ordem: 1) aplicar `20261015000000_person_phones.sql` e depois `20261016000000_participant_card_registered_games.sql` pelo SQL Editor
+(texto de cada migração mais o `insert` em `supabase_migrations.schema_migrations`, como em 14/10; o app novo sem a segunda mostra todos
+os jogos do cartão como "Ainda não conferido"); 2) publicar a função `api` (rotas de
 telefone; o CLI trava com ele remoto, ver o bastão de 14/10); 3) enviar `main` ao GitHub e republicar o app. Sem o passo 2 o app publicado
 segue funcionando e só o campo de WhatsApp avisa que não carregou. A tela em branco do Sorteio vista em 15/10 era um bundle velho
 guardado no navegador (o arquivo nem existe mais no servidor); a correção já estava publicada desde 13/10.
@@ -71,7 +77,8 @@ barra o servidor (403 da proteção Azion), telefone por pessoa com o link abrin
 - O servidor recusa cota depois do prazo, mesmo com pagamento antes: espelhar uma rodada que já passou exige mudar o prazo.
 - A data do pagamento vem como "agora"; é preciso digitar a hora real, senão a cota parece paga fora do prazo.
 - O aceite dos combinados por pessoa, com prova, não existe na vida do grupo (lá "quem paga entra").
-- A mensagem do link pessoal some ao sair da tela; para reenviar é preciso cancelar e criar outro link.
+- A mensagem do link pessoal some ao sair da tela; para reenviar é preciso cancelar e criar outro link. Entra com a linha da pessoa escolhida no quadro
+  (o botão Cobrar vale também para quem já foi cobrado); a revisão externa de 15/10 pede que o token continue protegido.
 - Pagamentos: 2 janelas e ~10 s de espera cada; confirmações às vezes ficam em "Consultar recibo" mesmo aceitas pelo servidor.
 - O cartão mostra "Registro com diferença" quando a aposta foi feita antes da trava (caso do ensaio retroativo).
 - Dinheiro, decidir com ele: a sobra marcada "Reserva identificada no grupo" é ignorada pela divisão (`settlement.ts` não lê

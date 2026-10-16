@@ -13,19 +13,19 @@ Quadro de desenho: a linha da pessoa em Arrecadar e a página de venda — pedid
 
 ## Passos
 
-1. Antes de desenhar, perguntar a ele as duas coisas em aberto (com opções e uma recomendação):
+1. [feito 15/10: as duas versões lado a lado; a página promete o caminho que queremos, com bilhete do que falta] Antes de desenhar, perguntar a ele as duas coisas em aberto (com opções e uma recomendação):
    a) a página fala primeiro com quem organiza ou com quem aposta? (recomendação: organizador na manchete; números e
    confiança como apoio);
    b) a página promete o que o app faz hoje ou o fluxo que queremos? (se for o fluxo, ela só vai ao ar com os buracos
    fechados).
-2. Criar um quadro novo do tipo Design (Artifact) "Linha da pessoa e página de venda", na régua do app (cores, Sora/Inter/
+2. [feito 15/10: https://claude.ai/artifact/AfAkydz8o4DtoQjhmRVWFU] Criar um quadro novo do tipo Design (Artifact) "Linha da pessoa e página de venda", na régua do app (cores, Sora/Inter/
    Fraunces, bolas de prata e ouro; ver `apps/web/src/styles.css :root` e `apps/web/src/ui/ui.css`).
-3. Linha da pessoa (hoje em `apps/web/src/screens/bolao-arrecadar.tsx`, `linkRow` e a lista `pool-people`): a tela de hoje
+3. [feito 15/10: hoje, A uma frase e um botão (recomendada), B lista do que fazer, C trilha; A no computador] Linha da pessoa (hoje em `apps/web/src/screens/bolao-arrecadar.tsx`, `linkRow` e a lista `pool-people`): a tela de hoje
    ao lado de 2 ou 3 versões, no celular (390) e no computador. Nomes de verdade da Confraria (o quadro é privado dele).
    Estados: pagou; pagou parte; mandou comprovante a conferir; valor não bate; sem WhatsApp; com WhatsApp; link já enviado.
    Problemas vistos: "pagou R$ 0,00" ao lado de "enviou R$ 30,00 · falta R$ 60,00"; alerta vermelho grande para diferença
    de valor; botões soltos (comprovante, WhatsApp, link). Regra dele: fileira de botões não quebra nem estica.
-4. Página de venda: duas versões (manchete no organizador; manchete nos números), cada uma com as três dores
+4. [feito 15/10: os bilhetes são notas laranja ao lado; o que já existe, notas verdes] Página de venda: duas versões (manchete no organizador; manchete nos números), cada uma com as três dores
    (organizador: trabalho de cobrar, conferir e dividir; participante: confiança; apostador: lembrar e repetir números,
    gerar jogos dentro da regra, simples ou ampliado) e o passo 1, 2, 3. Embaixo de cada passo, um bilhete com o que o
    app ainda exige hoje:
@@ -37,7 +37,7 @@ Quadro de desenho: a linha da pessoa em Arrecadar e a página de venda — pedid
    Pontos fortes que já existem e ninguém vê: "Gerar jogos" e "Comparar alternativas" (planos dentro do orçamento, com
    custo e chance, ex. "1 em 611 mil"); a regra explicada em cada jogo ("7 dezenas · vale 7 jogos · R$ 42,00").
    Falta: ver os números jogados nas últimas rodadas; repetir os números (teimosinha, fila 8).
-5. Mostrar lado a lado e esperar a escolha dele antes de qualquer código.
+5. [aqui: quadro mostrado em 15/10, esperando a escolha] Mostrar lado a lado e esperar a escolha dele antes de qualquer código.
 
 ## Decisões já tomadas
 
