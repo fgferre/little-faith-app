@@ -43,8 +43,8 @@ Próximo sorteio:
     Prêmio estimado: R$ X." e "Responda no seu cartão: dentro ou fora.". Início: o bolão da vez antes do prêmio.
 
 Doação:
-14. Grátis, aceita doação pela chave Pix do dono (ele passa a chave quando for a hora). Código pronto com a chave numa
-    configuração; sem chave, o botão não aparece. Pix copia e cola sem valor fixo. Lugares: Dados e, raramente, depois de
+14. Grátis, aceita doação pela chave Pix do dono: e-mail fgferre@gmail.com (dita por ele em 16/10); ele prefere QR Code, então o
+    botão mostra o QR e o copia e cola, sem valor fixo; nome e cidade do recebedor a confirmar com ele. A chave fica numa configuração. Pix copia e cola sem valor fixo. Lugares: Dados e, raramente, depois de
     encerrar a rodada; nunca descontando prêmio nem insistindo.
 
 ## Passos
