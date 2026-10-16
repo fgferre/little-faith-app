@@ -21,9 +21,13 @@ jobs:
           set -eu
           test -n "$URL" && test -n "$KEY"
           rest=$(curl -s -o /dev/null -w '%{http_code}' -H "apikey: $KEY" -H "Authorization: Bearer $KEY" "$URL/rest/v1/")
+          # Um token no formato válido (43 caracteres) e que não existe: a função só responde 404 (link
+          # desconhecido) depois de perguntar ao banco; banco fora do ar dá 503. Token mal formado leva a
+          # um 404 antes do banco, e a visita não contaria.
+          token=$(head -c 32 /dev/urandom | base64 | tr '+/' '-_' | tr -d '=\n')
+          test "${#token}" = "43"
           api=$(curl -s -o /dev/null -w '%{http_code}' -H "apikey: $KEY" -H 'Content-Type: application/json' \
-            -d '{"token":"acordar"}' "$URL/functions/v1/api/v1/participant_card")
+            -d "{\"token\":\"$token\"}" "$URL/functions/v1/api/v1/participant_card")
           echo "rest=$rest api=$api"
-          # A função responde 404 (link desconhecido) só depois de consultar o banco: é essa visita que conta.
           # A chamada REST é só um toque a mais no gateway; o código dela não decide o resultado.
           test "$api" = "404"
