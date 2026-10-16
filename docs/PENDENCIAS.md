@@ -4,95 +4,54 @@ Lista viva do que está aberto. Leia só a seção O BASTÃO e o item da vez; o 
 Item resolvido sai da lista e vira commit com o número entre parênteses; a história de cada número fica no git (`git log --all --grep="(NNN)"`).
 Número é identidade, não posição: item novo entra no fim da sua seção. **Próximo número livre: 14.**
 
-## O BASTÃO — onde a rodada parou (15/10) — ENSAIO RETROATIVO DO BOLÃO 3070 FEITO, TUDO SÓ NO GRUPO TESTE DELE; FALTA CORRIGIR O QUE O ENSAIO MOSTROU
+## O BASTÃO — onde a rodada parou (15/10) — CORREÇÕES DO ENSAIO FEITAS E VERIFICADAS, NADA PUBLICADO; PRÓXIMO: QUADRO DE DESENHO
 
-**Rodada de 15/10 (ensaio da revelação, pedido dele):** "Vamos tentar fazer, emular isso, mas sem mandar no grupo [...] Eu quero chegar
-com tudo funcionando muito bem lá no grupo." Feito no bolão real "Mega 14/10 150MM" (escolha dele): 10 pessoas (4 novas, maioridade
-declarada por ele), 10 pagamentos de R$ 50 confirmados com a hora em que cada nome entrou na lista "Pagos" do grupo, combinados v1
-publicados com aceite "sem aceite escrito; quem paga entra" (escolha dele), prazo mudado para 15/10 23h só para o ensaio (o real era
-14/10 18h Brasília; ele: "A gente está rodando só um teste que é retroativo. Não tem problema nisso."), 17 bilhetes digitados e conferidos
-com as 4 fotos do grupo, plano e trava confirmados, resultado 3070 informado à mão (19 27 29 43 54 60, acumulou), sem prêmio, custo
-R$ 498 confirmado, sobra R$ 2 como reserva do grupo. Os 10 links pessoais, o resultado e a mensagem da surpresa foram só para o grupo
-"Teste" dele (só ele está lá); nada foi ao grupo da turma (conferido). O WhatsApp Web ficou ligado no Chrome dele por código de telefone;
-ele desliga em Aparelhos conectados quando quiser. Desenho da revelação: https://claude.ai/artifact/6iCZS5eDry2cGmwcGWR1an (três
-novidades esperam o sim dele). Notas, bilhetes lidos, fotos e links com token em `.tmp/bastao/` (fora do git). O que o ensaio mostrou:
-itens 14 e 15. Mais tarde em 15/10 a rodada de correções foi feita e verificada (`npm run done` verde: 327 unitários, 47 fluxos);
-tudo local, nada enviado ao GitHub. Próximo: o sim dele para publicar (item 14).
+**Para quem pega agora:** leia este bastão e o `PLAN.md` (a próxima tarefa: quadro com a linha da pessoa em Arrecadar e a
+página de venda). `main` local = 863189c, 8 commits à frente do GitHub (`origin/main` = 4659191). No ar: app de 14/10
+(85c2392) e banco até `20261013020000`. Nada de 15/10 foi publicado; ele disse "Temos oportunidades ainda que precisamos
+endereçar" (15/10), então publicar só com o sim dele, na ordem do item 14. `npm run done` verde em 15/10 (327 unitários,
+47 fluxos).
 
+**Rodada de 15/10:** ensaio retroativo do bolão real "Mega 14/10 150MM" (concurso 3070) até a divisão, com o resultado, a
+mensagem da surpresa e os 10 links pessoais mandados só para o grupo "Teste" dele (só ele está lá); nada foi ao grupo da
+turma. No app publicado esse bolão está completo: 10 pessoas pagas, 17 bilhetes conferidos, travado, resultado manual,
+sem prêmio, sobra R$ 2; o prazo foi mudado para 15/10 23h só para o ensaio (o real era 14/10 18h Brasília). Depois, as
+correções que o ensaio pediu (commits 1b59ae2 a d5699a5): revisão do registro clara, colar bilhetes, cartão com resultado
+no topo e faixa de boas-vindas, resultado oficial buscado pelo aparelho (a proteção do site da CAIXA barra o servidor com
+403), telefone de cada pessoa guardado à parte no servidor e link pessoal abrindo direto na conversa. Quadro da revelação:
+https://claude.ai/artifact/6iCZS5eDry2cGmwcGWR1an (as três novidades dele estão feitas). O que continua aberto: itens 14 e 15.
 
-**Para quem pega agora:** `main` = 81d522f, igual ao GitHub, app publicado com ele e banco com todas as migrações. O
-próximo item aberto da fila é o 2 (modo sombra do "Mega 14/10 150MM"; o sorteio é na noite de 14/10). Da rodada de
-layout ficaram só decisões para o dono, não código: aprovar o teste "`#/p/demo` mostra o cartão da Isabela sem chamar o
-servidor" e duas regras de lint ("sem px fora da régua", "sem prefers-reduced-motion: reduce"); dois apontamentos
-baixos deixados de propósito ("Novo bolão" com contorno na Início e cheio em Bolões; selo "Demonstração" dentro do
-cartão de Dados). A régua está em `styles.css :root` e explicada no quadro
-https://claude.ai/artifact/NRJqXNXzy6aaSC7YC9nroT (antes e depois de 7 telas × 3 larguras); qualquer tela nova segue
-a régua, nunca px solto.
+**Contexto que não está no código:**
+- Modo sombra (decisão dele, 13/10): a turma não sabe do app; nada vai ao grupo pela nossa mão. Ensaios vão para o grupo
+  "Teste" dele. Fatos da Confraria, bilhetes lidos, fotos e links com token em `.tmp/bastao/` (fora do git de propósito:
+  nomes de terceiros; nunca CPF, chave Pix ou id de transação no repositório). Pipo = ele; peri = Rodrigo Vieira.
+- O WhatsApp Web ficou ligado no Chrome dele (código por telefone): dá para ler o grupo pelo Claude in Chrome. O acesso
+  ao WhatsApp do Mac pede a janela de permissão, que ele só aprova estando no Mac.
+- O CLI do Supabase trava quando ele está remoto (chaveiro do Mac); migração vai pelo SQL Editor no Chrome dele (texto
+  da migração mais o `insert` em `supabase_migrations.schema_migrations`). Antes de publicar: `gh run list --workflow=deploy.yml --limit 1`.
+- Trabalho no navegador sai caro na conversa principal: preencher telas com um comando de página por lote, ler a área de
+  transferência com `pbpaste` (o app só copia com clique de verdade), e o Claude in Chrome esconde saídas com base64 ou
+  query string.
+- Decisões dele (13/10): nada de API oficial do WhatsApp nem robô não oficial; o caminho é tirar trabalho do organizador.
+- `origin` = github.com/fgferre/little-faith-app (público); app em https://fgferre.github.io/little-faith-app/ ligado ao
+  Supabase real; login Google só para o e-mail dele. Régua de layout em `styles.css :root` (quadro
+  https://claude.ai/artifact/NRJqXNXzy6aaSC7YC9nroT); nunca px solto. Da rodada de layout ainda esperam o sim dele: o teste
+  "`#/p/demo` mostra o cartão da Isabela sem chamar o servidor" e as regras de lint "sem px fora da régua" e
+  "sem prefers-reduced-motion: reduce".
 
-**Estado:** etapas 1–6 da especificação feitas; fila 1–6 feitas em 12–13/10. Em 13/10: fila 8 feita (prazo de resgate com
-contagem de dias e tom de aviso em Dividir e no cartão da pessoa; migração `20261013020000_participant_card_deadline.sql`
-expõe `redemptionDeadlineDate`/`prizeRedeemed` no cartão); "Acumulou! Prêmio estimado" entra na chamada da turma (uma
-leitura só, `rolloverOf`, para Sorteio e Arrecadar); "Enviar no WhatsApp" + "Copiar" em todas as mensagens prontas
-(cobrança, chamada, link pessoal, repasse ao registrador, resultado), pelo link oficial `wa.me`, sem telefone por pessoa.
-`main` = 4b52fea, enviado ao GitHub. **Verificado em 13/10:** `npm run done` verde duas vezes (tipos, lint, 320 testes,
-SQL no PGlite, 16 da API, build, 40 fluxos no navegador); capturas em `.tmp/visual/` (apagável).
-
-**Rodada de layout (13–14/10, dois commits locais 1e0084e e 28b9771, NÃO enviados ao GitHub):** conferência geral
-pedida por ele (quadro "Conferência de layout", https://claude.ai/artifact/NRJqXNXzy6aaSC7YC9nroT, com antes e depois
-de 7 telas em 3 larguras); régua única em `styles.css :root` (`--t-*`, `--lh-*`, `--e*`, `--r-*`, `--margem`,
-`--conteudo-max`), quebras 359/700/1000/1200, barra lateral só a partir de 1000 (tablet com barra de baixo e duas
-colunas, escolha dele), Inter nunca acima de 600, fileira de botões única (lado a lado até caber, pilha quando não, até
-420 px a partir de 700), cartão do participante de exemplo em `#/p/demo`, marcador do menu corrigido. Medições e fotos
-em `.tmp/layout/` (`auditar.mjs` fotografa e mede as 17 telas × 3 larguras; `RESUMO.md`). `npm run done` verde em 14/10.
-Fica para a próxima: publicar junto com o pendente de produção abaixo; o teste que faltou aprovar: "`#/p/demo` mostra o
-cartão da Isabela sem chamar o servidor"; ideia de lint "sem px fora da régua" e "sem prefers-reduced-motion: reduce".
-
-**PRODUÇÃO EM DIA (14/10):** 1) migração `20261013020000` aplicada em 14/10 pelo SQL Editor do painel do Supabase (pelo
-Chrome dele, logado), com o registro em `supabase_migrations.schema_migrations`; conferido na hora: as quatro últimas
-migrações (participant_links, group_pix, settlement_close, participant_card_deadline) constam no servidor; 2) app
-republicado em 14/10 às 17:35 UTC (run 38607963236) com `main` = 85c2392, que inclui a rodada de layout. Lição: o CLI
-do Supabase (`npx -y supabase@2 …`) trava nesta máquina quando ele está remoto, porque a entrada fica no chaveiro do Mac
-e cada binário novo pede permissão numa janela; em modo automático o classificador também barra. Com ele remoto, o
-caminho é o SQL Editor pelo Chrome dele (texto da migração mais o `insert` no histórico; o texto usado ficou em
-`.tmp/bastao/aplicar-migracao-20261013020000.sql`). Quem pegar a próxima conversa confere
-`gh run list --workflow=deploy.yml --limit 1` antes de publicar de novo.
-
-**Item 7 em andamento = MODO SOMBRA (decisão dele, 13/10):** a turma não sabe do app, é surpresa. Nada vai ao grupo
-pela nossa mão; o app espelha o que acontece no grupo de WhatsApp e a revelação vem depois do sorteio, com os links
-pessoais enviados por ele. No app publicado, na conta dele: grupo "Mega da Virada (Confraria)" (sem Pix), bolão
-"Mega 14/10 150MM" (Mega-Sena 3070, cota R$ 50, pagar até 14/10 18h Brasília; o fuso do grupo ficou America/Chicago,
-o do navegador dele — conferir), 6 pessoas da rodada passada com 1 cota prevista cada (R$ 300), nenhum pagamento.
-Regra dele (13/10): todo mundo do grupo pode entrar e quem está dentro é quem paga (comprovante = confirmação); falta
-cadastrar o resto do grupo sem cota (ele passa os nomes) e, se ele quiser, uma enquete nativa do WhatsApp feita por ele.
-Quem é quem, papéis e o que o grupo já disse estão em `.tmp/bastao/confraria.md` (fora do git de propósito: nomes de
-terceiros; nunca CPF, chave Pix ou id de transação no repositório). Próximos passos do sombra: marcar "entrou"/pago
-conforme o grupo (leitura do WhatsApp do Mac dele por computer-use; imagens vêm borradas), digitar os jogos das fotos de
-quem compra, travar e registrar com a foto, resultado na quarta 14/10 à noite, conferir a divisão; depois, revelar.
-A passagem da conversa anterior (contas, CLI, ordem de publicar) está em `.tmp/bastao/passagem-13-10.md`.
-
-**Decisões dele (13/10):** "não quero esse trabalho, quero automático" — envio por WhatsApp sem mão humana só existe
-pela API oficial (empresa verificada, grupos só criados pelo robô, 8 pessoas) ou por robô não oficial (risco de
-bloqueio); nenhum dos dois entra. O caminho é tirar trabalho do organizador no app: envio com um toque (feito),
-pagamento confirmado por provedor de Pix, jogos lidos da foto. **Git:** `origin` = github.com/fgferre/little-faith-app,
-público; app em https://fgferre.github.io/little-faith-app/ ligado ao Supabase real; login Google só para o e-mail dele.
-
-**A FILA (13/10, uma lista só, nesta ordem; quem pegar a próxima conversa começa pelo primeiro item aberto e marca
-aqui o que fechar):**
-1. Aplicar a migração e republicar: FEITO em 14/10 (ver PRODUÇÃO EM DIA).
-2. Modo sombra do bolão "Mega 14/10 150MM": ENSAIO RETROATIVO FEITO em 15/10 até a divisão e os links (ver a rodada de 15/10).
-3. ~~Avisos de prazo do prêmio~~ FEITO em 13/10.
-4. ~~Enviar no WhatsApp com um toque~~ FEITO em 13/10.
-5. Telefone por pessoa (cadastro e servidor, nunca no cartão) para o link pessoal abrir direto na conversa (~3 h).
-6. Pagamento confirmado sozinho por provedor de Pix (provedor e conta são dele; tarifa por transação) (~1 dia).
-7. Jogos lidos da foto do bilhete, para o organizador só conferir (~1 dia).
-8. Revelação: depois do sorteio, links pessoais e a mensagem do resultado; anotar o que a turma estranhar.
-9. Busca automática do resultado no horário (publicar `results-collector`, segredo e agendamento) (~2 h + conta dele).
-10. "Estou dentro" e "paguei" (com comprovante) pelo cartão do participante (~3 h).
-11. Outros organizadores entrando com Google: publicar o app do Google "em produção" ou cadastrar e-mails (conta dele).
-12. Backup completo com senha (etapa 8 da especificação) (~4 h).
-13. Teimosinha e série de concursos paga adiantado (~1 dia).
-14. Pesquisa, rodada 2: ele abre o Loterias Online (maioridade) e conversa com 5 organizadores; eu cruzo.
-15. O assistente que lê o WhatsApp (etapa do agente). Depois: participante com conta e convites; foto do bilhete no
+**A FILA (uma lista só, nesta ordem; quem pegar começa pelo primeiro aberto):**
+1. Quadro de desenho: linha da pessoa em Arrecadar e página de venda (ver `PLAN.md`). Pedido dele em 15/10.
+2. Publicar a rodada de 15/10 (item 14), quando ele disser.
+3. Revelação de verdade para a Confraria (rodada nova), depois de publicar; anotar o que a turma estranhar.
+4. Pagamento confirmado sozinho por provedor de Pix (provedor e conta são dele; tarifa por transação) (~1 dia).
+5. Jogos lidos da foto do bilhete, para o organizador só conferir (~1 dia).
+6. Busca automática do resultado no horário: o servidor é barrado pela CAIXA (403); repensar antes de agendar.
+7. "Estou dentro" e "paguei" (com comprovante) pelo cartão do participante (~3 h).
+8. Teimosinha e série de concursos (a Confraria pediu para "repetir os números") (~1 dia).
+9. Outros organizadores entrando com Google: publicar o app do Google "em produção" ou cadastrar e-mails (conta dele).
+10. Backup completo com senha (etapa 8 da especificação) (~4 h).
+11. Pesquisa, rodada 2: ele abre o Loterias Online (maioridade) e conversa com 5 organizadores; eu cruzo.
+12. O assistente que lê o WhatsApp (etapa do agente). Depois: participante com conta e convites; foto do bilhete no
 cartão por URL temporária; limite de taxa na rota pública (ver BACKLOG).
 
 ## ALTA — bloqueia a entrega ou pode perder trabalho
