@@ -2554,6 +2554,29 @@ tr:last-child td {
 .card-main > .pool-sub {
   margin: 0 0 var(--e16);
 }
+.card-aviso {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  margin: var(--e8) 0 var(--e16);
+  padding: var(--e4) var(--e4) var(--e16) var(--e16);
+  border-radius: var(--r-cartao);
+  background: var(--lavender);
+}
+.card-aviso-titulo {
+  margin: 0;
+  font-family: var(--f-marca);
+  font-size: var(--t-secao);
+  font-weight: 600;
+  line-height: var(--lh-titulo);
+  letter-spacing: -.02em;
+  color: var(--gold);
+}
+.card-aviso > .card-line {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding-right: var(--e12);
+}
 .card-pool {
   display: grid;
   gap: var(--e16);

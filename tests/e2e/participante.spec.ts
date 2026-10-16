@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import type { Browser, Route } from "@playwright/test";
+import type { Browser, Page, Route } from "@playwright/test";
 
 // The Node fixture on :4190 does not serve the participant routes (the real `api` runs in Deno,
 // covered by `npm run test:api`), so the four routes are simulated here with `page.route`.
@@ -259,4 +259,107 @@ test("the group's Pix key gives a Pix code in Arrecadar and on the participant's
     "Pague no seu banco; o organizador confirma quando o dinheiro cair.",
   );
   await participant.context.close();
+});
+
+test("after the draw the card opens with the result and the games with most hits first", async ({ browser }) => {
+  const server = { token: "tok_Draw-card_123", name: "Camila", revoked: false };
+  // Plan order with hits: 0, 2, 4, 3, 0, 1, 0, 0 for the draw 07 18 26 33 49 54.
+  const games = [
+    [2, 9, 15, 28, 44, 51],
+    [3, 18, 27, 39, 49, 56],
+    [7, 18, 26, 33, 41, 58],
+    [1, 7, 26, 31, 45, 54],
+    [5, 13, 22, 37, 46, 59],
+    [10, 21, 33, 40, 52, 60],
+    [6, 17, 24, 36, 43, 55],
+    [8, 19, 29, 34, 47, 57],
+  ].map((numbers) => ({ numbers }));
+  const cards = (page: Page) =>
+    page.locator(".card-grid > .ui-card").evaluateAll((all) =>
+      all.map((card) => card.getAttribute("aria-label"))
+    );
+  const drawn = await openCard(
+    browser,
+    `${origin}/#/p/${server.token}`,
+    server,
+    {
+      pool: {
+        status: "settled",
+        games,
+        result: {
+          drawnNumbers: [7, 18, 26, 33, 49, 54],
+          prizeCalculatedCents: "0",
+          prizeConfirmedCents: null,
+        },
+        share: {
+          rightCents: null,
+          receivedCents: "0",
+          pendingCents: null,
+          paidByName: null,
+          refundRightCents: null,
+          refundedCents: "0",
+        },
+      },
+    },
+  );
+  await expect(drawn.page.getByText("Suas cotas", { exact: true }))
+    .toBeVisible();
+  expect(await cards(drawn.page)).toEqual([
+    "Resultado",
+    "Sua parte",
+    "Suas cotas",
+    "Jogos",
+    "Registro",
+  ]);
+  const list = drawn.page.getByRole("region", { name: "Jogos" }).locator(
+    ".pool-game",
+  );
+  const best = [
+    /^0718.*4 acertos$/,
+    /^0107.*3 acertos$/,
+    /^0318.*2 acertos$/,
+    /^1021.*1 acerto$/,
+    /^0209.*0 acertos$/,
+    /^0513.*0 acertos$/,
+  ];
+  await expect(list).toHaveText(best);
+  await drawn.page.getByRole("button", { name: "Ver os 8 jogos" }).click();
+  await expect(list).toHaveText([
+    ...best,
+    /^0617.*0 acertos$/,
+    /^0819.*0 acertos$/,
+  ]);
+  await drawn.page.getByRole("button", { name: "Mostrar menos" }).click();
+  await expect(list).toHaveText(best);
+  await drawn.context.close();
+
+  const waiting = await openCard(
+    browser,
+    `${origin}/#/p/${server.token}`,
+    server,
+    { pool: { games } },
+  );
+  await expect(waiting.page.getByText("Suas cotas", { exact: true }))
+    .toBeVisible();
+  expect(await cards(waiting.page)).toEqual([
+    "Suas cotas",
+    "Jogos",
+    "Registro",
+    "Resultado",
+  ]);
+  await expect(waiting.page.getByRole("button", { name: /^Ver os/ }))
+    .toHaveCount(0);
+  await waiting.context.close();
+});
+
+test("the welcome band closes and stays closed on this device", async ({ page }) => {
+  await page.goto("/#/p/demo");
+  const band = page.getByRole("complementary", { name: "Boas-vindas" });
+  await expect(band).toContainText("Surpresa!");
+  await expect(band).toContainText("Este cartão é só seu");
+  await band.getByRole("button", { name: "Fechar aviso" }).click();
+  await expect(band).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByText("Cartão de exemplo")).toBeVisible();
+  await expect(band).toHaveCount(0);
 });

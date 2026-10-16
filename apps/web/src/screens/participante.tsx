@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, LoaderCircle } from "lucide-react";
+import { ChevronDown, LoaderCircle, X } from "lucide-react";
 import { MotionConfig } from "motion/react";
 import { formatBRL, LOTTERIES, prizeMultiplicities } from "@bolao/core";
 import type {
@@ -167,10 +167,23 @@ function PayCard({ pool, pix }: { pool: Pool; pix: PixReceiver | null }) {
   );
 }
 
+/** Depois do sorteio, a lista começa com este tanto de jogos; o resto abre no botão. */
+const VISIBLE_GAMES = 6;
+
 function GamesCard({ pool }: { pool: Pool }) {
+  const [all, setAll] = useState(false);
   const drawn = pool.result?.drawnNumbers ?? null;
   const hits = drawn ? new Set(drawn) : undefined;
   const count = pool.games.length;
+  const rows = pool.games.map((game, index) => ({
+    game,
+    index,
+    result: drawn ? gameHits(pool.modality, game.numbers, drawn) : null,
+  }));
+  // Depois do sorteio, quem mais acertou vem primeiro; o sort é estável, então o empate fica na ordem do plano.
+  if (drawn) rows.sort((a, b) => b.result!.hits - a.result!.hits);
+  const folded = !!drawn && count > VISIBLE_GAMES;
+  const shown = folded && !all ? rows.slice(0, VISIBLE_GAMES) : rows;
   return (
     <Card className="pool-card card-games" label="Jogos">
       <Eyebrow>Jogos</Eyebrow>
@@ -181,25 +194,30 @@ function GamesCard({ pool }: { pool: Pool }) {
               {count} {count === 1 ? "jogo" : "jogos"} do bolão
             </p>
             <ul className="pool-games">
-              {pool.games.map((game, index) => {
-                const result = drawn
-                  ? gameHits(pool.modality, game.numbers, drawn)
-                  : null;
-                return (
-                  <li className="pool-game" key={index}>
-                    <Balls
-                      numbers={game.numbers}
-                      hits={hits}
-                      winner={!!result?.wins}
-                      detail={ampliado(pool.modality, game.numbers.length)}
-                      note={!result ? undefined : result.wins
-                        ? <span className="ui-tag">{acertos(result.hits)}</span>
-                        : <span className="ui-hits">{acertos(result.hits)}</span>}
-                    />
-                  </li>
-                );
-              })}
+              {shown.map(({ game, index, result }) => (
+                <li className="pool-game" key={index}>
+                  <Balls
+                    numbers={game.numbers}
+                    hits={hits}
+                    winner={!!result?.wins}
+                    detail={ampliado(pool.modality, game.numbers.length)}
+                    note={!result ? undefined : result.wins
+                      ? <span className="ui-tag">{acertos(result.hits)}</span>
+                      : <span className="ui-hits">{acertos(result.hits)}</span>}
+                  />
+                </li>
+              ))}
             </ul>
+            {folded && (
+              <Button
+                variant="ghost"
+                small
+                aria-expanded={all}
+                onClick={() => setAll(!all)}
+              >
+                {all ? "Mostrar menos" : `Ver os ${count} jogos`}
+              </Button>
+            )}
           </>
         )
         : <p className="ui-sec">Os jogos ainda não foram escolhidos.</p>}
@@ -356,12 +374,10 @@ function ShareCard(
 }
 
 function PoolCards({ pool, pix }: { pool: Pool; pix: PixReceiver | null }) {
-  return (
-    <div className="card-grid">
-      <QuotaCard quota={pool.quota} />
-      <PayCard pool={pool} pix={pix} />
-      <GamesCard pool={pool} />
-      <RegistrationCard pool={pool} />
+  // Depois do sorteio o que importa vem primeiro: o resultado e a parte da pessoa.
+  const drawn = !!pool.result?.drawnNumbers.length;
+  const outcome = (
+    <>
       <ResultCard pool={pool} />
       {pool.share && (
         <ShareCard
@@ -370,7 +386,54 @@ function PoolCards({ pool, pix }: { pool: Pool; pix: PixReceiver | null }) {
           result={pool.result}
         />
       )}
+    </>
+  );
+  return (
+    <div className="card-grid">
+      {drawn && outcome}
+      <QuotaCard quota={pool.quota} />
+      <PayCard pool={pool} pix={pix} />
+      <GamesCard pool={pool} />
+      <RegistrationCard pool={pool} />
+      {!drawn && outcome}
     </div>
+  );
+}
+
+/** O aviso de boas-vindas fecha por pessoa neste aparelho; sem armazenamento, ele só some nesta visita. */
+function Welcome({ personId }: { personId: string }) {
+  const key = `little-faith:cartao-aviso:${personId}`;
+  const [closed, setClosed] = useState(() => {
+    try {
+      return localStorage.getItem(key) === "1";
+    } catch {
+      return false;
+    }
+  });
+  if (closed) return null;
+  return (
+    <aside className="card-aviso" aria-label="Boas-vindas">
+      <p className="card-aviso-titulo">Surpresa!</p>
+      <button
+        type="button"
+        className="icon-button"
+        aria-label="Fechar aviso"
+        onClick={() => {
+          setClosed(true);
+          try {
+            localStorage.setItem(key, "1");
+          } catch {
+            // Sem armazenamento o aviso volta na próxima visita; o cartão segue igual.
+          }
+        }}
+      >
+        <X aria-hidden="true" />
+      </button>
+      <p className="card-line">
+        Este cartão é só seu: aqui ficam sua cota, os jogos, o resultado e a sua
+        parte. Guarde este link.
+      </p>
+    </aside>
   );
 }
 
@@ -386,6 +449,7 @@ export function CartaoParticipante({ card }: { card: ParticipantCard }) {
   );
   return (
     <>
+      <Welcome personId={card.person.id} />
       <Eyebrow>{card.group.name}</Eyebrow>
       {first
         ? (
