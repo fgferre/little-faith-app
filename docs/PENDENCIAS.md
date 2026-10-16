@@ -62,7 +62,9 @@ encerrar a rodada (raro) e em Dados.
 9. Busca automática do resultado no horário: o servidor é barrado pela CAIXA (403); repensar antes de agendar.
 10. Teimosinha e série de concursos (a Confraria pediu para "repetir os números") (~1 dia).
 11. (16/10) O Google só tira do modo de teste com página inicial e política de privacidade públicas no domínio do app; o app não
-tem página de privacidade. Escrever o texto com ele, publicar junto com o app e então publicar no console. Antes: publicar o app do Google "em produção" ou cadastrar e-mails (conta dele).
+tem página de privacidade. Texto escrito em `apps/web/public/privacidade.html` (16/10), esperando ele aprovar; vai ao ar com a
+próxima publicação (https://fgferre.github.io/little-faith-app/privacidade.html); então preencher no console a página inicial, a política e o
+domínio autorizado fgferre.github.io, e publicar. Antes: publicar o app do Google "em produção" ou cadastrar e-mails (conta dele).
 12. Backup completo com senha (etapa 8 da especificação) (~4 h).
 13. Pesquisa, rodada 2: ele abre o Loterias Online (maioridade) e conversa com 5 organizadores; eu cruzo.
 14. O assistente que lê o WhatsApp (etapa do agente). Depois: participante com conta e convites; foto do bilhete no
