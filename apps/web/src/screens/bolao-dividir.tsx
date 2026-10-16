@@ -7,6 +7,7 @@ import {
   createResultView,
   formatBRL,
   formatQuotaUnits,
+  keptPrize,
   settlementStatement,
 } from "@bolao/core";
 import type {
@@ -217,6 +218,7 @@ export function BolaoDividir(
         }. Sobra das contribuições: ${
           money(balance.contributionSurplusCents)
         }.`,
+        `Reserva do grupo: ${money(balance.groupReserveCents)}.`,
         `Prêmio a resgatar: ${
           money(balance.unredeemedPrizeCents)
         }. Prêmio a entregar: ${
@@ -668,6 +670,15 @@ export function BolaoDividir(
         </p>
       );
     }
+    const limit = manifest?.content.plan.groupPrizeLimitCents;
+    if (manifest && keptPrize(manifest.content.plan, prize.amountCents) > 0n) {
+      return (
+        <p className="ui-sec pool-empty">
+          Prêmio de {formatBRL(prize.amountCents)} fica no caixa do grupo
+          (combinado: até {formatBRL(limit!)}).
+        </p>
+      );
+    }
     const people = balance.persons.filter((person) =>
       positive(person.prizeRightCents) || positive(person.prizeReceivedCents)
     );
@@ -748,6 +759,11 @@ export function BolaoDividir(
         </>
       );
     }
+    // A prize kept by agreement is already said in the prize area; here only the leftover of the quotas.
+    const leftoverReserve = BigInt(balance.groupReserveCents ?? "0") -
+      (manifest
+        ? keptPrize(manifest.content.plan, balance.confirmedPrizeCents)
+        : 0n);
     const refunds = balance.persons.filter((person) =>
       positive(person.refundRightCents) || positive(person.refundedCents)
     );
@@ -759,6 +775,11 @@ export function BolaoDividir(
             : "Não sobrou dinheiro das cotas"}
         </h2>
         <p className="ui-sec">Contribuições menos o custo confirmado.</p>
+        {leftoverReserve > 0n && (
+          <p className="ui-sec">
+            Fica no caixa do grupo: {formatBRL(leftoverReserve.toString())}
+          </p>
+        )}
         {!!refunds.length && (
           <ul className="pool-people">
             {refunds.map((person) =>
@@ -811,10 +832,11 @@ export function BolaoDividir(
         </>
       );
     }
-    const leftover = leftoverChoice ??
-      (manifest?.content.plan.leftoverPolicy === "refund-pro-rata"
-        ? "pending-refund"
-        : "group-reserve");
+    const policy = manifest?.content.plan.leftoverPolicy;
+    const agreed = policy === "group-credit" || policy === "refund-pro-rata";
+    const leftover = agreed
+      ? (policy === "refund-pro-rata" ? "pending-refund" : "group-reserve")
+      : leftoverChoice ?? "group-reserve";
     const missing = pendente(balance) && !pendingText.trim();
     const amount = (cents: string | null) =>
       cents === null ? "a confirmar" : formatBRL(cents);
@@ -838,27 +860,37 @@ export function BolaoDividir(
             <dd>{amount(balance.unredeemedPrizeCents)}</dd>
           </div>
         </dl>
-        <fieldset className="pool-fieldset">
-          <legend>O que fazer com a sobra</legend>
-          <label className="pool-choice">
-            <input
-              type="radio"
-              name={`sobra-${pool.id}`}
-              checked={leftover === "group-reserve"}
-              onChange={() => setLeftoverChoice("group-reserve")}
-            />
-            <span>Fica no caixa do grupo</span>
-          </label>
-          <label className="pool-choice">
-            <input
-              type="radio"
-              name={`sobra-${pool.id}`}
-              checked={leftover === "pending-refund"}
-              onChange={() => setLeftoverChoice("pending-refund")}
-            />
-            <span>Devolver às pessoas</span>
-          </label>
-        </fieldset>
+        {agreed
+          ? (
+            <p className="ui-sec">
+              {policy === "group-credit"
+                ? "Combinado antes do sorteio: a sobra fica no caixa do grupo."
+                : "Combinado antes do sorteio: a sobra volta para as pessoas, na proporção das cotas."}
+            </p>
+          )
+          : (
+            <fieldset className="pool-fieldset">
+              <legend>O que fazer com a sobra</legend>
+              <label className="pool-choice">
+                <input
+                  type="radio"
+                  name={`sobra-${pool.id}`}
+                  checked={leftover === "group-reserve"}
+                  onChange={() => setLeftoverChoice("group-reserve")}
+                />
+                <span>Fica no caixa do grupo</span>
+              </label>
+              <label className="pool-choice">
+                <input
+                  type="radio"
+                  name={`sobra-${pool.id}`}
+                  checked={leftover === "pending-refund"}
+                  onChange={() => setLeftoverChoice("pending-refund")}
+                />
+                <span>Devolver às pessoas</span>
+              </label>
+            </fieldset>
+          )}
         <label>
           O que fica pendente
           <textarea
@@ -973,7 +1005,7 @@ export function BolaoDividir(
                   icon={<Download aria-hidden="true" />}
                   onClick={download}
                 >
-                  Baixar demonstrativo privado do grupo
+                  Baixar demonstrativo
                 </Button>
               </div>
             )}

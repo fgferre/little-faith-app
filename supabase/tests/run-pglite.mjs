@@ -150,6 +150,7 @@ try {
       const expected = person ? [person.prizeRightCents, person.prizeReceivedCents, person.prizePendingCents, person.refundRightCents, person.refundedCents] : null;
       const actual = pool.share ? [pool.share.rightCents, pool.share.receivedCents, pool.share.pendingCents, pool.share.refundRightCents, pool.share.refundedCents] : null;
       if (JSON.stringify(expected) !== JSON.stringify(actual)) throw new Error(`SQL/core participant share mismatch: ${label} ${pool.id} ${JSON.stringify({ expected, actual })}`);
+      if (balance && pool.groupReserveCents !== balance.groupReserveCents) throw new Error(`SQL/core participant group reserve mismatch: ${label} ${pool.id} ${JSON.stringify({ expected: balance.groupReserveCents, actual: pool.groupReserveCents })}`);
       if (pool.result && balance && (pool.result.prizeCalculatedCents !== balance.calculatedPrizeCents || pool.result.prizeConfirmedCents !== balance.confirmedPrizeCents)) {
         throw new Error(`SQL/core participant prize mismatch: ${label} ${pool.id}`);
       }

@@ -11,8 +11,8 @@ language sql as $$ select jsonb_build_object('apiVersion','v1','idempotencyKey',
 create temporary table settlement_contract_samples(label text,kind text,data jsonb);
 grant all on settlement_contract_samples to authenticated,service_role;
 
--- Same fixture as registration/results: four known games, 2:1 rights, one internal and one official pool.
-create function pg_temp.prepared(p_group uuid,p_pool uuid) returns jsonb language plpgsql as $$
+-- Same fixture as registration/results: four known games, 2:1 rights, two internal pools and one official pool (the official one and pool 3 keep their leftover as group credit; pool 3 also freezes a prize limit).
+create function pg_temp.prepared(p_group uuid,p_pool uuid,p_policy text default 'refund-pro-rata',p_limit text default null) returns jsonb language plpgsql as $$
 declare v_pool public.draft_records; v_source public.draft_records; v_rights jsonb; v_budget bigint;
   v_bets jsonb; v_tickets jsonb := '[]'; v_bet jsonb; v_assignments jsonb; i integer;
 begin
@@ -39,7 +39,8 @@ begin
     'groupRevision',(select revision from public.groups where id = p_group),'lotteryId','mega-sena','contestNumber',42,'participationMode',v_pool.data -> 'participationMode',
     'strategy','balanced','seed',repeat('ab',32),'catalogVersion','caixa-pools-2026-10-08-v1','sourceBets',jsonb_build_array(jsonb_build_object('id',v_source.id,'version',v_source.version)),
     'rights',v_rights,'budgetCents',v_budget::text,'betCostCents','2400','feeCents','0','feeLabel','','totalCostCents','2400',
-    'leftoverCents',(v_budget-2400)::text,'leftoverPolicy','refund-pro-rata','bets',v_bets,'tickets',v_tickets,'explanation','Plano privado de apuração 🙂.');
+    'leftoverCents',(v_budget-2400)::text,'leftoverPolicy',p_policy,'bets',v_bets,'tickets',v_tickets,'explanation','Plano privado de apuração 🙂.')
+    || case when p_limit is null then '{}'::jsonb else jsonb_build_object('groupPrizeLimitCents',p_limit) end;
 end;
 $$;
 create function pg_temp.observed_items(p_pool uuid) returns jsonb
@@ -77,10 +78,10 @@ do $$ declare v_group uuid := 'a1000000-0000-4000-8000-000000000001'; v_pool uui
     v_person := ('a3000000-0000-4000-8000-' || lpad(i::text,12,'0'))::uuid;
     perform public.sync_push(pg_temp.draft(v_group,v_person,'person',jsonb_build_object('name','Pessoa ' || i,'nickname','','adultDeclared',true)));
   end loop;
-  for i in 1..2 loop
+  for i in 1..3 loop
     v_pool := ('a4000000-0000-4000-8000-' || lpad(i::text,12,'0'))::uuid;
     perform public.sync_push(pg_temp.draft(v_group,v_pool,'pool',jsonb_build_object('title','Bolão ' || i,'lotteryId','mega-sena','contestNumber',42,
-      'deadlineAt','2099-01-01T00:00:00Z','quotaPriceCents','2500','participationMode',case when i = 1 then 'internal' else 'official' end,'status','draft')));
+      'deadlineAt','2099-01-01T00:00:00Z','quotaPriceCents','2500','participationMode',case when i = 2 then 'official' else 'internal' end,'status','draft')));
     perform public.sync_push(pg_temp.draft(v_group,('a7000000-0000-4000-8000-' || lpad(i::text,12,'0'))::uuid,'bet',jsonb_build_object('poolId',v_pool,
       'lotteryId','mega-sena','numbers','[1,2,3,4,5,6]'::jsonb,'authorIds','["a3000000-0000-4000-8000-000000000001"]'::jsonb,'catalogVersion','caixa-basic-2026-10-07-v1','seed',null,'generationAlgorithmVersion',null)));
     for j in 1..2 loop
@@ -97,7 +98,7 @@ do $$ declare v_group uuid := 'a1000000-0000-4000-8000-000000000001'; v_pool uui
     v_person := ('a3000000-0000-4000-8000-' || lpad(j::text,12,'0'))::uuid;
     perform public.review_decide(pg_temp.command(v_group,jsonb_build_object('type','statute_accept','statuteId',v_statute,'personId',v_person,'evidence','Aceite privado confirmado pelo organizador')));
   end loop;
-  for i in 1..2 loop
+  for i in 1..3 loop
     v_pool := ('a4000000-0000-4000-8000-' || lpad(i::text,12,'0'))::uuid;
     for j in 1..2 loop
       v_result := public.review_decide(pg_temp.command(v_group,jsonb_build_object('type','payment_confirm','proposalId',
@@ -108,11 +109,11 @@ do $$ declare v_group uuid := 'a1000000-0000-4000-8000-000000000001'; v_pool uui
         ('a5000000-0000-4000-8000-' || lpad((i*10+j)::text,12,'0'))::uuid,'quotaVersion',1,'statuteId',v_statute)));
       perform pg_temp.assert_true(v_result ->> 'status' = 'accepted','settlement quota fixture confirmed');
     end loop;
-    v_result := public.planning_decide(pg_temp.command(v_group,jsonb_build_object('type','plan_apply','plan',pg_temp.prepared(v_group,v_pool))));
+    v_result := public.planning_decide(pg_temp.command(v_group,jsonb_build_object('type','plan_apply','plan',pg_temp.prepared(v_group,v_pool,case when i = 1 then 'refund-pro-rata' else 'group-credit' end,case when i = 3 then '5000000' end))));
     perform pg_temp.assert_true(v_result ->> 'status' = 'accepted','settlement fixture plan applied');
     select id into plan_id from public.pool_plan_versions where pool_id = v_pool order by version desc limit 1;
     v_result := public.planning_decide(pg_temp.command(v_group,jsonb_build_object('type','pool_lock','poolId',v_pool,'poolVersion',pg_temp.pool_version(v_pool),'appliedPlanId',plan_id,
-      'responsible',jsonb_build_object('registrarPersonId','a3000000-0000-4000-8000-000000000003','ticketHolderPersonId',case when i = 1 then 'a3000000-0000-4000-8000-000000000003' else null end))));
+      'responsible',jsonb_build_object('registrarPersonId','a3000000-0000-4000-8000-000000000003','ticketHolderPersonId',case when i <> 2 then 'a3000000-0000-4000-8000-000000000003' else null end))));
     perform pg_temp.assert_true(v_result ->> 'status' = 'accepted','settlement fixture manifest locked');
   end loop;
 end; $$;
@@ -120,11 +121,12 @@ end; $$;
 reset role;
 insert into storage.objects(bucket_id,name) values
   ('evidence','a1000000-0000-4000-8000-000000000001/a8000000-0000-4000-8000-000000000001.pdf'),
-  ('evidence','a1000000-0000-4000-8000-000000000001/a8000000-0000-4000-8000-000000000002.pdf');
+  ('evidence','a1000000-0000-4000-8000-000000000001/a8000000-0000-4000-8000-000000000002.pdf'),
+  ('evidence','a1000000-0000-4000-8000-000000000001/a8000000-0000-4000-8000-000000000003.pdf');
 set local role service_role;
 select set_config('request.jwt.claims','{"role":"service_role"}',true);
 do $$ declare i integer; begin
-  for i in 1..2 loop
+  for i in 1..3 loop
     perform public.evidence_seal(jsonb_build_object('id',('a8000000-0000-4000-8000-' || lpad(i::text,12,'0'))::uuid,'groupId','a1000000-0000-4000-8000-000000000001',
       'poolId',('a4000000-0000-4000-8000-' || lpad(i::text,12,'0'))::uuid,'sha256',encode(sha256(convert_to('%PDF-settlement','UTF8')),'hex'),
       'mimeType','application/pdf','byteSize',15,'originalName','Comprovante privado ' || i || '.pdf'),'00000000-0000-4000-8000-000000000971');
@@ -136,7 +138,7 @@ select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-00000000
 -- Registered pools with a complete checklist and a manual result carrying known payouts (pool 1 also selected explicitly).
 do $$ declare g uuid := 'a1000000-0000-4000-8000-000000000001'; p uuid; r jsonb; rid uuid; i integer;
 begin
-  for i in 1..2 loop
+  for i in 1..3 loop
     p := ('a4000000-0000-4000-8000-' || lpad(i::text,12,'0'))::uuid;
     r := public.registration_decide(pg_temp.command(g,jsonb_build_object('type','registration_confirm','poolId',p,'poolVersion',pg_temp.pool_version(p),
       'manifestId',(select id from public.pool_manifests where pool_id = p order by version desc limit 1),'items',pg_temp.observed_items(p),'reason','')));
@@ -157,7 +159,7 @@ end; $$;
 do $$ declare g uuid := 'a1000000-0000-4000-8000-000000000001'; p1 uuid := 'a4000000-0000-4000-8000-000000000001'; p2 uuid := 'a4000000-0000-4000-8000-000000000002';
   ev1 uuid := 'a8000000-0000-4000-8000-000000000001'; ev2 uuid := 'a8000000-0000-4000-8000-000000000002';
   person1 uuid := 'a3000000-0000-4000-8000-000000000001'; person2 uuid := 'a3000000-0000-4000-8000-000000000002'; holder uuid := 'a3000000-0000-4000-8000-000000000003';
-  report1 uuid; report2 uuid; result1 uuid; result2 uuid; prize1 uuid; prize2 uuid; paid uuid; redeemed uuid; cmd jsonb; r jsonb; original jsonb; rev bigint; entitlements jsonb; deadline jsonb; closure1 uuid; expense1 uuid; payment jsonb;
+  report1 uuid; report2 uuid; result1 uuid; result2 uuid; prize1 uuid; prize2 uuid; paid uuid; redeemed uuid; cmd jsonb; r jsonb; original jsonb; rev bigint; entitlements jsonb; deadline jsonb; closure1 uuid; expense1 uuid; closure2 uuid; expense2 uuid; payment jsonb;
 begin
   insert into settlement_contract_samples values('registered before settlement','snapshot',public.settlement_pull(g));
   select id into report1 from public.registration_reports where pool_id = p1 order by version desc limit 1;
@@ -300,6 +302,22 @@ begin
     and leftover_disposition = 'pending-refund' and pending_explanation = 'Custo e resgates ainda abertos.' and reconciliation ->> 'expenseConfirmationPending' = 'true'),
     'an explained pending closure keeps its explanation');
   insert into settlement_contract_samples values('pool settled with pending','receipt',r);
+  -- Pool 2 has a group-credit plan: budget 2500 + 1250 = 3750 funded, 2400 spent, so the leftover 3750 - 2400 = 1350 is the group reserve and nobody holds a refund right.
+  select id into closure2 from public.settlement_closures where pool_id = p2 order by version desc limit 1;
+  r := public.settlement_decide(pg_temp.settle(jsonb_build_object('type','pool_reopen','poolId',p2,'poolVersion',pg_temp.pool_version(p2),'closureId',closure2,'reason','Custo confirmado.')));
+  perform pg_temp.assert_true(r ->> 'status' = 'accepted','pool 2 reopened to confirm its cost');
+  r := public.settlement_decide(pg_temp.settle(jsonb_build_object('type','expense_confirm','poolId',p2,'poolVersion',pg_temp.pool_version(p2),
+    'registrationReportId',report2,'supersedesId',null,'betCostCents','2400','feeCents','0','evidenceIds',jsonb_build_array(ev2),
+    'sourceReference','Comprovantes originais conferidos','reason','')));
+  perform pg_temp.assert_true(r ->> 'status' = 'accepted','pool 2 expense confirmed');
+  select id into expense2 from public.settlement_expenses where pool_id = p2 order by version desc limit 1;
+  r := public.settlement_decide(pg_temp.settle(jsonb_build_object('type','pool_settle','poolId',p2,'poolVersion',pg_temp.pool_version(p2),'registrationReportId',report2,
+    'prizeConfirmationId',prize2,'expenseConfirmationId',expense2,'leftoverDisposition','group-reserve','pendingExplanation','Prêmio a pagar.','reason','Sobra no caixa do grupo.')));
+  perform pg_temp.assert_true(r ->> 'status' = 'accepted' and exists (select 1 from public.settlement_closures where pool_id = p2 and direction = 'closed' and expense_confirmation_id = expense2
+    and reconciliation ->> 'contributionSurplusCents' = '1350' and reconciliation ->> 'groupReserveCents' = '1350' and reconciliation ->> 'refundPendingCents' = '0'
+    and (select string_agg(x.value ->> 'refundRightCents',',') from jsonb_array_elements(reconciliation -> 'persons') x) = '0,0'),
+    'a group-credit leftover is the group reserve and no refund right');
+  insert into settlement_contract_samples values('pool settled with group reserve','receipt',r);
   -- Pay the remaining prize and refunds so pool 1 has nothing open.
   for payment in select value from jsonb_array_elements(jsonb_build_array(
       jsonb_build_object('personId',person1,'kind','prize-payment','amountCents','3333333'),jsonb_build_object('personId',person2,'kind','prize-payment','amountCents','1666667'),
@@ -341,6 +359,42 @@ begin
   insert into settlement_contract_samples values('final settlement','snapshot',public.settlement_pull(g));
   r := public.sync_pull(g,0);
   perform pg_temp.assert_true((r ->> 'nextCursor')::bigint = (select revision from public.groups where id = g),'settlement facts advance the shared cursor');
+end; $$;
+
+-- Pool 3 (internal, group-credit) froze groupPrizeLimitCents = 5000000: its 5000000 prize is exactly at the limit, so nobody holds a right to it and it joins the reserve.
+-- Reserve = leftover (budget 2500 + 1250 = 3750 funded, 2400 spent: 1350) + kept prize 5000000 = 5001350.
+-- Owed to no one: unpaid = 5000000 - 0 paid - 5000000 kept = 0, so once the holder redeems 5000000 (5000000 - 5000000 = 0 left) the pool closes with no explanation.
+do $$ declare g uuid := 'a1000000-0000-4000-8000-000000000001'; p3 uuid := 'a4000000-0000-4000-8000-000000000003'; ev3 uuid := 'a8000000-0000-4000-8000-000000000003';
+  report3 uuid; expense3 uuid; prize3 uuid; r jsonb; cmd jsonb;
+begin
+  select id into report3 from public.registration_reports where pool_id = p3 order by version desc limit 1;
+  r := public.settlement_decide(pg_temp.settle(jsonb_build_object('type','expense_confirm','poolId',p3,'poolVersion',pg_temp.pool_version(p3),
+    'registrationReportId',report3,'supersedesId',null,'betCostCents','2400','feeCents','0','evidenceIds',jsonb_build_array(ev3),
+    'sourceReference','Comprovantes originais conferidos','reason','')));
+  perform pg_temp.assert_true(r ->> 'status' = 'accepted','pool 3 expense confirmed');
+  r := public.settlement_decide(pg_temp.settle(jsonb_build_object('type','prize_confirm','poolId',p3,'poolVersion',pg_temp.pool_version(p3),'registrationReportId',report3,
+    'resultId',(select id from public.contest_result_versions where pool_id = p3 order by version desc limit 1),'supersedesId',null,'amountCents','5000000',
+    'officialEntitlements','[]'::jsonb,'evidenceIds',jsonb_build_array(ev3),'sourceReference','Resultado e bilhetes conferidos','reason','','redemptionDeadline',null)));
+  select id into prize3 from public.settlement_prizes where pool_id = p3 order by version desc limit 1;
+  perform pg_temp.assert_true(r ->> 'status' = 'accepted' and (select count(*) = 2 and bool_and(x.value ->> 'amountCents' = '0') from public.settlement_prizes p
+    cross join lateral jsonb_array_elements(p.rights) x where p.id = prize3),'a prize at the group limit splits to rights of zero');
+  select id into expense3 from public.settlement_expenses where pool_id = p3 order by version desc limit 1;
+  cmd := jsonb_build_object('type','pool_settle','poolId',p3,'registrationReportId',report3,'prizeConfirmationId',prize3,'expenseConfirmationId',expense3,
+    'leftoverDisposition','group-reserve','pendingExplanation','','reason','Combinado antes.');
+  r := public.settlement_decide(pg_temp.settle(cmd || jsonb_build_object('poolVersion',pg_temp.pool_version(p3))));
+  perform pg_temp.assert_true(r ->> 'status' = 'rejected' and (select count(*) from public.settlement_closures where pool_id = p3) = 0,'the kept prize still to redeem needs an explanation to close');
+  r := public.settlement_decide(pg_temp.settle(jsonb_build_object('type','redemption_record','poolId',p3,'poolVersion',pg_temp.pool_version(p3),
+    'prizeConfirmationId',prize3,'personId','a3000000-0000-4000-8000-000000000003','amountCents','5000000','evidenceIds',jsonb_build_array(ev3),
+    'sourceReference','Resgate na agência','eventAt',pg_temp.now_json(),'reason','')));
+  perform pg_temp.assert_true(r ->> 'status' = 'accepted','kept prize redeemed into the group cash');
+  r := public.settlement_decide(pg_temp.settle(cmd || jsonb_build_object('poolVersion',pg_temp.pool_version(p3))));
+  perform pg_temp.assert_true(r ->> 'status' = 'accepted' and exists (select 1 from public.settlement_closures where pool_id = p3 and direction = 'closed'
+    and reconciliation ->> 'confirmedPrizeCents' = '5000000' and reconciliation ->> 'contributionSurplusCents' = '1350' and reconciliation ->> 'groupReserveCents' = '5001350'
+    and reconciliation ->> 'unpaidPrizeCents' = '0' and reconciliation ->> 'unredeemedPrizeCents' = '0' and pending_explanation = ''
+    and (select string_agg(x.value ->> 'prizeRightCents',',') from jsonb_array_elements(reconciliation -> 'persons') x) = '0,0'),
+    'a prize at the group limit joins the reserve and gives no one a right');
+  insert into settlement_contract_samples values('pool settled with kept prize','receipt',r);
+  insert into settlement_contract_samples values('kept prize snapshot','snapshot',public.settlement_pull(g));
 end; $$;
 
 select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000972","role":"authenticated","session_id":"00000000-0000-4000-8000-100000000972","app_metadata":{}}',true);

@@ -129,8 +129,16 @@ function poolRights(prize: PrizeConfirmation | null): Map<string, bigint> {
   for (const right of prize?.rights ?? []) byPerson.set(right.personId, (byPerson.get(right.personId) ?? 0n) + BigInt(right.amountCents));
   return byPerson;
 }
+/** The confirmed prize the group keeps by agreement: internal mode, a limit on the frozen plan, and 0 < prize <= limit (inclusive); else 0. */
+export function keptPrize(plan: { participationMode: string; groupPrizeLimitCents?: string | null }, amountCents: string | null): bigint {
+  const limit = plan.groupPrizeLimitCents;
+  if (plan.participationMode !== 'internal' || typeof limit !== 'string' || amountCents === null) return 0n;
+  const amount = BigInt(amountCents);
+  return amount > 0n && amount <= BigInt(limit) ? amount : 0n;
+}
 function sum(values: { amountCents: string }[]): bigint { return values.reduce((total, value) => total + BigInt(value.amountCents), 0n); }
-function projectPool(snapshot: SettlementSnapshot, poolId: string, reviewResults: ResultSnapshot = snapshot.results): PoolSettlementBalance {
+/** legacy rebuilds a closure recorded before groupReserveCents existed: the leftover is always split as refund shares and the key is omitted. */
+function projectPool(snapshot: SettlementSnapshot, poolId: string, reviewResults: ResultSnapshot = snapshot.results, legacy = false): PoolSettlementBalance {
   const frozen = manifest(snapshot, poolId), plan = frozen.content.plan, finance = createFinancialView(snapshot.financial);
   const report = latest(snapshot.registration.reports, poolId), expense = latest(snapshot.expenses, poolId), prize = latest(snapshot.prizes, poolId), closure = latest(snapshot.closures, poolId);
   const result = createResultView(reviewResults).currentResult(poolId);
@@ -142,7 +150,9 @@ function projectPool(snapshot: SettlementSnapshot, poolId: string, reviewResults
   const prizePaid = sum(distributions.filter((d) => d.kind === 'prize-payment')), refunded = sum(distributions.filter((d) => d.kind === 'contribution-refund'));
   const cash = contributed + organizer - (expenses ?? 0n) - prizePaid - refunded;
   const entitled = new Map(plan.rights.map((r) => [r.personId, r]));
-  const refundShares = expenses === null ? null : new Map(distributeCents(max0(BigInt(plan.budgetCents) - expenses).toString(), plan.rights.map((r) => ({ id: r.personId, units: r.units }))).map((r) => [r.id, BigInt(r.amountCents)]));
+  const surplus = expenses === null ? null : max0(BigInt(plan.budgetCents) - expenses), groupCredit = !legacy && plan.leftoverPolicy === 'group-credit';
+  // A group-credit plan keeps the leftover as the group reserve; only refund-pro-rata and unassigned plans split it as refund rights.
+  const refundShares = surplus === null ? null : new Map(distributeCents(groupCredit ? '0' : surplus.toString(), plan.rights.map((r) => ({ id: r.personId, units: r.units }))).map((r) => [r.id, BigInt(r.amountCents)]));
   const rights = poolRights(prize);
   const personIds = new Set([...snapshot.financial.allocations.filter((a) => a.poolId === poolId).map((a) => a.personId), ...plan.rights.map((r) => r.personId), ...rights.keys()]);
   const persons: SettlementPersonBalance[] = [...personIds].sort().map((personId) => {
@@ -154,8 +164,14 @@ function projectPool(snapshot: SettlementSnapshot, poolId: string, reviewResults
     const quotas = new Set(prize?.rights.filter((r) => r.personId === personId).map((r) => r.quotaId));
     return { personId, quotaId: own?.quotaId ?? (quotas.size === 1 ? [...quotas][0]! : null), contributedCents: funding.toString(), prizeRightCents: prizeRight?.toString() ?? null, prizeReceivedCents: received.toString(), prizePendingCents: prizeRight === null ? null : (prizeRight - received).toString(), refundRightCents: refundRight?.toString() ?? null, refundedCents: returned.toString(), refundPendingCents: refundRight === null ? null : (refundRight - returned).toString() };
   });
-  const amount = prize === null ? null : BigInt(prize.amountCents);
-  return { poolId, participationMode: plan.participationMode, manifestId: frozen.id, registrationReportId: report?.id ?? null, expenseConfirmationId: expense?.id ?? null, prizeConfirmationId: prize?.id ?? null, calculatedPrizeCents: calculated, confirmedPrizeCents: prize?.amountCents ?? null, contributedCents: contributed.toString(), confirmedExpenseCents: expenses?.toString() ?? null, expenseConfirmationPending: expense === null || expense.registrationReportId !== report?.id, redeemedCents: (organizer + individual).toString(), organizerRedeemedCents: organizer.toString(), individualRedeemedCents: individual.toString(), prizePaidCents: prizePaid.toString(), refundedCents: refunded.toString(), organizerCashCents: cash.toString(), cashDeficitCents: max0(-cash).toString(), contributionSurplusCents: expenses === null ? null : max0(contributed - expenses).toString(), unredeemedPrizeCents: amount === null ? null : (amount - organizer - individual).toString(), unpaidPrizeCents: amount === null ? null : (amount - (plan.participationMode === 'official' ? individual : prizePaid)).toString(), refundPendingCents: expenses === null ? null : persons.reduce((total, person) => total + BigInt(person.refundPendingCents!), 0n).toString(), resultConflict: result.status === 'conflict', registrationIncomplete: !report || report.comparison.status !== 'complete', closed: closure?.direction === 'closed', persons };
+  const amount = prize === null ? null : BigInt(prize.amountCents), kept = keptPrize(plan, prize?.amountCents ?? null);
+  // A kept prize is owed to no one: it leaves the unpaid figure (never below zero), while redeeming it from CAIXA stays open.
+  const unpaid = amount === null ? null : amount - (plan.participationMode === 'official' ? individual : prizePaid);
+  const balance: PoolSettlementBalance = { poolId, participationMode: plan.participationMode, manifestId: frozen.id, registrationReportId: report?.id ?? null, expenseConfirmationId: expense?.id ?? null, prizeConfirmationId: prize?.id ?? null, calculatedPrizeCents: calculated, confirmedPrizeCents: prize?.amountCents ?? null, contributedCents: contributed.toString(), confirmedExpenseCents: expenses?.toString() ?? null, expenseConfirmationPending: expense === null || expense.registrationReportId !== report?.id, redeemedCents: (organizer + individual).toString(), organizerRedeemedCents: organizer.toString(), individualRedeemedCents: individual.toString(), prizePaidCents: prizePaid.toString(), refundedCents: refunded.toString(), organizerCashCents: cash.toString(), cashDeficitCents: max0(-cash).toString(), contributionSurplusCents: expenses === null ? null : max0(contributed - expenses).toString(), groupReserveCents: surplus === null ? null : ((groupCredit ? surplus : 0n) + kept).toString(), unredeemedPrizeCents: amount === null ? null : (amount - organizer - individual).toString(), unpaidPrizeCents: unpaid === null ? null : (kept > 0n ? max0(unpaid - kept) : unpaid).toString(), refundPendingCents: expenses === null ? null : persons.reduce((total, person) => total + BigInt(person.refundPendingCents!), 0n).toString(), resultConflict: result.status === 'conflict', registrationIncomplete: !report || report.comparison.status !== 'complete', closed: closure?.direction === 'closed', persons };
+  if (!legacy) return balance;
+  const old: Partial<PoolSettlementBalance> = { ...balance };
+  delete old.groupReserveCents;
+  return old as PoolSettlementBalance;
 }
 function financeProjection(snapshot: SettlementSnapshot): SettlementFinance {
   const finance = createFinancialView(snapshot.financial).finance;
@@ -175,7 +191,7 @@ function confirmedRights(frozen: PoolManifest, report: RegistrationReport, amoun
   if (frozen.content.plan.participationMode === 'internal') {
     if (official.length) planningInvalid('officialEntitlements', 'Acordo interno não inventa recibos oficiais.');
     const byPerson = new Map(frozen.content.plan.rights.map((r) => [r.personId, r.quotaId]));
-    return distributeCents(amountCents, frozen.content.plan.rights.map((r) => ({ id: r.personId, units: r.units }))).map((r) => ({ personId: r.id, quotaId: byPerson.get(r.id)!, amountCents: r.amountCents }));
+    return distributeCents(keptPrize(frozen.content.plan, amountCents) > 0n ? '0' : amountCents, frozen.content.plan.rights.map((r) => ({ id: r.personId, units: r.units }))).map((r) => ({ personId: r.id, quotaId: byPerson.get(r.id)!, amountCents: r.amountCents }));
   }
   const expected = report.items.flatMap((item) => {
     if (!item.observed?.officialAssignments?.length || item.observed.officialQuotaCount === null) return planningInvalid('officialEntitlements', 'Prêmio oficial exige titulares e cotas efetivamente conferidos em todas as cartelas.');
@@ -247,7 +263,7 @@ export interface SettlementFactStamp { id: string; receiptId: string; confirmedA
 function reviewContext(snapshot: SettlementSnapshot, poolId: string): { observedResultIds: string[]; resultSelectionId: string | null } {
   return { observedResultIds: snapshot.results.results.filter((r) => r.poolId === poolId).sort((a, b) => a.version - b.version).map((r) => r.id), resultSelectionId: latest(snapshot.results.selections, poolId)?.id ?? null };
 }
-function buildFact(snapshot: SettlementSnapshot, value: SettlementAction, stamp: SettlementFactStamp): SettlementRecord {
+function buildFact(snapshot: SettlementSnapshot, value: SettlementAction, stamp: SettlementFactStamp, legacyReconciliation = false): SettlementRecord {
   const frozen = manifest(snapshot, value.poolId), report = latest(snapshot.registration.reports, value.poolId)!;
   const list: Array<{ poolId: string; version: number }> = value.type === 'expense_confirm' ? snapshot.expenses : value.type === 'prize_confirm' ? snapshot.prizes : value.type.startsWith('redemption_') ? snapshot.redemptions : value.type.startsWith('distribution_') ? snapshot.distributions : snapshot.closures;
   const base: SettlementFact = { id: stamp.id, receiptId: stamp.receiptId, confirmedAt: stamp.confirmedAt, groupRevision: stamp.groupRevision, groupId: snapshot.groupId, poolId: value.poolId, poolVersion: value.poolVersion, version: (latest(list, value.poolId)?.version ?? 0) + 1 };
@@ -264,7 +280,7 @@ function buildFact(snapshot: SettlementSnapshot, value: SettlementAction, stamp:
     return { ...base, personId: original.personId, kind: original.kind, direction: 'returned', reversesId: original.id, amountCents: `-${original.amountCents}`, evidenceIds: value.evidenceIds, sourceReference: value.sourceReference, eventAt: value.eventAt, reason: value.reason };
   }
   const previous = latest(snapshot.closures, value.poolId), prize = latest(snapshot.prizes, value.poolId), expense = latest(snapshot.expenses, value.poolId);
-  return { ...base, direction: value.type === 'pool_settle' ? 'closed' : 'reopened', previousClosureId: previous?.id ?? null, registrationReportId: report.id, prizeConfirmationId: prize?.id ?? null, expenseConfirmationId: expense?.id ?? null, ...reviewContext(snapshot, value.poolId), leftoverDisposition: value.type === 'pool_settle' ? value.leftoverDisposition : previous!.leftoverDisposition, reconciliation: projectPool(snapshot, value.poolId), pendingExplanation: value.type === 'pool_settle' ? value.pendingExplanation : previous!.pendingExplanation, reason: value.reason };
+  return { ...base, direction: value.type === 'pool_settle' ? 'closed' : 'reopened', previousClosureId: previous?.id ?? null, registrationReportId: report.id, prizeConfirmationId: prize?.id ?? null, expenseConfirmationId: expense?.id ?? null, ...reviewContext(snapshot, value.poolId), leftoverDisposition: value.type === 'pool_settle' ? value.leftoverDisposition : previous!.leftoverDisposition, reconciliation: projectPool(snapshot, value.poolId, snapshot.results, legacyReconciliation), pendingExplanation: value.type === 'pool_settle' ? value.pendingExplanation : previous!.pendingExplanation, reason: value.reason };
 }
 function append(snapshot: SettlementSnapshot, fact: SettlementRecord): void {
   if ('betCostCents' in fact) snapshot.expenses.push(fact);
@@ -375,7 +391,9 @@ export function validateSettlementSnapshot(input: unknown): SettlementSnapshot {
     const observed = 'observedResultIds' in fact ? fact : latest(snapshot.prizes, fact.poolId);
     if (observed) history = { ...history, results: resultHistory(snapshot, fact.poolId, observed.observedResultIds, observed.resultSelectionId) };
     const value = asAction(fact); checkAction(history, value, fact.confirmedAt);
-    const expected = buildFact(history, value, { id: fact.id, receiptId: fact.receiptId, confirmedAt: fact.confirmedAt, groupRevision: fact.groupRevision });
+    // A closure stored before groupReserveCents existed carries no such key: it is rebuilt under the old leftover rule.
+    const legacy = 'reconciliation' in fact && !('groupReserveCents' in fact.reconciliation);
+    const expected = buildFact(history, value, { id: fact.id, receiptId: fact.receiptId, confirmedAt: fact.confirmedAt, groupRevision: fact.groupRevision }, legacy);
     if (canonicalJSON(expected) !== canonicalJSON(fact)) planningInvalid('facts', 'Fato, direito, compensação ou reconciliação diverge da reconstrução independente.');
     append(snapshot, fact); checkBalances(historyWithFacts(history, snapshot), fact.poolId);
   }

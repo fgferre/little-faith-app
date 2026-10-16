@@ -175,7 +175,9 @@ function inicial(intent: Intencao, ctx: Contexto): Campos {
           ...base,
           amount: campo(person?.refundPendingCents ?? null),
           reference: `Devolução a ${who}`,
-          reason: `Devolução da sobra das cotas para ${who}.`,
+          reason: manifest.content.plan.leftoverPolicy === "group-credit"
+            ? `Devolução do que ${who} pagou a mais.`
+            : `Devolução da sobra das cotas para ${who}.`,
         };
       }
       const pending = BigInt(person?.prizePendingCents ?? "0");

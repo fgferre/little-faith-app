@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { OfficialPrizeEntitlement, SettlementAction, SettlementRecord, SettlementSnapshot } from './index';
-import { buildSettlementFact, canonicalManifest, computeSettlement,createRedemptionDeadline, createSettlementView, redemptionAlerts, redemptionCountdown, settlementStatement, sha256Hex, validateRedemptionDeadline, validateSettlementActionContext, validateSettlementCommand, validateSettlementReceipt, validateSettlementSnapshot } from './index';
+import type { LeftoverPolicy, OfficialPrizeEntitlement, PoolSettlementBalance, SettlementAction, SettlementRecord, SettlementSnapshot } from './index';
+import { buildSettlementFact, canonicalManifest, computeSettlement,createRedemptionDeadline, createSettlementView, keptPrize, redemptionAlerts, redemptionCountdown, settlementStatement, sha256Hex, validateRedemptionDeadline, validateSettlementActionContext, validateSettlementCommand, validateSettlementReceipt, validateSettlementSnapshot } from './index';
 import { fixtureId, manualResult, REG_GROUP, REG_POOL, registrationManifest, registrationSnapshot, resultSnapshot } from './registration.test-fixtures';
 
 type Act<T extends SettlementAction['type']> = Extract<SettlementAction, { type: T }>;
@@ -11,9 +11,10 @@ const next = (s: SettlementSnapshot): string => time(s.groupRevision + 1);
 const pool = (s: SettlementSnapshot) => createSettlementView(s).pool(REG_POOL)!;
 const person = (s: SettlementSnapshot, id: string) => pool(s).persons.find((p) => p.personId === id)!;
 
-/** Expanded Mega game (7 numbers, 2 × 2100 contributed) whose calculated prize against 1..6 is 106000. */
-function base(mode: 'internal' | 'official' = 'internal', expanded = true): SettlementSnapshot {
+/** Expanded Mega game (7 numbers, 2 × 2100 contributed) whose calculated prize against 1..6 is 106000; the frozen plan's leftover goes to the group unless a policy is given. A limit string freezes groupPrizeLimitCents; null removes the key, as in a plan locked before it existed. */
+function base(mode: 'internal' | 'official' = 'internal', expanded = true, leftoverPolicy?: LeftoverPolicy, groupPrizeLimitCents?: string | null): SettlementSnapshot {
   const manifest = registrationManifest(mode, expanded), cut = { groupRevision: START };
+  if (leftoverPolicy || groupPrizeLimitCents !== undefined) { if (leftoverPolicy) manifest.content.plan.leftoverPolicy = leftoverPolicy; if (typeof groupPrizeLimitCents === 'string') manifest.content.plan.groupPrizeLimitCents = groupPrizeLimitCents; else if (groupPrizeLimitCents === null) delete manifest.content.plan.groupPrizeLimitCents; manifest.canonical = canonicalManifest(manifest.content); manifest.sha256 = sha256Hex(manifest.canonical); }
   return { groupId: REG_GROUP, groupRevision: START, financial: { ...structuredClone(manifest.content.financial), ...cut }, registration: { ...registrationSnapshot(manifest), ...cut }, results: { ...resultSnapshot(), ...cut }, expenses: [], prizes: [], redemptions: [], distributions: [], closures: [] };
 }
 function fact(s: SettlementSnapshot, action: SettlementAction, expectedRevision = s.groupRevision): SettlementRecord {
@@ -227,6 +228,24 @@ describe('snapshot integrity (SQL and core parity guard)', () => {
       expect(() => validateSettlementSnapshot(s)).toThrow('Fato, direito, compensação ou reconciliação diverge da reconstrução independente.');
     }
   });
+  it('a closure recorded before groupReserveCents existed is rebuilt under the old leftover rule', () => {
+    // Budget 4200, expense 4000: leftover 200. Old rule: split 100/100 over A and B (100 units each) as refund rights, so 0 + 100 each and 100 + 100 = 200 pending.
+    let s = base('internal', true, 'group-credit');
+    s = apply(s, expense(s, { betCostCents: '4000', reason: 'Uma aposta saiu mais barata.' }));
+    s = apply(s, settle(s, 'Prêmio ainda aberto.'));
+    const legacy = (change: (reconciliation: Partial<PoolSettlementBalance>) => void): SettlementSnapshot => {
+      const old = structuredClone(s), reconciliation = old.closures[0]!.reconciliation as Partial<PoolSettlementBalance>;
+      delete reconciliation.groupReserveCents; reconciliation.refundPendingCents = '200';
+      for (const p of reconciliation.persons!) { p.refundRightCents = '100'; p.refundPendingCents = '100'; }
+      change(reconciliation);
+      return old;
+    };
+    expect(validateSettlementSnapshot(s).closures[0]!.reconciliation).toMatchObject({ groupReserveCents: '200', refundPendingCents: '0' });
+    expect(validateSettlementSnapshot(legacy(() => {})).closures).toHaveLength(1);
+    const message = 'Fato, direito, compensação ou reconciliação diverge da reconstrução independente.';
+    expect(() => validateSettlementSnapshot(legacy((r) => { r.persons![0]!.refundRightCents = '101'; }))).toThrow(message);
+    expect(() => validateSettlementSnapshot(legacy((r) => { r.groupReserveCents = '200'; }))).toThrow(message);
+  });
   it('an accepted receipt must reference exactly one fact of its group revision', () => {
     const s = history(), last = s.closures[0]!, first = s.expenses[0]!;
     const receipt = { apiVersion: 'v1', idempotencyKey: fixtureId(7999), receiptId: last.receiptId, groupId: REG_GROUP, status: 'accepted', groupRevision: s.groupRevision, message: null, confirmedAt: last.confirmedAt, snapshot: s };
@@ -243,9 +262,60 @@ describe('snapshot integrity (SQL and core parity guard)', () => {
   });
 });
 
+describe('prize kept in the group cash (internal agreement limit)', () => {
+  // Budget 4200 (A and B hold 100 of 200 units each); confirmed expenses 4000 leave a group-credit leftover of 4200 - 4000 = 200.
+  const kept = (limit: string | null, amountCents: string, expenses = true): SettlementSnapshot => {
+    let s = base('internal', true, 'group-credit', limit);
+    if (expenses) s = apply(s, expense(s, { betCostCents: '4000', reason: 'Uma aposta saiu mais barata.' }));
+    return apply(s, prize(s, amountCents));
+  };
+  it('a confirmed prize under the limit is split among no one and joins the group reserve', () => {
+    // Limit 110000, prize 106000 <= 110000: rights 0 + 0; reserve = leftover 200 + kept prize 106000 = 106200.
+    // Owed to no one: unpaid = 106000 - 0 paid - 106000 kept = 0; still to redeem from CAIXA: 106000 - 0 = 106000.
+    const s = kept('110000', '106000');
+    expect(s.prizes[0]!.rights.map((r) => [r.personId, r.amountCents])).toEqual([[A, '0'], [B, '0']]);
+    expect([person(s, A).prizeRightCents, person(s, B).prizeRightCents, person(s, A).prizePendingCents]).toEqual(['0', '0', '0']);
+    expect(pool(s)).toMatchObject({ confirmedPrizeCents: '106000', groupReserveCents: '106200', unpaidPrizeCents: '0', unredeemedPrizeCents: '106000' });
+    expect(() => validateSettlementSnapshot(s)).not.toThrow();
+    // Until it is redeemed the closing still needs an explanation; after redeeming 106000 (106000 - 106000 = 0 left) nothing is open.
+    expect(() => fact(s, settle(s))).toThrow('Pendências, reserva, prêmio ausente ou despesa desconhecida precisam permanecer explicados.');
+    const cash = apply(s, redeem(s, '106000'));
+    expect(pool(cash)).toMatchObject({ unpaidPrizeCents: '0', unredeemedPrizeCents: '0' });
+    expect(() => fact(cash, settle(cash))).not.toThrow();
+    expect(() => fact(cash, pay(cash, A, '1'))).toThrow('Pagamento não pode exceder direito e resgate interno disponíveis.');
+    // While expenses are unconfirmed the reserve stays unknown (null), kept prize or not.
+    expect(pool(kept('110000', '106000', false))).toMatchObject({ groupReserveCents: null });
+  });
+  it('a prize exactly at the limit is kept (inclusive)', () => {
+    // Limit 106000, prize 106000 <= 106000: rights 0 + 0; reserve = 200 + 106000 = 106200.
+    const s = kept('106000', '106000');
+    expect([person(s, A).prizeRightCents, person(s, B).prizeRightCents]).toEqual(['0', '0']);
+    expect(pool(s)).toMatchObject({ groupReserveCents: '106200' });
+  });
+  it('a prize above the limit is split as usual and the reserve stays the leftover', () => {
+    // Limit 105999, prize 106000 > 105999: 106000 / 200 units = 530 per unit, so 53000 each; reserve stays 200; unpaid = 106000 - 0 paid = 106000.
+    const s = kept('105999', '106000');
+    expect([person(s, A).prizeRightCents, person(s, B).prizeRightCents]).toEqual(['53000', '53000']);
+    expect(pool(s)).toMatchObject({ groupReserveCents: '200', unpaidPrizeCents: '106000' });
+  });
+  it('a plan without the key keeps the old split and reserve', () => {
+    const s = kept(null, '106000');
+    expect('groupPrizeLimitCents' in s.registration.manifests[0]!.content.plan).toBe(false);
+    expect([person(s, A).prizeRightCents, person(s, B).prizeRightCents]).toEqual(['53000', '53000']);
+    expect(pool(s)).toMatchObject({ groupReserveCents: '200' });
+  });
+  it('only an internal plan with a string limit and a prize above zero keeps anything', () => {
+    expect(keptPrize({ participationMode: 'internal', groupPrizeLimitCents: '110000' }, '106000')).toBe(106000n);
+    expect(keptPrize({ participationMode: 'official', groupPrizeLimitCents: '110000' }, '106000')).toBe(0n);
+    expect(keptPrize({ participationMode: 'internal', groupPrizeLimitCents: null }, '106000')).toBe(0n);
+    expect(keptPrize({ participationMode: 'internal' }, '106000')).toBe(0n);
+    expect(keptPrize({ participationMode: 'internal', groupPrizeLimitCents: '110000' }, '0')).toBe(0n);
+    expect(keptPrize({ participationMode: 'internal', groupPrizeLimitCents: '110000' }, null)).toBe(0n);
+  });
+});
 describe('organizer cash and statement', () => {
   it('organizer cash = net contributions + internal redemptions − confirmed expenses − net payments and refunds', () => {
-    let s = apply(base(), expense(base(), { betCostCents: '4000', reason: 'Uma aposta saiu mais barata.' }));
+    let s = apply(base('internal', true, 'refund-pro-rata'), expense(base(), { betCostCents: '4000', reason: 'Uma aposta saiu mais barata.' }));
     s = apply(s, prize(s, '106001'));
     s = apply(s, redeem(s, '106001'));
     s = apply(s, pay(s, A, '53001'));
@@ -254,12 +324,25 @@ describe('organizer cash and statement', () => {
     s = apply(s, pay(s, A, '100', 'contribution-refund'));
     const finance = computeSettlement(s);
     expect(finance).toMatchObject({ contributionCashCents: '4200', organizerRedeemedCents: '106001', confirmedExpenseCents: '4000', prizePaidCents: '53001', refundedCents: '100', organizerCashCents: '53100' });
-    expect(finance.pools[REG_POOL]!).toMatchObject({ organizerCashCents: '53100', contributionSurplusCents: '200', refundPendingCents: '100', unpaidPrizeCents: '53000' });
+    expect(finance.pools[REG_POOL]!).toMatchObject({ organizerCashCents: '53100', contributionSurplusCents: '200', groupReserveCents: '0', refundPendingCents: '100', unpaidPrizeCents: '53000' });
   });
   it('a planned reserve is not a confirmed expense', () => {
     const s = base();
     expect(s.registration.manifests[0]!.content.plan.totalCostCents).toBe('4200');
-    expect(pool(s)).toMatchObject({ confirmedExpenseCents: null, expenseConfirmationPending: true, organizerCashCents: '4200', contributionSurplusCents: null, refundPendingCents: null });
+    expect(pool(s)).toMatchObject({ confirmedExpenseCents: null, expenseConfirmationPending: true, organizerCashCents: '4200', contributionSurplusCents: null, groupReserveCents: null, refundPendingCents: null });
+  });
+  it('a group-credit leftover becomes the group reserve, not refund rights; refund-pro-rata still splits it', () => {
+    // Budget 4200, confirmed expenses 4000: the leftover is 4200 - 4000 = 200, and each of A and B holds 100 of 200 units.
+    const confirmed = (policy: LeftoverPolicy) => { const s = base('internal', true, policy); return apply(s, expense(s, { betCostCents: '4000', reason: 'Uma aposta saiu mais barata.' })); };
+    const split = confirmed('refund-pro-rata');
+    expect(pool(split)).toMatchObject({ contributionSurplusCents: '200', groupReserveCents: '0', refundPendingCents: '200' });
+    expect([person(split, A).refundRightCents, person(split, B).refundRightCents]).toEqual(['100', '100']);
+    // group-credit: no share (0 + 0 = 0 of refund rights); the whole 200 is the reserve. Overpayment refunds are untouched.
+    const credit = confirmed('group-credit');
+    expect(pool(credit)).toMatchObject({ contributionSurplusCents: '200', groupReserveCents: '200', refundPendingCents: '0' });
+    expect([person(credit, A).refundRightCents, person(credit, B).refundRightCents]).toEqual(['0', '0']);
+    expect(() => fact(credit, pay(credit, A, '100', 'contribution-refund'))).toThrow('Devolução exige despesa atual confirmada e sobra própria disponível.');
+    expect(pool(base('internal', true, 'group-credit'))).toMatchObject({ groupReserveCents: null, refundPendingCents: null });
   });
   it('a pool with no prize still closes with an explained, coherent group statement', () => {
     let s = base('internal', false);
@@ -268,7 +351,7 @@ describe('organizer cash and statement', () => {
     s = apply(s, settle(s, 'Nenhum acerto neste concurso.'));
     const statement = settlementStatement(s, REG_POOL);
     expect(statement.label).toBe('Demonstrativo do grupo');
-    expect(statement.pool).toMatchObject({ calculatedPrizeCents: '0', confirmedPrizeCents: null, contributedCents: '3000', confirmedExpenseCents: '3000', organizerCashCents: '0', cashDeficitCents: '0', contributionSurplusCents: '0', refundPendingCents: '0', closed: true });
+    expect(statement.pool).toMatchObject({ calculatedPrizeCents: '0', confirmedPrizeCents: null, contributedCents: '3000', confirmedExpenseCents: '3000', organizerCashCents: '0', cashDeficitCents: '0', contributionSurplusCents: '0', groupReserveCents: '0', refundPendingCents: '0', closed: true });
     expect(statement.closure).toMatchObject({ direction: 'closed', leftoverDisposition: 'group-reserve', pendingExplanation: 'Nenhum acerto neste concurso.' });
   });
 });

@@ -135,6 +135,8 @@ export interface PoolSettlementBalance {
   organizerCashCents: string;
   cashDeficitCents: string;
   contributionSurplusCents: string | null;
+  /** Frozen budget minus confirmed expenses kept as the group's reserve; '0' unless the plan's leftoverPolicy is group-credit. */
+  groupReserveCents: string | null;
   unredeemedPrizeCents: string | null;
   unpaidPrizeCents: string | null;
   refundPendingCents: string | null;
