@@ -1,12 +1,14 @@
 import { MessageCircle } from "lucide-react";
 
 /**
- * Abre o WhatsApp com a mensagem já escrita (link oficial wa.me); a pessoa escolhe a conversa lá.
+ * Abre o WhatsApp com a mensagem já escrita (link oficial wa.me); sem `phone` a pessoa escolhe a conversa lá,
+ * com `phone` (só dígitos, DDI primeiro) abre direto no privado dela.
  * Tem a cara do botão do app e vai junto do "Copiar", que segue como plano B.
  */
 export function EnviarWhatsApp(
-  { text, variant = "primary", small = false }: {
+  { text, phone, variant = "primary", small = false }: {
     text: string;
+    phone?: string | undefined;
     variant?: "primary" | "ghost";
     small?: boolean;
   },
@@ -15,7 +17,7 @@ export function EnviarWhatsApp(
     <a
       className={["ui-btn", variant === "ghost" && "ghost", small && "sm"]
         .filter(Boolean).join(" ")}
-      href={`https://wa.me/?text=${encodeURIComponent(text)}`}
+      href={`https://wa.me/${phone ?? ""}?text=${encodeURIComponent(text)}`}
       target="_blank"
       rel="noopener noreferrer"
     >

@@ -1979,7 +1979,7 @@ tr:last-child td {
 .pool-person-state > .pool-link {
   justify-self: end;
 }
-/* link pessoal: a data à esquerda e o botão à direita, com a largura do texto (não quebra nem estica) */
+/* link pessoal: o WhatsApp da pessoa à esquerda; a data e o botão do link vão juntos à direita, cada um com a largura do texto (não quebra nem estica) e, se não couberem ao lado do WhatsApp, descem juntos */
 .pool-person-link {
   grid-column: 1 / -1;
   display: flex;
@@ -1989,10 +1989,25 @@ tr:last-child td {
   gap: var(--e8) var(--e12);
   margin-top: var(--e8);
 }
-.pool-person-link > .ui-sec {
+.pool-person-link > .pool-phone {
+  flex: none;
   margin-right: auto;
+  padding: 0;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
-.pool-person-link > .ui-btn {
+.pool-person-link > .pool-phone:disabled {
+  opacity: .5;
+  cursor: default;
+}
+.pool-link-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--e8) var(--e12);
+}
+.pool-link-state > .ui-btn {
   flex: none;
   white-space: nowrap;
 }

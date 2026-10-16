@@ -40,6 +40,21 @@ export function umEm(probability: number) {
   return `1 em ${three.format(value)} ${value < 2 ? one : many}`;
 }
 
+export const PHONE_INVALID = "Telefone inválido: use só números, com DDI e DDD.";
+
+/** WhatsApp como o servidor guarda: só dígitos, DDI primeiro; 10 ou 11 dígitos são do Brasil (entra o 55). `null` quando não serve. */
+export function normalizePhone(input: string) {
+  let digits = input.replace(/\D/g, "");
+  if (digits.length === 10 || digits.length === 11) digits = `55${digits}`;
+  return /^[1-9][0-9]{9,14}$/.test(digits) ? digits : null;
+}
+
+/** "5511969484954" vira "+55 11 96948-4954"; de outros países, "+" e os dígitos. */
+export function formatPhone(phone: string) {
+  const br = phone.match(/^55(\d{2})(\d{4,5})(\d{4})$/);
+  return br ? `+55 ${br[1]} ${br[2]}-${br[3]}` : `+${phone}`;
+}
+
 /** Copia um texto; true quando deu certo (com plano B para navegadores sem a área de transferência moderna). */
 export async function copiar(text: string) {
   try {

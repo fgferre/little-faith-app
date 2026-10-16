@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Link2, QrCode, UserPlus } from "lucide-react";
+import { Check, Link2, LoaderCircle, QrCode, UserPlus } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import {
   createResultView,
@@ -18,10 +19,13 @@ import type { FormKind, Notice, Snapshot } from "../app-shared";
 import { latestManifest } from "../planning";
 import { saveLocalDraft } from "../repository";
 import {
+  clearPersonPhone,
   createParticipantLink,
   ParticipantApiError,
   pullParticipantLinks,
+  pullPersonPhones,
   revokeParticipantLink,
+  setPersonPhone,
 } from "../participant-client";
 import type { ParticipantLink } from "../participant-client";
 import {
@@ -35,8 +39,11 @@ import {
   diaMes,
   EnviarWhatsApp,
   Eyebrow,
+  formatPhone,
   formatWhen,
   Money,
+  normalizePhone,
+  PHONE_INVALID,
   PixCode,
   ProblemBox,
   reais,
@@ -173,7 +180,8 @@ function linkText(name: string, group: string, token: string) {
 /**
  * Os links pessoais do grupo: carregados do servidor ao abrir, quando há conexão e conta. `ready` só depois
  * de carregar; antes disso (ou offline) as ações ficam desligadas com o motivo em `problem`; sem conta
- * (demonstração, só no aparelho) elas nem aparecem (`hidden`).
+ * (demonstração, só no aparelho) elas nem aparecem (`hidden`). Os WhatsApps de cada pessoa vêm junto, nas
+ * mesmas condições, mas a falha deles (`phonesProblem`) não desliga os links.
  */
 function useParticipantLinks(groupId: string | null) {
   const [online, setOnline] = useState(navigator.onLine);
@@ -181,6 +189,8 @@ function useParticipantLinks(groupId: string | null) {
   const [failed, setFailed] = useState<
     { text: string; noAccount: boolean } | null
   >(null);
+  const [phones, setPhones] = useState<Record<string, string> | null>(null);
+  const [phonesProblem, setPhonesProblem] = useState<string | null>(null);
   useEffect(() => {
     const update = () => setOnline(navigator.onLine);
     window.addEventListener("online", update);
@@ -209,6 +219,21 @@ function useParticipantLinks(groupId: string | null) {
       active = false;
     };
   }, [online, groupId]);
+  useEffect(() => {
+    if (!online || !groupId) return;
+    let active = true;
+    pullPersonPhones(groupId).then(
+      (pulled) => {
+        if (!active) return;
+        setPhones(Object.fromEntries(pulled.map((p) => [p.personId, p.phone])));
+        setPhonesProblem(null);
+      },
+      (error) => active && setPhonesProblem(errorMessage(error)),
+    );
+    return () => {
+      active = false;
+    };
+  }, [online, groupId]);
   const problem = !online || !groupId
     ? "Os links pessoais precisam de conexão."
     : failed?.text ?? null;
@@ -218,7 +243,96 @@ function useParticipantLinks(groupId: string | null) {
     ready: !problem && links !== null,
     hidden: online && !!failed?.noAccount,
     problem,
+    phones,
+    setPhones,
+    phonesProblem,
   };
+}
+
+/** O WhatsApp de uma pessoa: um campo, salvar ou remover; só quem organiza vê, nunca vai ao cartão. */
+function PhoneDialog(
+  { groupId, person, phone, onDone, onClose }: {
+    groupId: string;
+    person: PoolPerson;
+    phone: string | undefined;
+    onDone: (phone: string | null) => void;
+    onClose: () => void;
+  },
+) {
+  const [value, setValue] = useState(phone ? formatPhone(phone) : "");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function run(save: boolean) {
+    const normalized = save ? normalizePhone(value) : null;
+    if (save && !normalized) {
+      setError(PHONE_INVALID);
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      if (normalized) await setPersonPhone(groupId, person.id, normalized);
+      else await clearPersonPhone(groupId, person.id);
+      onDone(normalized);
+    } catch (failure) {
+      setError(errorMessage(failure));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal
+      title={`WhatsApp de ${person.name}`}
+      onClose={() => {
+        if (!busy) onClose();
+      }}
+    >
+      <form
+        onSubmit={(event: FormEvent) => {
+          event.preventDefault();
+          void run(true);
+        }}
+      >
+        <label>
+          WhatsApp com DDD
+          <input
+            name="phone"
+            type="tel"
+            inputMode="tel"
+            autoComplete="off"
+            maxLength={24}
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+            placeholder="11 96948-4954"
+          />
+          <small>Só quem organiza vê. Nunca aparece no cartão.</small>
+        </label>
+        {error && <p className="form-error" role="alert">{error}</p>}
+        <div className="modal-actions">
+          {phone && (
+            <Button
+              variant="ghost"
+              disabled={busy}
+              onClick={() => void run(false)}
+            >
+              Remover
+            </Button>
+          )}
+          <Button
+            type="submit"
+            disabled={busy}
+            icon={busy
+              ? <LoaderCircle aria-hidden="true" className="spin" />
+              : <Check aria-hidden="true" />}
+          >
+            {busy ? "Salvando…" : "Salvar"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
 }
 
 export function BolaoArrecadar(
@@ -272,10 +386,20 @@ export function BolaoArrecadar(
   const pixPerson = people.find((person) => person.id === pixId) ?? null;
   const pixMissing = pixPerson && missingCents(pixPerson);
   const pixPayload = codigoPix(pix, pixMissing);
-  const { links, setLinks, ready, hidden, problem } = useParticipantLinks(
-    groupId,
-  );
+  const {
+    links,
+    setLinks,
+    ready,
+    hidden,
+    problem,
+    phones,
+    setPhones,
+    phonesProblem,
+  } = useParticipantLinks(groupId);
   const [busy, setBusy] = useState<string | null>(null);
+  // Quem está no painel "WhatsApp de ...".
+  const [phoneId, setPhoneId] = useState<string | null>(null);
+  const phonePerson = people.find((person) => person.id === phoneId) ?? null;
   const [joining, setJoining] = useState(false);
   // Mensagem de cada link criado nesta visita, para o WhatsApp e o Copiar (o token não volta do
   // servidor depois); some ao sair da tela ou ao cancelar o link.
@@ -340,42 +464,71 @@ export function BolaoArrecadar(
     }
   }
 
+  function phoneSaved(person: PoolPerson, phone: string | null) {
+    setPhones((list) => {
+      const { [person.id]: _, ...rest } = list ?? {};
+      return phone ? { ...rest, [person.id]: phone } : rest;
+    });
+    setPhoneId(null);
+    setNotice({
+      text: phone
+        ? `WhatsApp de ${person.name} salvo.`
+        : `WhatsApp de ${person.name} removido.`,
+    });
+  }
+
   const linkRow = (person: PoolPerson) => {
     const active = activeLinks(person.id)[0];
     const text = messages[person.id];
     const off = !ready || busy !== null;
+    const phone = phones?.[person.id];
     return (
       <div className="pool-person-link">
-        {active && (
-          <span className="ui-sec">
-            Link enviado em {diaMes(active.createdAt, browserTimeZone)}
-          </span>
+        <button
+          type="button"
+          className="pool-link pool-phone"
+          aria-label={phone
+            ? `WhatsApp de ${person.name}: ${formatPhone(phone)}`
+            : `WhatsApp de ${person.name}`}
+          disabled={phones === null || busy !== null}
+          onClick={() => setPhoneId(person.id)}
+        >
+          {phone ? formatPhone(phone) : "WhatsApp"}
+        </button>
+        {(active || !text) && (
+          <div className="pool-link-state">
+            {active && (
+              <span className="ui-sec">
+                Link enviado em {diaMes(active.createdAt, browserTimeZone)}
+              </span>
+            )}
+            {active
+              ? (
+                <Button
+                  variant="ghost"
+                  small
+                  disabled={off}
+                  onClick={() => void cancelLink(person)}
+                >
+                  Cancelar link
+                </Button>
+              )
+              : (
+                <Button
+                  variant="ghost"
+                  small
+                  icon={<Link2 aria-hidden="true" />}
+                  disabled={off}
+                  onClick={() => void sendLink(person)}
+                >
+                  Enviar link pessoal
+                </Button>
+              )}
+          </div>
         )}
-        {active
-          ? (
-            <Button
-              variant="ghost"
-              small
-              disabled={off}
-              onClick={() => void cancelLink(person)}
-            >
-              Cancelar link
-            </Button>
-          )
-          : !text && (
-            <Button
-              variant="ghost"
-              small
-              icon={<Link2 aria-hidden="true" />}
-              disabled={off}
-              onClick={() => void sendLink(person)}
-            >
-              Enviar link pessoal
-            </Button>
-          )}
         {text && (
           <div className="ui-pair">
-            <EnviarWhatsApp small text={text} />
+            <EnviarWhatsApp small text={text} phone={phone} />
             <Button
               variant="ghost"
               small
@@ -639,7 +792,9 @@ export function BolaoArrecadar(
                 </a>
               </p>
             )
-            : problem && <p className="ui-sec pool-sub">{problem}</p>)}
+            : (problem ?? phonesProblem) && (
+              <p className="ui-sec pool-sub">{problem ?? phonesProblem}</p>
+            ))}
           {!!people.length && (
             <ul className="pool-people">
               {people.map((person) => {
@@ -702,6 +857,17 @@ export function BolaoArrecadar(
                   Quem paga ainda precisa pagar no banco; você marca que recebeu.
                 </p>
               </Modal>
+            )}
+          </AnimatePresence>
+          <AnimatePresence>
+            {phonePerson && groupId && (
+              <PhoneDialog
+                groupId={groupId}
+                person={phonePerson}
+                phone={phones?.[phonePerson.id]}
+                onDone={(phone) => phoneSaved(phonePerson, phone)}
+                onClose={() => setPhoneId(null)}
+              />
             )}
           </AnimatePresence>
           <div className="pool-actions">

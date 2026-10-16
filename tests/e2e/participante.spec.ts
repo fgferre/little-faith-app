@@ -10,7 +10,7 @@ const cors = {
   "Access-Control-Allow-Origin": origin,
   "Access-Control-Allow-Headers":
     "authorization, apikey, content-type, x-client-info",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
 };
 
 function reply(route: Route, status: number, body: unknown) {
@@ -24,9 +24,14 @@ function reply(route: Route, status: number, body: unknown) {
     });
 }
 
-/** The organizer sends the personal link in Arrecadar; returns the copied message's link and name. */
-async function sendLink(browser: Browser) {
-  const server = { token: "tok_Nov0-link_123", name: "", revoked: false };
+/** The organizer's browser, signed in, with the link and phone routes simulated; returns the server's state. */
+async function organizerPage(browser: Browser) {
+  const server = {
+    token: "tok_Nov0-link_123",
+    name: "",
+    revoked: false,
+    phones: {} as Record<string, string>,
+  };
   const context = await browser.newContext();
   await context.grantPermissions(["clipboard-read", "clipboard-write"], {
     origin,
@@ -85,6 +90,31 @@ async function sendLink(browser: Browser) {
       revokedAt: "2026-10-11T16:00:00.000Z",
     });
   });
+  await page.route("**/v1/groups/*/phones", (route) =>
+    reply(route, 200, {
+      phones: Object.entries(server.phones).map(([personId, phone]) => ({
+        personId,
+        phone,
+      })),
+    }));
+  await page.route("**/v1/groups/*/persons/*/phone", (route) => {
+    const method = route.request().method();
+    if (method === "OPTIONS") return reply(route, 204, {});
+    const personId = route.request().url().match(/persons\/([^/]+)\/phone/)![1];
+    if (method === "DELETE") {
+      delete server.phones[personId];
+      return route.fulfill({ status: 204, headers: cors });
+    }
+    const { phone } = route.request().postDataJSON();
+    server.phones[personId] = phone;
+    return reply(route, 200, { personId, phone });
+  });
+  return { page, context, server };
+}
+
+/** The organizer sends the personal link in Arrecadar; returns the copied message's link and name. */
+async function sendLink(browser: Browser) {
+  const { page, context, server } = await organizerPage(browser);
   await page.goto(`${origin}/#/boloes/${poolId}/arrecadar`);
   const send = page.getByRole("button", { name: "Enviar link pessoal" })
     .first();
@@ -161,6 +191,24 @@ test("a personal link opens the participant's card without login", async ({ brow
     .toBeVisible();
   await participant.context.close();
   await organizer.context.close();
+});
+
+test("a saved WhatsApp number makes the personal link open in that person's chat", async ({ browser }) => {
+  const { page, context } = await organizerPage(browser);
+  await page.goto(`${origin}/#/boloes/${poolId}/arrecadar`);
+  const row = page.locator(".pool-person").first();
+  await row.getByRole("button", { name: /^WhatsApp de / }).click();
+  await page.getByLabel("WhatsApp com DDD").fill("11 96948 4954");
+  await page.getByRole("button", { name: "Salvar" }).click();
+  await expect(row.getByRole("button", { name: /\+55 11 96948-4954/ }))
+    .toBeVisible();
+  await page.reload();
+  await expect(row.getByRole("button", { name: /\+55 11 96948-4954/ }))
+    .toBeVisible();
+  await row.getByRole("button", { name: "Enviar link pessoal" }).click();
+  await expect(row.getByRole("link", { name: "Enviar no WhatsApp" }))
+    .toHaveAttribute("href", /^https:\/\/wa\.me\/5511969484954\?text=/);
+  await context.close();
 });
 
 test("cancelling the personal link closes the participant's card", async ({ browser }) => {
