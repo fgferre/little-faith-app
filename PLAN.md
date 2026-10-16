@@ -41,6 +41,13 @@ Quadro de desenho: a linha da pessoa em Arrecadar e a página de venda — pedid
 
 ## Decisões já tomadas
 
+- 16/10, palavras dele: "o pulo do gato é o organizador deixar de ser uma pessoa e ser o próprio app"; "o app [...] nunca [tem] a função
+  de cobrar ninguém, ele está só sendo um assistente". A pessoa que recebe o Pix, faz o jogo e guarda o bilhete é o **tesoureiro**
+  (escolha dele). Uma página só, para quem aposta e para o tesoureiro; manchete "A turma joga. O app organiza." (escolha dele);
+  assinatura "Seu bolão em boa companhia" fica; a faixa do cartão vira "Seu cartão do bolão"; "little faith" brinca com "fezinha".
+  O quadro (versão 11) já está nesse conceito: linha com "Lembrar" e "Desta vez está fora"; as duas páginas antigas saíram.
+- Frases revistas com o GPT (gpt-6.1-sol, pelo Codex) em 16/10; rascunhos em `.tmp/mkt/`. As do app foram trocadas no código.
+
 - Nada é publicado antes do sim dele (item 14 de `docs/PENDENCIAS.md`).
 - A página não promete o que o app não faz sem marcar o que falta.
 
