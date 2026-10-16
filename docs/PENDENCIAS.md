@@ -16,7 +16,8 @@ R$ 498 confirmado, sobra R$ 2 como reserva do grupo. Os 10 links pessoais, o res
 "Teste" dele (só ele está lá); nada foi ao grupo da turma (conferido). O WhatsApp Web ficou ligado no Chrome dele por código de telefone;
 ele desliga em Aparelhos conectados quando quiser. Desenho da revelação: https://claude.ai/artifact/6iCZS5eDry2cGmwcGWR1an (três
 novidades esperam o sim dele). Notas, bilhetes lidos, fotos e links com token em `.tmp/bastao/` (fora do git). O que o ensaio mostrou:
-itens 14 e 15. Próximo: ele avalia os cartões no Teste; corrigir o 14 antes de qualquer revelação.
+itens 14 e 15. Mais tarde em 15/10 a rodada de correções foi feita e verificada (`npm run done` verde: 327 unitários, 47 fluxos);
+tudo local, nada enviado ao GitHub. Próximo: o sim dele para publicar (item 14).
 
 
 **Para quem pega agora:** `main` = 81d522f, igual ao GitHub, app publicado com ele e banco com todas as migrações. O
@@ -96,25 +97,28 @@ cartão por URL temporária; limite de taxa na rota pública (ver BACKLOG).
 
 ## ALTA — bloqueia a entrega ou pode perder trabalho
 
-**14. A tela do Sorteio fica em branco entre o resultado e a conferência do registro (15/10).**
-`bolao-sorteio.tsx` lê `assessment.skippedTicketKeys` no ramo "Não foi dessa vez" sem checar `assessment`, que é null enquanto o
-registro não foi conferido; o app inteiro para até recarregar. Visto no bolão real 3070 com resultado manual e registro ainda não
-conferido; depois da conferência a tela abriu. Com a busca automática, o resultado costuma chegar antes da conferência.
+**14. Publicar a rodada de 15/10 (pede o sim dele).** Ordem: 1) aplicar `20261015000000_person_phones.sql` pelo SQL Editor
+(texto da migração mais o `insert` em `supabase_migrations.schema_migrations`, como em 14/10); 2) publicar a função `api` (rotas de
+telefone; o CLI trava com ele remoto, ver o bastão de 14/10); 3) enviar `main` ao GitHub e republicar o app. Sem o passo 2 o app publicado
+segue funcionando e só o campo de WhatsApp avisa que não carregou. A tela em branco do Sorteio vista em 15/10 era um bundle velho
+guardado no navegador (o arquivo nem existe mais no servidor); a correção já estava publicada desde 13/10.
 
 ## MÉDIA — afeta o produto
 
-**15. O que o ensaio de 15/10 mostrou (detalhes em `.tmp/bastao/confraria.md`).**
-- "Consultar resultado da CAIXA" falhou no app publicado: "A fonte oficial está indisponível" (a API da CAIXA respondia de fora).
+**15. O que o ensaio de 15/10 mostrou (detalhes em `.tmp/bastao/confraria.md`).** Feito em 15/10, a pedido dele: colar bilhetes,
+cartão com resultado no topo e jogos do melhor para o pior com faixa de boas-vindas, hora de Brasília nas revisões, cartela divergente
+pede explicação antes de confirmar e a recusa fica na janela, números com " · ", resultado oficial buscado pelo aparelho quando a CAIXA
+barra o servidor (403 da proteção Azion), telefone por pessoa com o link abrindo direto na conversa. Continua aberto:
 - O servidor recusa cota depois do prazo, mesmo com pagamento antes: espelhar uma rodada que já passou exige mudar o prazo.
 - A data do pagamento vem como "agora"; é preciso digitar a hora real, senão a cota parece paga fora do prazo.
-- 17 bilhetes = 113 cliques nas dezenas; não há como colar "10 20 23 33 45 50 55". Pagamentos: 2 janelas e ~10 s de espera cada.
-- Aposta feita antes da trava vira "divergente": o servidor pede justificativa por cartela só num aviso pequeno, a janela fecha
-  como se tivesse dado certo, e o cartão mostra "Registro com diferença: o comprovante não bate com o combinado".
 - O aceite dos combinados por pessoa, com prova, não existe na vida do grupo (lá "quem paga entra").
 - A mensagem do link pessoal some ao sair da tela; para reenviar é preciso cancelar e criar outro link.
-- O WhatsApp transforma "19 27 29 43 54 60" em link de telefone; usar separador ("19 · 27 · ...").
-- Janelas de revisão mostram hora crua ("2026-10-16T04:00:00.000Z"); confirmações às vezes ficam em "Consultar recibo" mesmo aceitas.
-- No cartão: resultado no fim, depois dos 17 jogos; "Devolução R$ 0,00 de R$ 0,20" com a sobra marcada como reserva do grupo.
+- Pagamentos: 2 janelas e ~10 s de espera cada; confirmações às vezes ficam em "Consultar recibo" mesmo aceitas pelo servidor.
+- O cartão mostra "Registro com diferença" quando a aposta foi feita antes da trava (caso do ensaio retroativo).
+- Dinheiro, decidir com ele: a sobra marcada "Reserva identificada no grupo" é ignorada pela divisão (`settlement.ts` não lê
+  `leftoverPolicy`); o cartão mostra "Devolução R$ 0,00 de R$ 0,20".
+- Quem deixa o app aberto pode ficar numa versão velha até fechar todas as abas (service worker); foi o que causou a tela em branco.
+- No celular, com WhatsApp salvo, o número fica numa linha e "Enviar link pessoal" na de baixo; ele decide pela imagem.
 - Do grupo: a turma confere à mão numa planilha depois do sorteio, mantém a lista "Pagos" em corrente e pediu para repetir os números.
 
 **4. A exportação de emergência não é backup (10/10).**
