@@ -4,13 +4,14 @@ Lista viva do que está aberto. Leia só a seção O BASTÃO e o item da vez; o 
 Item resolvido sai da lista e vira commit com o número entre parênteses; a história de cada número fica no git (`git log --all --grep="(NNN)"`).
 Número é identidade, não posição: item novo entra no fim da sua seção. **Próximo número livre: 14.**
 
-## O BASTÃO — onde a rodada parou (15/10) — CORREÇÕES DO ENSAIO FEITAS E VERIFICADAS, NADA PUBLICADO; PRÓXIMO: QUADRO DE DESENHO
+## O BASTÃO — onde a rodada parou (16/10) — CONCEITO NOVO NO QUADRO, NADA PUBLICADO; PRÓXIMO: RESPONDER PELO CARTÃO
 
-**Para quem pega agora:** leia este bastão e o `PLAN.md` (a próxima tarefa: quadro com a linha da pessoa em Arrecadar e a
-página de venda). `main` local = 863189c, 8 commits à frente do GitHub (`origin/main` = 4659191). No ar: app de 14/10
-(85c2392) e banco até `20261013020000`. Nada de 15/10 foi publicado; ele disse "Temos oportunidades ainda que precisamos
-endereçar" (15/10), então publicar só com o sim dele, na ordem do item 14. `npm run done` verde em 15/10 (327 unitários,
-47 fluxos).
+**Para quem pega agora:** leia este bastão e o `PLAN-cartao.md` (próxima tarefa: responder pelo cartão, depois o próximo
+sorteio automático e o gancho da doação; decisões fechadas lá). `PLAN.md` é o quadro (conceito novo aplicado; falta ele escolher a
+versão da linha). Antes de começar, leia `.tmp/critica/astra-2.md` (crítica do GPT-6 Astra com leitura do repositório) e, para
+frases, `.tmp/mkt/`. `main` local = 719e864, 21 commits à frente do GitHub; nada de 15 e 16/10 foi publicado (item 14 tem a ordem e
+uma conferência antes). `npm run done` verde em 16/10 (338 unitários, 48 fluxos). Conceito decidido por ele em 16/10: o app é o
+organizador, a pessoa do dinheiro e do bilhete é o tesoureiro, o app lembra e nunca cobra, "little faith" brinca com "fezinha".
 
 **Revisão externa (15/10, sobre b7baa26):** consertado e verificado no mesmo dia: o cartão mostrava e contava acertos no plano,
 não no bilhete registrado (podia anunciar prêmio que não existe); o "Manter o Supabase acordado" mandava um token mal formado e
