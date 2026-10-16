@@ -44,7 +44,7 @@ Próximo sorteio:
 
 Doação:
 14. Grátis, aceita doação pela chave Pix do dono: e-mail fgferre@gmail.com (dita por ele em 16/10); ele prefere QR Code, então o
-    botão mostra o QR e o copia e cola, sem valor fixo; recebedor "Felipe Ferreira", cidade "Sao Paulo" (conta dele em SP; dito em 16/10). A chave fica numa configuração. Pix copia e cola sem valor fixo. Lugares: Dados e, raramente, depois de
+    botão mostra o QR e o copia e cola, sem valor fixo; recebedor "Felipe Ferreira", cidade "Rio de Janeiro" (correção dele em 16/10; antes tinha dito São Paulo). A chave fica numa configuração. Pix copia e cola sem valor fixo. Lugares: Dados e, raramente, depois de
     encerrar a rodada; nunca descontando prêmio nem insistindo.
 
 ## Passos
