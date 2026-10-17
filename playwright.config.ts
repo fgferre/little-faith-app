@@ -5,6 +5,16 @@ export default defineConfig({
   fullyParallel: true,
   workers: 2,
   retries: process.env.CI ? 1 : 0,
+  // Os fluxos do cartão e os financeiros usam o mesmo cenário (4190), que os financeiros reiniciam antes de cada teste:
+  // os do cartão rodam depois, nunca ao mesmo tempo, senão um reinício no meio derruba o outro.
+  projects: [
+    { name: "fluxos", testIgnore: /participante\.spec\.ts$/ },
+    {
+      name: "cartão",
+      testMatch: /participante\.spec\.ts$/,
+      dependencies: ["fluxos"],
+    },
+  ],
   use: {
     baseURL: "http://127.0.0.1:4173",
     trace: "retain-on-failure",

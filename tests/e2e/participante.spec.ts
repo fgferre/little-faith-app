@@ -3,6 +3,8 @@ import type { Browser, Page, Route } from "@playwright/test";
 
 // The Node fixture on :4190 does not serve the participant routes (the real `api` runs in Deno,
 // covered by `npm run test:api`), so the four routes are simulated here with `page.route`.
+// One at a time: the Arrecadar flows reset the shared fixture at their start, like the financial ones do.
+test.describe.configure({ mode: "serial" });
 const origin = "http://127.0.0.1:4182";
 const actorId = "50100000-0000-4000-8000-000000000001";
 const poolId = "50400000-0000-4000-8000-000000000001";
