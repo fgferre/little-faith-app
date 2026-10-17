@@ -10,7 +10,7 @@ import {
   LOTTERIES,
   sumCents,
 } from "@bolao/core";
-import type { PixReceiver } from "@bolao/core";
+import type { ParticipantResponsesPull, PixReceiver } from "@bolao/core";
 import { getResultSnapshot } from "@bolao/local";
 import type { BolaoDatabase } from "@bolao/local";
 import { browserTimeZone, errorMessage, rolloverOf } from "../app-shared";
@@ -21,8 +21,11 @@ import { saveLocalDraft } from "../repository";
 import {
   clearPersonPhone,
   createParticipantLink,
+  fetchParticipantProof,
+  markParticipantReminder,
   ParticipantApiError,
   pullParticipantLinks,
+  pullParticipantResponses,
   pullPersonPhones,
   revokeParticipantLink,
   setPersonPhone,
@@ -48,11 +51,20 @@ import {
   ProblemBox,
   reais,
 } from "../ui";
+import { quando } from "../ui/texto";
 import type { AvatarStatus } from "../ui";
 import { joinNames } from "./bolao-etapas";
 import type { PoolPerson, PoolView } from "./bolao-etapas";
 
 type PersonState = "paid" | "owe" | "review" | "mismatch" | "fix";
+type Said = ParticipantResponsesPull["responses"][number];
+type SectionKey = "check" | "remind" | "out" | "paid";
+const SECTIONS: [SectionKey, string][] = [
+  ["check", "Conferir pagamento"],
+  ["remind", "Lembrar"],
+  ["out", "Fora desta rodada"],
+  ["paid", "Já pagaram"],
+];
 
 /** Pago, devendo, pagamento em conferência, pagamento que não bate com o que falta, ou cota a corrigir. */
 function personState(person: PoolPerson): PersonState {
@@ -130,7 +142,7 @@ function callText(view: PoolView, rollover?: ReturnType<typeof rolloverOf>) {
     : "";
   const call = `${title}, ${contest}. Vai entrar nesta rodada? Cota de ${
     formatBRL(quotaPriceCents)
-  }${until}. Responda aqui: dentro ou fora.`;
+  }${until}. Responda no seu cartão: dentro ou fora.`;
   if (!rollover) return call;
   const { nextContestNumber, nextEstimatedPrizeCents } = rollover;
   return `${call}\n${
@@ -192,6 +204,8 @@ function useParticipantLinks(groupId: string | null) {
   >(null);
   const [phones, setPhones] = useState<Record<string, string> | null>(null);
   const [phonesProblem, setPhonesProblem] = useState<string | null>(null);
+  // As respostas pelos cartões e os lembretes do grupo; sem elas a lista segue sem os selos, nada trava.
+  const [answers, setAnswers] = useState<ParticipantResponsesPull | null>(null);
   useEffect(() => {
     const update = () => setOnline(navigator.onLine);
     window.addEventListener("online", update);
@@ -235,6 +249,17 @@ function useParticipantLinks(groupId: string | null) {
       active = false;
     };
   }, [online, groupId]);
+  useEffect(() => {
+    if (!online || !groupId) return;
+    let active = true;
+    pullParticipantResponses(groupId).then(
+      (pulled) => active && setAnswers(pulled),
+      () => active && setAnswers(null),
+    );
+    return () => {
+      active = false;
+    };
+  }, [online, groupId]);
   const problem = !online || !groupId
     ? "Os links pessoais precisam de conexão."
     : failed?.text ?? null;
@@ -247,6 +272,8 @@ function useParticipantLinks(groupId: string | null) {
     phones,
     setPhones,
     phonesProblem,
+    answers,
+    setAnswers,
   };
 }
 
@@ -353,17 +380,108 @@ export function BolaoArrecadar(
     people.flatMap((p) => p.pending.map((item) => item.amountCents)),
   );
   const total = expectedCents === null ? 0 : Number(expectedCents);
-  const { previous, call } = rollCall(snapshot, view);
+  const groupId = snapshot.groupId;
+  const {
+    links,
+    setLinks,
+    ready,
+    hidden,
+    problem,
+    phones,
+    setPhones,
+    phonesProblem,
+    answers,
+    setAnswers,
+  } = useParticipantLinks(groupId);
+  // A última resposta de cada pessoa pelo cartão, neste bolão, e a última vez que foi lembrada.
+  const said = new Map<string, Said>();
+  for (const response of answers?.responses ?? []) {
+    if (response.poolId === view.pool.id) said.set(response.personId, response);
+  }
+  const reminded = new Map<string, string>();
+  for (const reminder of answers?.reminders ?? []) {
+    if (reminder.poolId === view.pool.id) {
+      reminded.set(reminder.personId, reminder.remindedAt);
+    }
+  }
+  const saidIn = (personId: string) => {
+    const kind = said.get(personId)?.kind;
+    return kind === "in" || kind === "paid";
+  };
+  // A chamada: quem estava na rodada passada e não disse que está fora, mais quem disse pelo cartão
+  // que está dentro sem ter cota ainda (entra com uma cota, num toque). Quem disse que está fora fica à parte.
+  const { previous, call: lastRound } = rollCall(snapshot, view);
+  const hasQuota = (personId: string) => people.some((p) => p.id === personId);
+  const call = [
+    ...lastRound.filter((entry) => said.get(entry.id)?.kind !== "out"),
+    ...(view.pool.data.status === "draft"
+      ? snapshot.persons.flatMap((person) =>
+        !hasQuota(person.id) && saidIn(person.id) &&
+          !lastRound.some((entry) => entry.id === person.id)
+          ? [{
+            id: person.id,
+            name: person.data.nickname || person.data.name,
+            units: 100,
+          }]
+          : []
+      )
+      : []),
+  ].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  const fromCard = call.some((entry) =>
+    !lastRound.some((last) => last.id === entry.id)
+  );
+  const unanswered = call.filter((entry) => !said.has(entry.id));
+  const outRound = snapshot.persons.filter((person) =>
+    !hasQuota(person.id) && said.get(person.id)?.kind === "out"
+  );
   const outside = snapshot.persons.filter((person) =>
-    !people.some((p) => p.id === person.id) &&
-    !call.some((p) => p.id === person.id)
+    !hasQuota(person.id) &&
+    !call.some((p) => p.id === person.id) &&
+    !outRound.some((p) => p.id === person.id)
   );
   const states = new Map(people.map((p) => [p.id, personState(p)]));
   const ordered = [...people].sort((a, b) =>
     Number(states.get(a.id) !== "paid") - Number(states.get(b.id) !== "paid")
   );
+  // As seções do desenho da linha da pessoa: o que conferir, quem lembrar, quem está fora e quem já pagou.
+  const sectionOf = (person: PoolPerson): SectionKey => {
+    const state = states.get(person.id)!;
+    const kind = said.get(person.id)?.kind;
+    if (state === "paid") return "paid";
+    if (state === "review" || state === "mismatch" || kind === "paid") {
+      return "check";
+    }
+    if (kind === "out") return "out";
+    return "remind";
+  };
+  const sections = SECTIONS.map(([key, label]) => ({
+    key,
+    label,
+    rows: people.filter((person) => sectionOf(person) === key),
+  }));
+  const labeled = sections.filter((section) =>
+    section.rows.length || (section.key === "out" && outRound.length)
+  ).length > 1;
+  // O que a pessoa disse pelo cartão, com quando; sem resposta, se foi lembrada.
+  const answerLine = (personId: string, owes: boolean) => {
+    const answer = said.get(personId);
+    const at = reminded.get(personId);
+    if (answer?.kind === "paid") {
+      return `Mandou ${formatBRL(answer.amountCents ?? "0")}${
+        answer.proof ? " com comprovante" : ""
+      } · ${quando(answer.createdAt)}`;
+    }
+    if (answer?.kind === "out") {
+      return `Disse que desta vez está fora · ${quando(answer.createdAt)}`;
+    }
+    if (answer?.kind === "in") {
+      return `Disse que está dentro · ${quando(answer.createdAt)}`;
+    }
+    // Sem as respostas carregadas (sem conta, sem conexão ou na demonstração) ninguém "deixou de responder".
+    if (!owes || answers === null) return null;
+    return `Ainda não respondeu${at ? ` · lembrado ${quando(at)}` : ""}`;
+  };
 
-  const groupId = snapshot.groupId;
   const group = snapshot.groups.find((group) => group.id === groupId);
   const groupName = group?.data.name ?? "";
   // Se o concurso do bolão passado acumulou, a chamada diz, pela mesma leitura do Sorteio. Sem a
@@ -387,17 +505,8 @@ export function BolaoArrecadar(
   const pixPerson = people.find((person) => person.id === pixId) ?? null;
   const pixMissing = pixPerson && missingCents(pixPerson);
   const pixPayload = codigoPix(pix, pixMissing);
-  const {
-    links,
-    setLinks,
-    ready,
-    hidden,
-    problem,
-    phones,
-    setPhones,
-    phonesProblem,
-  } = useParticipantLinks(groupId);
   const [busy, setBusy] = useState<string | null>(null);
+  const [proposing, setProposing] = useState(false);
   // Quem está no painel "WhatsApp de ...".
   const [phoneId, setPhoneId] = useState<string | null>(null);
   const phonePerson = people.find((person) => person.id === phoneId) ?? null;
@@ -596,12 +705,20 @@ export function BolaoArrecadar(
         )}
         {text && (
           <div className="ui-pair">
-            <EnviarWhatsApp small text={text} phone={phone} />
+            <EnviarWhatsApp
+              small
+              text={text}
+              phone={phone}
+              onSend={() => remind(person.id)}
+            />
             <Button
               variant="ghost"
               small
               disabled={busy !== null}
-              onClick={() => void copyLink(person, text)}
+              onClick={() => {
+                remind(person.id);
+                void copyLink(person, text);
+              }}
             >
               Copiar
             </Button>
@@ -665,10 +782,92 @@ export function BolaoArrecadar(
     );
   }
 
+  // "Conferir": o aviso de Pix vira a proposta de pagamento de sempre, e a Revisão confirma; nada vira dinheiro sozinho.
+  async function propose(person: PoolPerson, answer: Said) {
+    if (!groupId || !answer.amountCents) return;
+    setProposing(true);
+    try {
+      await saveLocalDraft(db, {
+        id: crypto.randomUUID(),
+        groupId,
+        kind: "payment-proposal",
+        data: {
+          poolId: view.pool.id,
+          personId: person.id,
+          amountCents: answer.amountCents,
+          note: `Avisado pelo cartão em ${quando(answer.createdAt)}${
+            answer.proof ? ", com comprovante" : ""
+          }.`,
+          status: "pending",
+        },
+      });
+      openReview();
+    } catch (error) {
+      setNotice({
+        text: `Não deu para registrar o pagamento. ${errorMessage(error)}`,
+        error: true,
+      });
+    } finally {
+      setProposing(false);
+    }
+  }
+  // A aba abre no toque (depois da espera o navegador bloquearia) e recebe o comprovante quando ele chega.
+  async function openProof(id: string) {
+    const tab = window.open("", "_blank");
+    try {
+      const blob = await fetchParticipantProof(id);
+      const url = URL.createObjectURL(blob);
+      if (tab) tab.location.href = url;
+      else window.open(url, "_blank");
+    } catch (error) {
+      tab?.close();
+      setNotice({ text: errorMessage(error), error: true });
+    }
+  }
+  // Anota no servidor que a pessoa foi lembrada agora ("lembrado 16/10, 14:02" em qualquer aparelho);
+  // a mensagem já foi, então uma anotação que falha não avisa ninguém.
+  function remind(personId: string) {
+    if (!groupId) return;
+    markParticipantReminder(groupId, view.pool.id, personId).then(
+      (mark) =>
+        setAnswers((previous) => ({
+          responses: previous?.responses ?? [],
+          reminders: [...(previous?.reminders ?? []), mark],
+        })),
+      () => undefined,
+    );
+  }
+
   const stateView = (
     person: PoolPerson,
     state: Exclude<PersonState, "paid" | "review">,
   ) => {
+    const answer = said.get(person.id);
+    // O comprovante mandado pelo cartão abre em qualquer estado em que ainda falte dinheiro.
+    const proof = answer?.proof && (
+      <Button
+        variant="ghost"
+        small
+        onClick={() => void openProof(answer.proof!.id)}
+      >
+        Ver comprovante
+      </Button>
+    );
+    if (state === "owe" && answer?.kind === "paid") {
+      return (
+        <div className="ui-pair">
+          <Button
+            small
+            disabled={proposing}
+            icon={<Check aria-hidden="true" />}
+            onClick={() => void propose(person, answer)}
+          >
+            Conferir
+          </Button>
+          {proof}
+        </div>
+      );
+    }
     if (state === "owe") {
       return pix
         ? (
@@ -708,9 +907,12 @@ export function BolaoArrecadar(
             {formatBRL(missingCents(person)!)}
           </span>
         </ProblemBox>
-        <Button variant="ghost" small onClick={openReview}>
-          Ver comprovante
-        </Button>
+        <div className="ui-pair">
+          <Button variant="ghost" small onClick={openReview}>
+            Ver na Revisão
+          </Button>
+          {proof}
+        </div>
       </>
     );
   };
@@ -799,7 +1001,9 @@ export function BolaoArrecadar(
           <Card className="pool-card" label="Chamada">
             <Eyebrow>Chamada</Eyebrow>
             <p className="ui-sec pool-call-from">
-              {previous?.data.contestNumber
+              {fromCard
+                ? "Responderam pelo cartão ou estavam na rodada passada."
+                : previous?.data.contestNumber
                 ? `Estavam no concurso ${previous.data.contestNumber}.`
                 : "Estavam na rodada passada."}
             </p>
@@ -819,7 +1023,12 @@ export function BolaoArrecadar(
               {call.map((entry) => (
                 <li className="pool-call-person" key={entry.id}>
                   <span className="pool-person-name">{entry.name}</span>
-                  <span className="ui-sec">{cotas(entry.units)}</span>
+                  <span className="ui-sec">
+                    {cotas(entry.units)}
+                    {answerLine(entry.id, true) && (
+                      <>{" · "}{answerLine(entry.id, true)}</>
+                    )}
+                  </span>
                   <Button
                     small
                     disabled={joining}
@@ -831,11 +1040,13 @@ export function BolaoArrecadar(
                 </li>
               ))}
             </ul>
-            <p className="ui-sec pool-call-left">
-              {call.length === 1
-                ? "1 ainda não respondeu"
-                : `${call.length} ainda não responderam`}
-            </p>
+            {!!unanswered.length && (
+              <p className="ui-sec pool-call-left">
+                {unanswered.length === 1
+                  ? "1 ainda não respondeu"
+                  : `${unanswered.length} ainda não responderam`}
+              </p>
+            )}
             <div className="pool-call-action">
               <Button
                 variant="ghost"
@@ -863,42 +1074,87 @@ export function BolaoArrecadar(
             : (problem ?? phonesProblem) && (
               <p className="ui-sec pool-sub">{problem ?? phonesProblem}</p>
             ))}
-          {!!people.length && (
-            <ul className="pool-people">
-              {people.map((person) => {
-                const state = states.get(person.id)!;
-                return (
-                  <li className="pool-person" key={person.id}>
-                    <span className="pool-person-name">{person.name}</span>
-                    <span className="pool-person-due">
-                      {person.dueCents === null
-                        ? "Revisar cota"
-                        : formatBRL(person.dueCents)}
+          {sections.map(({ key, label, rows }) => {
+            const aside = key === "out" ? outRound : [];
+            if (!rows.length && !aside.length) return null;
+            return (
+              <div key={key}>
+                {labeled && (
+                  <p className="ui-eyebrow pool-people-label">
+                    {label}
+                    <span className="pool-people-count">
+                      {rows.length + aside.length}
                     </span>
-                    <div className="pool-person-line">
-                      <span className="ui-sec pool-person-sub">
-                        {cotas(person.units)} · pagou{" "}
-                        {formatBRL(person.paidCents)}
+                  </p>
+                )}
+                <ul className="pool-people">
+                  {rows.map((person) => {
+                    const state = states.get(person.id)!;
+                    const kind = said.get(person.id)?.kind;
+                    const line = answerLine(person.id, state !== "paid");
+                    return (
+                      <li className="pool-person" key={person.id}>
+                        <span className="pool-person-name">{person.name}</span>
+                        <span className="pool-person-due">
+                          {person.dueCents === null
+                            ? "Revisar cota"
+                            : formatBRL(person.dueCents)}
+                        </span>
+                        <div className="pool-person-line">
+                          <span className="ui-sec pool-person-sub">
+                            {cotas(person.units)} · pagou{" "}
+                            {formatBRL(person.paidCents)}
+                          </span>
+                          {state === "paid" && (
+                            <Chip status="confirmed">Pago</Chip>
+                          )}
+                          {state === "review" && (
+                            <Chip status="pending">
+                              Pagamento em conferência
+                            </Chip>
+                          )}
+                          {(state === "owe" || state === "mismatch") &&
+                            kind === "paid" && (
+                            <Chip status="pending">Pix avisado</Chip>
+                          )}
+                          {state === "owe" && kind === "out" && (
+                            <Chip family>Fora</Chip>
+                          )}
+                          {state === "owe" && kind === "in" && (
+                            <Chip status="pending">Dentro</Chip>
+                          )}
+                          {state === "owe" && !kind && (
+                            <Chip status="pending">Ainda não pagou</Chip>
+                          )}
+                        </div>
+                        {line && (
+                          <div className="pool-person-line">
+                            <span className="ui-sec pool-person-answer">
+                              {line}
+                            </span>
+                          </div>
+                        )}
+                        {state !== "paid" && state !== "review" && (
+                          <div className="pool-person-state">
+                            {stateView(person, state)}
+                          </div>
+                        )}
+                        {!hidden && linkRow(person)}
+                      </li>
+                    );
+                  })}
+                  {aside.map((person) => (
+                    <li className="pool-call-person" key={person.id}>
+                      <span className="pool-person-name">
+                        {person.data.nickname || person.data.name}
                       </span>
-                      {state === "paid" && <Chip status="confirmed">Pago</Chip>}
-                      {state === "review" && (
-                        <Chip status="pending">Pagamento em conferência</Chip>
-                      )}
-                      {state === "owe" && (
-                        <Chip status="pending">Ainda não pagou</Chip>
-                      )}
-                    </div>
-                    {state !== "paid" && state !== "review" && (
-                      <div className="pool-person-state">
-                        {stateView(person, state)}
-                      </div>
-                    )}
-                    {!hidden && linkRow(person)}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+                      <span className="ui-sec">{answerLine(person.id, true)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
           {!!outside.length && (
             <p className="ui-sec pool-outside">
               Sem cota neste bolão: {joinNames(

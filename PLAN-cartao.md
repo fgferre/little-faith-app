@@ -52,7 +52,7 @@ Doação:
 1. [x] Servidor do cartão: tabela de respostas e de lembretes, funções públicas pelo token (com PIN), rota da API, envio do
    comprovante pelo cartão, leitura para o tesoureiro; testes SQL e da API.
 2. [x] Cartão: bolões abertos com "Estou dentro" / "Desta vez estou fora", "Já paguei" com comprovante; estados de envio.
-3. [ ] Arrecadar: selos da linha A, "Conferir pagamento", total confirmado em destaque, "lembrado em", adicionar cota de quem disse
+3. [x] Arrecadar: selos da linha A, "Conferir pagamento", total confirmado em destaque, "lembrado em", adicionar cota de quem disse
    "Dentro"; e o convite com "Responda no seu cartão".
 4. [ ] Próximo sorteio: leitura dos campos novos no núcleo, consulta compartilhada no aparelho, Início, barra lateral, convite e cartão.
 5. [ ] Doação com a chave em configuração (escondida sem chave).

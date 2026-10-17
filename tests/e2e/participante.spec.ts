@@ -35,6 +35,9 @@ async function organizerPage(browser: Browser) {
       | { id: string; personId: string; createdAt: string; revokedAt: string | null }
       | null,
     phones: {} as Record<string, string>,
+    // What the cards answered and when the treasurer reminded someone, as the server returns them.
+    answers: [] as Record<string, unknown>[],
+    reminders: [] as Record<string, unknown>[],
   };
   const context = await browser.newContext();
   await context.grantPermissions(["clipboard-read", "clipboard-write"], {
@@ -86,6 +89,20 @@ async function organizerPage(browser: Browser) {
     };
     server.link = { ...created, revokedAt: null };
     return reply(route, 201, { ...created, token: server.token });
+  });
+  await page.route("**/v1/participant_responses_pull", (route) =>
+    reply(route, 200, { responses: server.answers, reminders: server.reminders }));
+  await page.route("**/v1/participant_reminder", (route) => {
+    if (route.request().method() !== "POST") return reply(route, 204, {});
+    const body = route.request().postDataJSON() as Record<string, string>;
+    const mark = {
+      id: `50a00000-0000-4000-8000-00000000000${server.reminders.length + 1}`,
+      poolId: body.poolId,
+      personId: body.personId,
+      remindedAt: "2026-10-16T13:30:00.000Z",
+    };
+    server.reminders.push(mark);
+    return reply(route, 200, mark);
   });
   await page.route("**/v1/participant_link_revoke", (route) => {
     if (route.request().method() !== "POST") return reply(route, 204, {});
@@ -634,4 +651,97 @@ test("the person answers from the card: in, then paid with the proof, and the an
   await expect(page.getByText("Pix avisado")).toBeVisible();
   await context.close();
   await organizer.context.close();
+});
+
+test("the treasurer sees the card answers in Arrecadar: the reminder is noted and a Pix told shows up with its proof", async ({ browser, request }) => {
+  // The financial flows leave the fixture's person paid; this one starts from the seeded state (a partial proposal waiting).
+  await request.post("http://127.0.0.1:4190/__test/reset");
+  const organizer = await sendLink(browser);
+  const { page, server } = organizer;
+  const personId = server.link!.personId;
+  const row = page.locator(".pool-person").first();
+  await expect(row.getByText("Ainda não respondeu", { exact: true })).toBeVisible();
+
+  // Resending the link counts as a reminder, noted on the server and shown in the row.
+  await row.getByRole("button", { name: "Copiar" }).click();
+  await expect(row.getByText("Ainda não respondeu · lembrado 16/10, 10:30")).toBeVisible();
+  expect(server.reminders).toHaveLength(1);
+  expect(server.reminders[0]).toMatchObject({ poolId, personId });
+
+  // The person told a Pix through the card, with a proof, while an earlier partial proposal still waits in the review:
+  // the row says what the card said and opens the proof; the money is still sorted in the review.
+  server.answers = [{
+    id: "50900000-0000-4000-8000-000000000001",
+    poolId,
+    personId,
+    linkId: server.link!.id,
+    kind: "paid",
+    amountCents: "6000",
+    proofId: "50700000-0000-4000-8000-000000000001",
+    createdAt: "2026-10-16T17:05:00.000Z",
+    proof: { id: "50700000-0000-4000-8000-000000000001", sha256: "ab".repeat(32), mimeType: "image/png", byteSize: 16 },
+  }];
+  await page.reload();
+  await expect(row.getByText("Pix avisado")).toBeVisible();
+  await expect(row.getByText("Mandou R$ 60,00 com comprovante · 16/10, 14:05")).toBeVisible();
+  await expect(row.getByRole("button", { name: "Ver comprovante" })).toBeVisible();
+  await expect(row.getByRole("button", { name: "Ver na Revisão" })).toBeVisible();
+  if (process.env.SHOTS) {
+    for (const width of [390, 768, 1280]) {
+      await page.setViewportSize({ width, height: 1200 });
+      // The layout switch fades the screen in; wait for it before the shot.
+      await page.waitForTimeout(800);
+      await page.screenshot({ path: `.tmp/cartao/arrecadar-${width}.png`, fullPage: true });
+    }
+  }
+  await organizer.context.close();
+});
+
+test("in Arrecadar, who said 'dentro' joins with one tap, who said 'fora' stays aside, and a Pix told becomes a proposal to check", async ({ browser, request }) => {
+  await request.post("http://127.0.0.1:4190/__test/reset");
+  const secondPoolId = "50400000-0000-4000-8000-000000000002";
+  const { page, context, server } = await organizerPage(browser);
+  // The fixture's person has a quota in the first pool only; in the second she answered through her card.
+  const answer = (kind: string, at: string, amountCents: string | null = null) => ({
+    id: `50900000-0000-4000-8000-00000000000${server.answers.length + 1}`,
+    poolId: secondPoolId,
+    personId: "50300000-0000-4000-8000-000000000001",
+    linkId: "50800000-0000-4000-8000-000000000001",
+    kind,
+    amountCents,
+    proofId: null,
+    createdAt: at,
+    proof: null,
+  });
+  server.answers = [answer("out", "2026-10-15T20:00:00.000Z")];
+  await page.goto(`${origin}/#/boloes/${secondPoolId}/arrecadar`);
+  await expect(page.getByText(/Disse que desta vez está fora · 15\/10, 17:00/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Entrou" })).toHaveCount(0);
+
+  // The latest answer stands: now she is in, so the call offers "Entrou" with one quota, prefilled.
+  server.answers = [...server.answers, answer("in", "2026-10-16T12:00:00.000Z")];
+  await page.reload();
+  await expect(page.getByText("Responderam pelo cartão ou estavam na rodada passada.")).toBeVisible();
+  const call = page.locator(".pool-call-person").first();
+  await expect(call.getByText(/1 cota · Disse que está dentro · 16\/10, 09:00/)).toBeVisible();
+  await expect(page.getByText(/ainda não respond/)).toHaveCount(0);
+  await call.getByRole("button", { name: "Entrou" }).click();
+  await expect(page.getByText(/entrou com 1 cota\./)).toBeVisible();
+  const row = page.locator(".pool-person").first();
+  await expect(row.getByText("Dentro", { exact: true })).toBeVisible();
+  await expect(row.getByText("Disse que está dentro · 16/10, 09:00")).toBeVisible();
+  await expect(page.locator(".pool-call-person")).toHaveCount(0);
+
+  // She tells a Pix of the whole quota: "Conferir" turns it into the usual payment proposal and opens the review.
+  server.answers = [...server.answers, answer("paid", "2026-10-16T13:00:00.000Z", "3000")];
+  await page.reload();
+  await expect(row.getByText("Pix avisado")).toBeVisible();
+  await expect(row.getByText("Mandou R$ 30,00 · 16/10, 10:00")).toBeVisible();
+  await row.getByRole("button", { name: "Conferir" }).click();
+  await expect(page).toHaveURL(/revisao/);
+  await expect(page.getByText("Avisado pelo cartão em 16/10, 10:00.")).toBeVisible();
+  await page.goto(`${origin}/#/boloes/${secondPoolId}/arrecadar`);
+  await expect(row.getByText("Pagamento em conferência")).toBeVisible();
+  await expect(row.getByRole("button", { name: "Conferir" })).toHaveCount(0);
+  await context.close();
 });

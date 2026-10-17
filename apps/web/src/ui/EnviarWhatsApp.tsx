@@ -6,11 +6,13 @@ import { MessageCircle } from "lucide-react";
  * Tem a cara do botão do app e vai junto do "Copiar", que segue como plano B.
  */
 export function EnviarWhatsApp(
-  { text, phone, variant = "primary", small = false }: {
+  { text, phone, variant = "primary", small = false, onSend }: {
     text: string;
     phone?: string | undefined;
     variant?: "primary" | "ghost";
     small?: boolean;
+    /** Chamado ao abrir o WhatsApp, para anotar que a mensagem foi (o envio em si é lá). */
+    onSend?: () => void;
   },
 ) {
   return (
@@ -20,6 +22,7 @@ export function EnviarWhatsApp(
       href={`https://wa.me/${phone ?? ""}?text=${encodeURIComponent(text)}`}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={onSend}
     >
       <MessageCircle aria-hidden="true" />
       Enviar no WhatsApp

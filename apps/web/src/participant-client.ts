@@ -2,6 +2,7 @@ import type {
   ParticipantAnswerKind,
   ParticipantCard,
   ParticipantResponse,
+  ParticipantResponsesPull,
 } from "@bolao/core";
 import { supabase } from "./auth";
 
@@ -86,13 +87,9 @@ async function call<T>(
   return response.json() as Promise<T>;
 }
 
-/** Pedido do organizador: vai com a sessão da conta, como as outras chamadas da API. */
-async function organizer<T>(
-  path: string,
-  body?: unknown,
-  method?: "GET" | "POST" | "PUT" | "DELETE",
-): Promise<T> {
-  if (!supabase) {
+/** A sessão da conta de quem organiza; sem ela, nenhum pedido do organizador sai. */
+async function currentSession() {
+  if (!supabase || !supabaseUrl || !supabaseKey) {
     throw new ParticipantApiError(
       "A conexão compartilhada ainda não foi configurada.",
       0,
@@ -105,6 +102,16 @@ async function organizer<T>(
       0,
     );
   }
+  return { session, url: supabaseUrl, key: supabaseKey };
+}
+
+/** Pedido do organizador: vai com a sessão da conta, como as outras chamadas da API. */
+async function organizer<T>(
+  path: string,
+  body?: unknown,
+  method?: "GET" | "POST" | "PUT" | "DELETE",
+): Promise<T> {
+  const { session } = await currentSession();
   return call<T>(
     path,
     { Authorization: `Bearer ${session.access_token}` },
@@ -195,6 +202,47 @@ export async function pullParticipantLinks(groupId: string) {
     "participant_links_pull",
     { groupId },
   )).links;
+}
+
+/** As respostas dadas pelos cartões do grupo (toda a história, da mais antiga à mais nova) e os lembretes marcados. */
+export function pullParticipantResponses(groupId: string) {
+  return organizer<ParticipantResponsesPull>("participant_responses_pull", {
+    groupId,
+  });
+}
+
+/** Marca que o tesoureiro lembrou a pessoa agora; vale em qualquer aparelho dele ("lembrado ontem"). */
+export function markParticipantReminder(
+  groupId: string,
+  poolId: string,
+  personId: string,
+) {
+  return organizer<ParticipantResponsesPull["reminders"][number]>(
+    "participant_reminder",
+    { groupId, poolId, personId },
+  );
+}
+
+/** O comprovante que a pessoa mandou pelo cartão, como arquivo; só o organizador do grupo consegue. */
+export async function fetchParticipantProof(id: string): Promise<Blob> {
+  const { session, url, key } = await currentSession();
+  const response = await fetch(
+    `${url}/functions/v1/api/v1/participant_proof_download?id=${id}`,
+    {
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      signal: AbortSignal.timeout(20_000),
+    },
+  );
+  if (!response.ok) {
+    throw new ParticipantApiError(
+      "Não deu para abrir o comprovante agora.",
+      response.status,
+    );
+  }
+  return response.blob();
 }
 
 /** Telefones de WhatsApp por pessoa: só o organizador lê e grava; nunca vão no link nem no cartão. */

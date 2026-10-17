@@ -88,6 +88,17 @@ export function formatInstant(value: string | null, timeZone: string) {
     : "A definir";
 }
 
+/** Dia e hora em Brasília, "16/10, 14:02": quando uma resposta ou um lembrete aconteceu. */
+export function quando(at: string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "America/Sao_Paulo",
+  }).format(new Date(at));
+}
+
 /** Só o dia: "11/10". */
 export function diaMes(value: string, timeZone: string) {
   return new Intl.DateTimeFormat("pt-BR", {

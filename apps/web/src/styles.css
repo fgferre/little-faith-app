@@ -2038,6 +2038,23 @@ tr:last-child td {
 .pool-actions {
   margin-top: var(--e16);
 }
+.pool-people-label {
+  display: flex;
+  align-items: center;
+  gap: var(--e8);
+  margin: var(--e16) 0 var(--e4);
+}
+.pool-people-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: var(--e24);
+  height: var(--e24);
+  padding: 0 var(--e8);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 10%);
+  font-weight: 700;
+  letter-spacing: 0;
+}
 /* A resposta pela pessoa no cartão: a pergunta, a linha do que ela disse e os botões um embaixo do outro, na largura do cartão. */
 .answer-ask {
   margin: 0;
