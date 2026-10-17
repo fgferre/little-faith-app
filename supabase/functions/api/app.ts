@@ -3,8 +3,12 @@ import { bodyLimit } from 'hono/body-limit';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { EvidenceFailure, evidenceMime, hashBytes, MAX_ORIGINAL_BYTES, uploadOriginal } from './evidence.ts';
 import { collectOfficialResult, ResultCollectionFailure, type CollectionContext } from './results.ts';
-import { createParticipantToken, isParticipantCard, isParticipantLink, isPersonPhone, isPhone, isPin, participantTokenHash } from './participant.ts';
+import {
+  createParticipantToken, isAnswerCents, isAnswerKind, isParticipantCard, isParticipantLink, isParticipantProofStatus, isParticipantReminder, isParticipantResponse,
+  isParticipantResponsesPull, isPersonPhone, isPhone, isPin, participantTokenHash,
+} from './participant.ts';
 import { validateEvidenceMetadata, validateEvidenceUploadMetadata } from '../../../packages/core/src/evidence.ts';
+import type { ParticipantResponse } from '../../../packages/core/src/participant-types.ts';
 import {
   exactKeys, isCursor, isFinancialReceipt, isFinancialSnapshot, isHumanSession, isObject,
   isPlanningReceipt, isPlanningSnapshot, isPushReceipt, isRegistrationReceipt, isRegistrationSnapshot, isResultReceipt, isResultSnapshot,
@@ -37,6 +41,40 @@ function participantFailure(data: unknown): ParticipantFailure | null {
   return null;
 }
 
+/** Answers to participant_respond and participant_proof_context that refuse the answer: the card's link and PIN refusals plus the pool ones. */
+function answerFailure(data: unknown): { status: 401 | 404 | 409 | 410 | 429; body: Record<string, unknown> } | null {
+  const failure = participantFailure(data);
+  if (failure || !isObject(data)) return failure;
+  if (data.error === 'pin_required') return { status: 401, body: { code: 'pin_required', message: 'Este cartão tem PIN.' } };
+  if (data.error === 'pool_unknown') return { status: 404, body: { code: 'pool_unknown', message: 'Este bolão não está mais no cartão.' } };
+  if (data.error === 'pool_closed') return { status: 409, body: { code: 'pool_closed', message: 'Este bolão não aceita mais respostas.' } };
+  return null;
+}
+
+/** The same extension per type as the registration evidence and the database's storage_path check. */
+const PROOF_EXTENSION = { 'application/pdf': 'pdf', 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' } as const;
+
+type Answer = { token: unknown; pin: string | null; poolId: string; kind: 'in' | 'out' | 'paid'; amountCents: string | null; idempotencyKey: string };
+
+/**
+ * The answer body both participant routes accept (the proof route has no kind: it is always 'paid'); null for a missing or extra
+ * field or one out of shape. The token is checked apart, so a malformed one answers like an unknown link.
+ */
+function parseAnswer(value: unknown, withKind: boolean): Answer | null {
+  if (!isObject(value)) return null;
+  const kind = withKind ? value.kind : 'paid';
+  if (!isAnswerKind(kind)) return null;
+  const keys = ['token', 'poolId', 'idempotencyKey', ...(withKind ? ['kind'] : []), ...(kind === 'paid' ? ['amountCents'] : []), ...(Object.hasOwn(value, 'pin') ? ['pin'] : [])];
+  if (!exactKeys(value, keys) || (Object.hasOwn(value, 'pin') && !isPin(value.pin)) || !isUuid(value.poolId) || !isUuid(value.idempotencyKey)) return null;
+  if (kind === 'paid' && !isAnswerCents(value.amountCents)) return null;
+  return { token: value.token, pin: isPin(value.pin) ? value.pin : null, poolId: value.poolId, kind, amountCents: isAnswerCents(value.amountCents) ? value.amountCents : null, idempotencyKey: value.idempotencyKey };
+}
+
+/** A recorded answer bound to what was sent: the database refuses a replayed key with another pool, kind or amount. */
+function isAnswerOf(response: unknown, answer: Answer): response is ParticipantResponse {
+  return isParticipantResponse(response) && response.poolId === answer.poolId && response.kind === answer.kind && response.amountCents === answer.amountCents;
+}
+
 function rpcError(code: string): { status: 400 | 403 | 409 | 503; code: string; message: string } {
   if (code === '42501') return { status: 403, code: 'access_denied', message: 'Esta conta não tem acesso ao grupo ou à operação.' };
   if (code === '22023' || code === '22P02') return { status: 400, code: 'invalid_request', message: 'Operação ou cursor inválido.' };
@@ -64,7 +102,7 @@ export function createApi(config: ApiConfig): Hono<ApiEnvironment> {
     if (c.req.method === 'OPTIONS') return c.body(null, 204);
     await next();
   });
-  app.use('*', (c, next) => bodyLimit({ maxSize: c.req.path === '/api/v1/evidence_upload' ? MAX_ORIGINAL_BYTES + 65536 : 1024 * 1024,
+  app.use('*', (c, next) => bodyLimit({ maxSize: c.req.path === '/api/v1/evidence_upload' || c.req.path === '/api/v1/participant_proof' ? MAX_ORIGINAL_BYTES + 65536 : 1024 * 1024,
     onError: context => context.json({ code: 'request_too_large', message: 'O corpo enviado excede o limite desta operação.' }, 413) })(c, next));
   app.use('*', async (c, next) => {
     const authorization = c.req.header('Authorization') ?? '';
@@ -78,8 +116,10 @@ export function createApi(config: ApiConfig): Hono<ApiEnvironment> {
       if (mismatch !== 0) return c.json({ code: 'job_access_denied', message: 'Capacidade de coleta não autorizada.' }, 403);
       await next(); return;
     }
-    // The participant card and its PIN are reached by the link token alone; any session sent along is ignored.
-    if (c.req.method === 'POST' && (c.req.path === '/api/v1/participant_card' || c.req.path === '/api/v1/participant_pin')) { await next(); return; }
+    // The participant card, its PIN and the answers sent through it are reached by the link token alone; any session sent along is ignored.
+    if (c.req.method === 'POST' && ['/api/v1/participant_card', '/api/v1/participant_pin', '/api/v1/participant_respond', '/api/v1/participant_proof'].includes(c.req.path)) {
+      await next(); return;
+    }
     if (!token) return c.json({ code: 'authentication_required', message: 'Entre na sua conta antes de sincronizar.' }, 401);
     const supabase = createClient(config.supabaseUrl, config.publishableKey, {
       global: { headers: { Authorization: `Bearer ${token}` } },
@@ -430,6 +470,101 @@ export function createApi(config: ApiConfig): Hono<ApiEnvironment> {
       return c.json({ code: 'invalid_backend_response', message: 'O PIN não pôde ser confirmado; tente de novo.' }, 503);
     }
     return c.json({ pinSet: data.pinSet });
+  });
+  // An answer through the card (in, out, or paid with the amount), without a proof. A replayed idempotency key returns the first answer.
+  app.post('/v1/participant_respond', async c => {
+    if (!server) return c.json({ code: 'participant_card_unconfigured', message: 'O cartão do participante ainda não está configurado no servidor.' }, 503);
+    const answer = parseAnswer(await c.req.json().catch(() => null), true);
+    if (!answer) return c.json({ code: 'invalid_request', message: 'Resposta inválida.' }, 400);
+    const tokenHash = await participantTokenHash(answer.token);
+    if (!tokenHash) return c.json({ code: 'link_unknown', message: 'Este link não existe. Peça um novo ao organizador.' }, 404);
+    const { data, error } = await server.rpc('participant_respond', { p_token_hash: tokenHash, p_pin: answer.pin, p_pool_id: answer.poolId, p_kind: answer.kind,
+      p_amount_cents: answer.amountCents, p_proof: null, p_idempotency_key: answer.idempotencyKey });
+    if (error) { const failure = rpcError(error.code); return c.json({ code: failure.code, message: failure.message }, failure.status); }
+    const failure = answerFailure(data);
+    if (failure) return c.json(failure.body, failure.status);
+    if (!isObject(data) || typeof data.repeated !== 'boolean' || !isAnswerOf(data.response, answer)) return c.json({ code: 'invalid_backend_response', message: 'A resposta não pôde ser confirmada; tente de novo.' }, 503);
+    return c.json({ response: data.response });
+  });
+  // 'paid' with the proof file: the link, PIN and pool are checked before the file is stored under the group, then the answer and the proof are recorded together.
+  app.post('/v1/participant_proof', async c => {
+    if (!server) return c.json({ code: 'participant_card_unconfigured', message: 'O cartão do participante ainda não está configurado no servidor.' }, 503);
+    const form = await c.req.raw.formData().catch(() => null);
+    if (!form || [...form.keys()].length !== 2 || !form.has('metadata') || !form.has('original')) return c.json({ code: 'invalid_request', message: 'Envie os dados da resposta e o comprovante.' }, 400);
+    const metadataText = form.get('metadata'); const original = form.get('original');
+    if (typeof metadataText !== 'string' || !(original instanceof Blob)) return c.json({ code: 'invalid_request', message: 'Dados da resposta ou comprovante inválidos.' }, 400);
+    let metadata: unknown = null;
+    try { metadata = JSON.parse(metadataText); } catch { /* answered below as an invalid request */ }
+    const answer = parseAnswer(metadata, false);
+    if (!answer) return c.json({ code: 'invalid_request', message: 'Resposta inválida.' }, 400);
+    const tokenHash = await participantTokenHash(answer.token);
+    if (!tokenHash) return c.json({ code: 'link_unknown', message: 'Este link não existe. Peça um novo ao organizador.' }, 404);
+    if (original.size < 1 || original.size > MAX_ORIGINAL_BYTES) return c.json({ code: 'original_size_mismatch', message: 'O comprovante está vazio ou passa de 10 MiB.' }, 400);
+    const bytes = new Uint8Array(await original.arrayBuffer());
+    const mimeType = evidenceMime(bytes);
+    if (!mimeType) return c.json({ code: 'original_type_mismatch', message: 'Envie o comprovante em PDF, JPG, PNG ou WEBP.' }, 400);
+    const sha256 = await hashBytes(bytes);
+    const context = await server.rpc('participant_proof_context', { p_token_hash: tokenHash, p_pin: answer.pin, p_pool_id: answer.poolId, p_idempotency_key: answer.idempotencyKey });
+    if (context.error) { const failure = rpcError(context.error.code); return c.json({ code: failure.code, message: failure.message }, failure.status); }
+    const refused = answerFailure(context.data);
+    if (refused) return c.json(refused.body, refused.status);
+    // Already answered with this key: nothing is uploaded again; the same key with another pool or amount is refused like the database does.
+    if (isObject(context.data) && context.data.repeated === true) {
+      if (!isParticipantResponse(context.data.response)) return c.json({ code: 'invalid_backend_response', message: 'A resposta não pôde ser confirmada; tente de novo.' }, 503);
+      if (!isAnswerOf(context.data.response, answer)) return c.json({ code: 'invalid_request', message: 'Esta resposta já foi enviada com outros dados.' }, 400);
+      return c.json({ response: context.data.response });
+    }
+    if (!isObject(context.data) || !isUuid(context.data.groupId)) return c.json({ code: 'invalid_backend_response', message: 'O destino do comprovante não pôde ser verificado.' }, 503);
+    const proofId = crypto.randomUUID();
+    const storagePath = `${context.data.groupId}/${proofId}.${PROOF_EXTENSION[mimeType]}`;
+    const uploaded = await server.storage.from('participant-proofs').upload(storagePath, bytes, { contentType: mimeType, upsert: false });
+    if (uploaded.error) return c.json({ code: 'original_upload_unavailable', message: 'O comprovante não foi enviado; tente de novo.' }, 503);
+    const { data, error } = await server.rpc('participant_respond', { p_token_hash: tokenHash, p_pin: answer.pin, p_pool_id: answer.poolId, p_kind: 'paid',
+      p_amount_cents: answer.amountCents, p_proof: { id: proofId, sha256, mimeType, byteSize: bytes.length, storagePath }, p_idempotency_key: answer.idempotencyKey });
+    if (error) { const failure = rpcError(error.code); return c.json({ code: failure.code, message: failure.message }, failure.status); }
+    const failure = answerFailure(data);
+    if (failure) return c.json(failure.body, failure.status);
+    // A repeated answer (the same key arrived twice at once) keeps the first proof; a new one must name this proof.
+    if (!isObject(data) || typeof data.repeated !== 'boolean' || !isAnswerOf(data.response, answer) || (!data.repeated && data.response.proofId !== proofId)) {
+      return c.json({ code: 'invalid_backend_response', message: 'A resposta não pôde ser confirmada; tente de novo.' }, 503);
+    }
+    return c.json({ response: data.response });
+  });
+  app.get('/v1/participant_proof_download', async c => {
+    const id = c.req.query('id');
+    if (!isUuid(id)) return c.json({ code: 'invalid_request', message: 'Identificador de comprovante inválido.' }, 400);
+    const { data, error } = await c.get('supabase').rpc('participant_proof_status', { p_id: id });
+    if (error) { const failure = rpcError(error.code); return c.json({ code: failure.code, message: failure.message }, failure.status); }
+    if (!data) return c.json({ code: 'proof_not_found', message: 'Comprovante indisponível para esta conta.' }, 404);
+    if (!isParticipantProofStatus(data) || data.id !== id) return c.json({ code: 'invalid_backend_response', message: 'O comprovante não pôde ser verificado.' }, 503);
+    const original = await c.get('supabase').storage.from('participant-proofs').download(data.storagePath);
+    if (original.error || !original.data) return c.json({ code: 'original_unavailable', message: 'Não foi possível recuperar o comprovante privado.' }, 503);
+    const bytes = new Uint8Array(await original.data.arrayBuffer());
+    if (bytes.length !== data.byteSize || evidenceMime(bytes) !== data.mimeType || await hashBytes(bytes) !== data.sha256) {
+      return c.json({ code: 'original_integrity_mismatch', message: 'O comprovante recuperado não corresponde ao que foi enviado.' }, 503);
+    }
+    c.header('Content-Type', data.mimeType);
+    c.header('Content-Disposition', `attachment; filename="comprovante.${PROOF_EXTENSION[data.mimeType]}"`);
+    c.header('Content-Length', String(data.byteSize));
+    return c.body(bytes);
+  });
+  app.post('/v1/participant_responses_pull', async c => {
+    const value: unknown = await c.req.json().catch(() => null);
+    if (!isObject(value) || !exactKeys(value, ['groupId']) || !isUuid(value.groupId)) return c.json({ code: 'invalid_request', message: 'Informe um grupo válido.' }, 400);
+    const { data, error } = await c.get('supabase').rpc('participant_responses_pull', { p_group_id: value.groupId });
+    if (error) { const failure = rpcError(error.code); return c.json({ code: failure.code, message: failure.message }, failure.status); }
+    if (!isParticipantResponsesPull(data)) return c.json({ code: 'invalid_backend_response', message: 'As respostas não puderam ser verificadas.' }, 503);
+    return c.json({ responses: data.responses, reminders: data.reminders });
+  });
+  app.post('/v1/participant_reminder', async c => {
+    const value: unknown = await c.req.json().catch(() => null);
+    if (!isObject(value) || !exactKeys(value, ['groupId', 'poolId', 'personId']) || !isUuid(value.groupId) || !isUuid(value.poolId) || !isUuid(value.personId)) {
+      return c.json({ code: 'invalid_request', message: 'Informe o grupo, o bolão e a pessoa do lembrete.' }, 400);
+    }
+    const { data, error } = await c.get('supabase').rpc('participant_reminder_mark', { p_group_id: value.groupId, p_pool_id: value.poolId, p_person_id: value.personId });
+    if (error) { const failure = rpcError(error.code); return c.json({ code: failure.code, message: failure.message }, failure.status); }
+    if (!isParticipantReminder(data) || data.poolId !== value.poolId || data.personId !== value.personId) return c.json({ code: 'invalid_backend_response', message: 'O lembrete não pôde ser confirmado; repita.' }, 503);
+    return c.json({ id: data.id, poolId: data.poolId, personId: data.personId, remindedAt: data.remindedAt });
   });
   app.notFound(c => c.json({ code: 'not_found', message: 'Operação não disponível nesta versão.' }, 404));
   app.onError((error, c) => {

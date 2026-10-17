@@ -49,7 +49,7 @@ Doação:
 
 ## Passos
 
-1. [ ] Servidor do cartão: tabela de respostas e de lembretes, funções públicas pelo token (com PIN), rota da API, envio do
+1. [x] Servidor do cartão: tabela de respostas e de lembretes, funções públicas pelo token (com PIN), rota da API, envio do
    comprovante pelo cartão, leitura para o tesoureiro; testes SQL e da API.
 2. [ ] Cartão: bolões abertos com "Estou dentro" / "Desta vez estou fora", "Já paguei" com comprovante; estados de envio.
 3. [ ] Arrecadar: selos da linha A, "Conferir pagamento", total confirmado em destaque, "lembrado em", adicionar cota de quem disse

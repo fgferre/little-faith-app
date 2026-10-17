@@ -239,8 +239,11 @@ begin
     and public.participant_card('not-a-hash') = '{"error":"link_unknown"}'::jsonb and public.participant_card(null) = '{"error":"link_unknown"}'::jsonb,'unknown link');
   perform pg_temp.assert_true(public.participant_card(pg_temp.hash('token-old')) = '{"error":"link_revoked"}'::jsonb,'revoked link closes at once');
   perform pg_temp.assert_true(b -> 'version' = '1' and b -> 'group' = '{"name":"Bolão da firma","pix":null}' and b -> 'person' = '{"id":"c3000000-0000-4000-8000-000000000002","name":"Pessoa B"}'
-    and jsonb_array_length(b -> 'pools') = 1 and b ->> 'generatedAt' ~ '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$','card header');
-  pool := b -> 'pools' -> 0;
+    and jsonb_array_length(b -> 'pools') = 2 and b ->> 'generatedAt' ~ '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$','card header');
+  -- The open draft pool comes first as an invitation (no quota, answers open); the settled pool B is in follows.
+  perform pg_temp.assert_true(b -> 'pools' -> 0 ->> 'id' = 'c4000000-0000-4000-8000-000000000001' and b -> 'pools' -> 0 -> 'quota' = 'null'
+    and b -> 'pools' -> 0 -> 'responseOpen' = 'true' and b -> 'pools' -> 0 -> 'response' = 'null' and b -> 'pools' -> 1 -> 'responseOpen' = 'false','B invited to the open pool');
+  pool := b -> 'pools' -> 1;
   perform pg_temp.assert_true(pool ->> 'id' = 'c4000000-0000-4000-8000-000000000002' and pool ->> 'title' = 'Mega da virada' and pool ->> 'modality' = 'mega-sena'
     and pool -> 'contest' = '42' and pool ->> 'drawAt' = '2026-10-08' and pool ->> 'participationMode' = 'internal'
     and pool ->> 'status' = 'registered' and pool -> 'closed' = 'false','B pool facts');
@@ -255,8 +258,8 @@ begin
   perform pg_temp.assert_true(pool ? 'groupPrizeLimitCents' and pool -> 'groupPrizeLimitCents' = 'null','B pool carries its frozen group prize limit, null without one');
   perform pg_temp.assert_true(b::text not like '%Pessoa C%' and b::text not like '%Pessoa D%' and b::text not like '%Apelido%' and b::text not like '%authorIds%'
     and b::text not like '%.pdf%' and b::text not like '%c3000000-0000-4000-8000-000000000003%' and b::text not like '%c8000000%','card carries only B and the ticket holder name');
-  pool := c -> 'pools' -> 0;
-  perform pg_temp.assert_true(jsonb_array_length(c -> 'pools') = 1 and pool -> 'quota' = '{"units":200,"dueCents":"2000","paidCents":"2000","paid":true}'
+  pool := c -> 'pools' -> 1;
+  perform pg_temp.assert_true(jsonb_array_length(c -> 'pools') = 2 and pool -> 'quota' = '{"units":200,"dueCents":"2000","paidCents":"2000","paid":true}'
     and pool -> 'share' = '{"rightCents":"50000","receivedCents":"0","pendingCents":"50000","paidByName":"Pessoa A","refundRightCents":"800","refundedCents":"0"}','C share pending');
   -- A redeemed the whole prize as ticket holder; like computeSettlement, only prize-payment transfers count as received by A.
   perform pg_temp.assert_true(jsonb_array_length(a -> 'pools') = 2 and a -> 'pools' -> 1 -> 'share' =
@@ -300,7 +303,7 @@ begin
 end; $$;
 set local role service_role;
 select set_config('request.jwt.claims','{"role":"service_role"}',true);
-do $$ declare games jsonb := public.participant_card(pg_temp.hash('token-2')) -> 'pools' -> 0 -> 'games';
+do $$ declare games jsonb := public.participant_card(pg_temp.hash('token-2')) -> 'pools' -> 1 -> 'games';
 begin
   perform pg_temp.assert_true(jsonb_array_length(games) = 4 and games -> 0 = '{"numbers":[20,21,22,23,24,25],"registered":true}'
     and games -> 1 -> 'registered' = 'false' and games -> 1 -> 'numbers' <> '[20,21,22,23,24,25]'
@@ -313,7 +316,7 @@ select set_config('request.jwt.claims','{"role":"service_role"}',true);
 do $$ declare h text := pg_temp.hash('token-3'); r jsonb; i integer;
 begin
   r := public.participant_card_open(h,null);
-  perform pg_temp.assert_true(r -> 'pinSet' = 'false' and r -> 'person' ->> 'name' = 'Pessoa C' and jsonb_array_length(r -> 'pools') = 1,'a card without PIN opens as before and says so');
+  perform pg_temp.assert_true(r -> 'pinSet' = 'false' and r -> 'person' ->> 'name' = 'Pessoa C' and jsonb_array_length(r -> 'pools') = 2,'a card without PIN opens as before and says so');
   perform pg_temp.assert_true(public.participant_card_open(pg_temp.hash('token-unknown'),'1234') = '{"error":"link_unknown"}'::jsonb
     and public.participant_card_open('not-a-hash',null) = '{"error":"link_unknown"}'::jsonb and public.participant_card_open(null,null) = '{"error":"link_unknown"}'::jsonb
     and public.participant_card_open(pg_temp.hash('token-old'),'1234') = '{"error":"link_revoked"}'::jsonb,'opening with a PIN keeps the unknown and revoked answers');

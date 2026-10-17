@@ -117,7 +117,7 @@ function PoolHead(
   );
 }
 
-function QuotaCard({ quota }: { quota: Pool["quota"] }) {
+function QuotaCard({ quota }: { quota: NonNullable<Pool["quota"]> }) {
   const missing = quota.dueCents === null
     ? null
     : BigInt(quota.dueCents) - BigInt(quota.paidCents);
@@ -154,10 +154,10 @@ function QuotaCard({ quota }: { quota: Pool["quota"] }) {
 
 /** O Pix do que falta, enquanto o bolão ainda arrecada e o grupo tem chave cadastrada. */
 function PayCard({ pool, pix }: { pool: Pool; pix: PixReceiver | null }) {
-  const { dueCents, paidCents, paid } = pool.quota;
-  const missing = dueCents === null || paid === true
+  const missing = !pool.quota || pool.quota.dueCents === null ||
+      pool.quota.paid === true
     ? null
-    : (BigInt(dueCents) - BigInt(paidCents)).toString();
+    : (BigInt(pool.quota.dueCents) - BigInt(pool.quota.paidCents)).toString();
   const payload = pool.status === "draft" && !pool.closed
     ? codigoPix(pix, missing)
     : null;
@@ -460,7 +460,7 @@ function PoolCards({ pool, pix }: { pool: Pool; pix: PixReceiver | null }) {
   return (
     <div className="card-grid">
       {drawn && outcome}
-      <QuotaCard quota={pool.quota} />
+      {pool.quota && <QuotaCard quota={pool.quota} />}
       <PayCard pool={pool} pix={pix} />
       <GamesCard pool={pool} />
       <RegistrationCard pool={pool} />

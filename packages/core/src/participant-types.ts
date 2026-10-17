@@ -12,7 +12,10 @@ export interface ParticipantCard {
   /** pix is null while the group has no receiver registered. */
   group: { name: string; pix: PixReceiver | null };
   person: { id: string; name: string };
-  /** Pools of the group where this person has a quota, newest first. */
+  /**
+   * Pools of the group where this person has a quota, plus the open draft pools they can still answer (quota null), newest
+   * first (owner's decision of 2026-10-16: the person answers from the card).
+   */
   pools: ParticipantCardPool[];
   /** Whether the person protected the card with a PIN (owner's decision of 2026-10-15). Absent in cards served before it. */
   pinSet?: boolean;
@@ -27,8 +30,12 @@ export interface ParticipantCardPool {
   drawAt: string | null;
   status: 'draft' | 'locked' | 'registered' | 'settled';
   participationMode: 'undecided' | 'internal' | 'official';
-  /** units in hundredths of a quota, like QuotaData.units; dueCents and paid stay null until the quota is confirmed. */
-  quota: { units: number; dueCents: string | null; paidCents: string; paid: boolean | null };
+  /** units in hundredths of a quota, like QuotaData.units; dueCents and paid stay null until the quota is confirmed. Null while the person has no quota in the pool (an invitation). */
+  quota: { units: number; dueCents: string | null; paidCents: string; paid: boolean | null } | null;
+  /** Whether the person can still answer: the pool is a draft and its draw has not passed. Absent in cards served before it: treat as false. */
+  responseOpen?: boolean;
+  /** The person's latest answer for this pool, null without one; proofSent says a proof went with "paid". Absent in cards served before it. */
+  response?: ParticipantAnswer | null;
   /**
    * registered is true for numbers read from a confirmed receipt (the games the prize is calculated on) and false for planned
    * or draft games not yet checked against a receipt. Absent in cards served before it: treat as false.
@@ -61,4 +68,34 @@ export interface ParticipantCardPool {
   /** Frozen plan's limit under which a confirmed prize stays in the group cash (internal agreement); null when none. Absent in cards served before it. */
   groupPrizeLimitCents?: string | null;
   closed: boolean;
+}
+
+export type ParticipantAnswerKind = 'in' | 'out' | 'paid';
+/** The answer as the card shows it back: what was said, how much (with 'paid'), whether a proof went along, and when (ISO UTC). */
+export interface ParticipantAnswer {
+  kind: ParticipantAnswerKind;
+  amountCents: string | null;
+  proofSent: boolean;
+  at: string;
+}
+
+/**
+ * One recorded answer (`POST /v1/participant_respond` or `/v1/participant_proof`): append-only on the server, tied to the
+ * link it came through; the latest per person and pool stands. It never creates a quota nor moves money.
+ */
+export interface ParticipantResponse {
+  id: string;
+  poolId: string;
+  personId: string;
+  linkId: string;
+  kind: ParticipantAnswerKind;
+  amountCents: string | null;
+  proofId: string | null;
+  createdAt: string;
+}
+
+/** The organizer's read (`POST /v1/participant_responses_pull`): the whole history of the group, oldest first, with the proof summary. */
+export interface ParticipantResponsesPull {
+  responses: (ParticipantResponse & { proof: { id: string; sha256: string; mimeType: string; byteSize: number } | null })[];
+  reminders: { id: string; poolId: string; personId: string; remindedAt: string }[];
 }

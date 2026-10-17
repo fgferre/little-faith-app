@@ -613,3 +613,178 @@ Deno.test('person phones: organizer lists, sets and clears; invalid phones and i
     }
   } finally { globalThis.fetch = originalFetch; }
 });
+Deno.test('participant answers: respond and proof need no session, refuse bad bodies before the database, map refusals, and a replayed proof stores nothing', async () => {
+  // The mocked transport checks wiring; the SQL suite proves the link, PIN, pool and idempotency rules.
+  const session = `fixture.${btoa(JSON.stringify({ sub: id, role: 'authenticated', session_id: id, app_metadata: {}, is_anonymous: false }))}.fixture`;
+  const groupId = '33333333-3333-4333-8333-333333333333';
+  const linkToken = 'd'.repeat(43);
+  const tokenHash = await hashBytes(new TextEncoder().encode(linkToken));
+  const response = { id, poolId: id, personId: id, linkId: id, kind: 'in', amountCents: null, proofId: null, createdAt: '2026-10-16T12:00:00.000Z' };
+  const paidResponse = { ...response, kind: 'paid', amountCents: '2500' };
+  const calls: { name: string; authorization: string | null; parameters: Record<string, unknown> }[] = [];
+  const uploads: { path: string; authorization: string | null; contentType: string | null; upsert: string | null; bytes: Uint8Array }[] = [];
+  const replies: Record<string, unknown> = {};
+  let databaseError: string | null = null; let storageDown = false;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input, init) => {
+    const request = new Request(input, init);
+    const path = new URL(request.url).pathname;
+    if (path === '/auth/v1/user') throw new Error('The public answer routes never look at a session.');
+    if (path.startsWith('/storage/v1/object/')) {
+      uploads.push({ path, authorization: request.headers.get('Authorization'), contentType: request.headers.get('Content-Type'), upsert: request.headers.get('x-upsert'), bytes: new Uint8Array(await request.arrayBuffer()) });
+      return storageDown ? Response.json({ statusCode: '500', error: 'fixture', message: 'fixture failure' }, { status: 500 }) : Response.json({ Key: path.replace('/storage/v1/object/', ''), Id: id });
+    }
+    const name = path.replace('/rest/v1/rpc/', '');
+    const parameters = await request.json();
+    calls.push({ name, authorization: request.headers.get('Authorization'), parameters });
+    if (databaseError) return Response.json({ code: databaseError, details: null, hint: null, message: 'fixture failure' }, { status: 400 });
+    const reply = replies[name];
+    return Response.json(typeof reply === 'function' ? reply(parameters) : reply ?? null);
+  };
+  try {
+    const config = { supabaseUrl: 'https://fixture.supabase.co', publishableKey: 'test-public-key', allowedOrigins: [] };
+    const unconfigured = await createApi(config).request('/api/v1/participant_respond', { method: 'POST', body: JSON.stringify({ token: linkToken }) });
+    assert(unconfigured.status === 503 && calls.length === 0, 'answers need the server key');
+    const app = createApi({ ...config, serviceRoleKey: 'server-fixture' });
+    const headers = { Authorization: `Bearer ${session}`, 'Content-Type': 'application/json' };
+    const respond = (body: unknown) => app.request('/api/v1/participant_respond', { method: 'POST', headers, body: JSON.stringify(body) });
+    const answer = { token: linkToken, poolId: id, kind: 'in', idempotencyKey: id };
+    // Answer without a proof.
+    replies.participant_respond = { repeated: false, response };
+    const ok = await respond(answer);
+    assert(ok.status === 200 && JSON.stringify(await ok.json()) === JSON.stringify({ response }), 'the answer comes back without the repeated flag');
+    assert(calls.at(-1)?.name === 'participant_respond' && calls.at(-1)?.authorization === 'Bearer server-fixture' && JSON.stringify(calls.at(-1)?.parameters) === JSON.stringify({
+      p_token_hash: tokenHash, p_pin: null, p_pool_id: id, p_kind: 'in', p_amount_cents: null, p_proof: null, p_idempotency_key: id }) && !JSON.stringify(calls).includes(linkToken),
+    'only the token hash reaches the database, with the server key, a session sent along ignored, and no amount');
+    assert((await app.request('/api/v1/participant_respond', { method: 'POST', body: JSON.stringify(answer) })).status === 200, 'the answer needs no session');
+    replies.participant_respond = { repeated: true, response: paidResponse };
+    const paid = await respond({ ...answer, kind: 'paid', amountCents: '2500', pin: '1234' });
+    assert(paid.status === 200 && calls.at(-1)?.parameters.p_kind === 'paid' && calls.at(-1)?.parameters.p_amount_cents === '2500' && calls.at(-1)?.parameters.p_pin === '1234', 'a paid answer carries the amount and the PIN');
+    const count = calls.length;
+    for (const body of [{ ...answer, extra: 1 }, { ...answer, kind: 'paid' }, { ...answer, amountCents: '100' }, { ...answer, kind: 'paid', amountCents: '0100' }, { ...answer, kind: 'paid', amountCents: 100 },
+      { ...answer, kind: 'maybe' }, { ...answer, pin: '12' }, { ...answer, pin: null }, { ...answer, poolId: 'pool' }, { token: linkToken, poolId: id, kind: 'in' }]) {
+      const refused = await respond(body);
+      assert(refused.status === 400 && (await refused.json()).code === 'invalid_request' && calls.length === count, `the answer ${JSON.stringify(body)} never reaches the database`);
+    }
+    const malformed = await respond({ ...answer, token: 'short' });
+    assert(malformed.status === 404 && (await malformed.json()).code === 'link_unknown' && calls.length === count, 'a malformed token answers like an unknown link, before the database');
+    const refusals: [unknown, number, string][] = [
+      [{ error: 'pool_closed' }, 409, 'pool_closed'], [{ error: 'pool_unknown' }, 404, 'pool_unknown'], [{ error: 'pin_wrong', attemptsLeft: 2 }, 401, 'pin_wrong'],
+      [{ error: 'pin_required' }, 401, 'pin_required'], [{ error: 'link_revoked' }, 410, 'link_revoked'],
+      [{ repeated: false, response: { ...response, poolId: groupId } }, 503, 'invalid_backend_response'], [null, 503, 'invalid_backend_response'],
+    ];
+    for (const [reply, status, code] of refusals) {
+      replies.participant_respond = reply;
+      const refused = await respond(answer); const body = await refused.json();
+      assert(refused.status === status && body.code === code, `respond maps ${JSON.stringify(reply)} to ${status} ${code}`);
+      if (code === 'pin_wrong') assert(body.attemptsLeft === 2, 'a wrong PIN reports the tries left');
+    }
+    databaseError = '22023';
+    assert((await respond(answer)).status === 400, 'an answer the database calls malformed is an invalid request');
+    databaseError = null;
+    // Answer with a proof.
+    const png = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82]);
+    const sha256 = await hashBytes(png);
+    const proofForm = (metadata: unknown, file: Blob = new Blob([png])) => {
+      const form = new FormData(); form.set('metadata', typeof metadata === 'string' ? metadata : JSON.stringify(metadata)); form.set('original', file, 'comprovante.png'); return form;
+    };
+    const proof = (form: FormData, withSession = true) => app.request('/api/v1/participant_proof', { method: 'POST', headers: withSession ? { Authorization: `Bearer ${session}` } : {}, body: form });
+    const metadata = { token: linkToken, poolId: id, amountCents: '2500', idempotencyKey: id };
+    replies.participant_proof_context = { groupId };
+    replies.participant_respond = (parameters: { p_proof: { id: string } }) => ({ repeated: false, response: { ...paidResponse, proofId: parameters.p_proof.id } });
+    const stored = await proof(proofForm(metadata));
+    const sent = calls.at(-1)?.parameters; const sentProof = sent?.p_proof as Record<string, unknown>; const upload = uploads.at(-1);
+    assert(stored.status === 200 && (await stored.json()).response.proofId === sentProof.id, 'the proof answer comes back naming the stored proof');
+    assert(calls.at(-2)?.name === 'participant_proof_context' && calls.at(-2)?.authorization === 'Bearer server-fixture'
+      && JSON.stringify(calls.at(-2)?.parameters) === JSON.stringify({ p_token_hash: tokenHash, p_pin: null, p_pool_id: id, p_idempotency_key: id }), 'link, PIN and pool checked before the upload');
+    assert(upload?.path.startsWith(`/storage/v1/object/participant-proofs/${groupId}/`) && upload.path === `/storage/v1/object/participant-proofs/${sentProof.storagePath}`
+      && upload.authorization === 'Bearer server-fixture' && upload.upsert === 'false' && upload.contentType === 'image/png' && upload.bytes.join() === png.join(), 'stored under the group with the server key, never overwritten');
+    assert(calls.at(-1)?.name === 'participant_respond' && sent?.p_kind === 'paid' && sent.p_amount_cents === '2500' && sentProof.sha256 === sha256 && sentProof.mimeType === 'image/png'
+      && sentProof.byteSize === png.length && sentProof.storagePath === `${groupId}/${sentProof.id}.png`, 'the answer records the proof that was stored');
+    const uploaded = uploads.length;
+    replies.participant_proof_context = { repeated: true, response: { ...paidResponse, proofId: groupId } };
+    const replay = await proof(proofForm(metadata), false);
+    assert(replay.status === 200 && (await replay.json()).response.proofId === groupId && uploads.length === uploaded && calls.at(-1)?.name === 'participant_proof_context',
+      'a replayed key returns the first answer without a session and stores nothing');
+    replies.participant_proof_context = { repeated: true, response: { ...paidResponse, amountCents: '9900' } };
+    assert((await proof(proofForm(metadata))).status === 400 && uploads.length === uploaded, 'the same key with another amount is refused');
+    replies.participant_proof_context = { error: 'pool_closed' };
+    assert((await proof(proofForm(metadata))).status === 409 && uploads.length === uploaded, 'a closed pool stores nothing');
+    replies.participant_proof_context = { groupId }; storageDown = true;
+    const down = await proof(proofForm(metadata));
+    assert(down.status === 503 && (await down.json()).code === 'original_upload_unavailable' && calls.at(-1)?.name === 'participant_proof_context', 'a failed upload records no answer');
+    storageDown = false;
+    const before = calls.length;
+    const bad: [FormData, number, string][] = [
+      [proofForm({ ...metadata, kind: 'paid' }), 400, 'invalid_request'], [proofForm({ token: linkToken, poolId: id, idempotencyKey: id }), 400, 'invalid_request'], [proofForm('{broken'), 400, 'invalid_request'],
+      [proofForm({ ...metadata, token: 'short' }), 404, 'link_unknown'], [proofForm(metadata, new Blob([])), 400, 'original_size_mismatch'],
+      [proofForm(metadata, new Blob([new TextEncoder().encode('not a proof')])), 400, 'original_type_mismatch'],
+    ];
+    for (const [form, status, code] of bad) {
+      const refused = await proof(form);
+      assert(refused.status === status && (await refused.json()).code === code && calls.length === before, `a bad proof answers ${status} ${code} before the database`);
+    }
+  } finally { globalThis.fetch = originalFetch; }
+});
+Deno.test('participant answers for the organizer: the proof downloads with its stored type, the history and the reminder are verified, and all need a session', async () => {
+  const token = `fixture.${btoa(JSON.stringify({ sub: id, role: 'authenticated', session_id: id, app_metadata: {}, is_anonymous: false }))}.fixture`;
+  const proofId = '44444444-4444-4444-8444-444444444444'; const poolId = '66666666-6666-4666-8666-666666666666'; const personId = '77777777-7777-4777-8777-777777777777';
+  const png = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82]);
+  const status = { id: proofId, groupId: id, poolId, personId, sha256: await hashBytes(png), mimeType: 'image/png', byteSize: png.length, storagePath: `${id}/${proofId}.png`, uploadedAt: '2026-10-16T12:00:00.000Z' };
+  const pull = {
+    responses: [
+      { id, poolId, personId, linkId: id, kind: 'paid', amountCents: '2500', proofId, createdAt: '2026-10-16T12:00:00.000Z', proof: { id: proofId, sha256: status.sha256, mimeType: 'image/png', byteSize: png.length } },
+      { id: '55555555-5555-4555-8555-555555555555', poolId, personId, linkId: id, kind: 'out', amountCents: null, proofId: null, createdAt: '2026-10-16T12:05:00.000Z', proof: null },
+    ],
+    reminders: [{ id, poolId, personId, remindedAt: '2026-10-16T11:00:00.000Z' }],
+  };
+  const reminder = { id, poolId, personId, remindedAt: '2026-10-16T13:00:00.000Z' };
+  const calls: { name: string; authorization: string | null; parameters: Record<string, unknown> }[] = [];
+  const downloads: { path: string; authorization: string | null }[] = [];
+  const replies: Record<string, unknown> = { participant_proof_status: status, participant_responses_pull: pull, participant_reminder_mark: reminder };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input, init) => {
+    const request = new Request(input, init);
+    const path = new URL(request.url).pathname;
+    if (path === '/auth/v1/user') return Response.json({ id, app_metadata: {}, is_anonymous: false });
+    if (path.startsWith('/storage/v1/object/')) {
+      downloads.push({ path, authorization: request.headers.get('Authorization') });
+      return new Response(png, { headers: { 'Content-Type': 'application/octet-stream' } });
+    }
+    const name = path.replace('/rest/v1/rpc/', '');
+    calls.push({ name, authorization: request.headers.get('Authorization'), parameters: await request.json() });
+    return Response.json(replies[name] ?? null);
+  };
+  try {
+    const app = createApi({ supabaseUrl: 'https://fixture.supabase.co', publishableKey: 'test-public-key', allowedOrigins: [], serviceRoleKey: 'server-fixture' });
+    const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+    const downloaded = await app.request(`/api/v1/participant_proof_download?id=${proofId}`, { headers });
+    assert(downloaded.status === 200 && downloaded.headers.get('Content-Type') === 'image/png' && downloaded.headers.get('Content-Length') === String(png.length)
+      && downloaded.headers.get('Content-Disposition')?.includes('attachment') && new Uint8Array(await downloaded.arrayBuffer()).join() === png.join(), 'the proof streams with the stored type and size');
+    assert(JSON.stringify(calls.at(-1)) === JSON.stringify({ name: 'participant_proof_status', authorization: `Bearer ${token}`, parameters: { p_id: proofId } })
+      && downloads.at(-1)?.path.endsWith(`participant-proofs/${status.storagePath}`) && downloads.at(-1)?.authorization === `Bearer ${token}`, 'read with the organizer session from the private bucket');
+    replies.participant_proof_status = { ...status, sha256: 'a'.repeat(64) };
+    assert((await app.request(`/api/v1/participant_proof_download?id=${proofId}`, { headers })).status === 503, 'bytes that do not match the record are not served');
+    replies.participant_proof_status = null;
+    const missing = await app.request(`/api/v1/participant_proof_download?id=${proofId}`, { headers });
+    assert(missing.status === 404 && (await missing.json()).code === 'proof_not_found', 'an unknown proof answers 404');
+    const count = calls.length;
+    assert((await app.request('/api/v1/participant_proof_download?id=proof', { headers })).status === 400 && calls.length === count, 'a malformed id never reaches the database');
+    const pulled = await app.request('/api/v1/participant_responses_pull', { method: 'POST', headers, body: JSON.stringify({ groupId: id }) });
+    assert(pulled.status === 200 && JSON.stringify(await pulled.json()) === JSON.stringify(pull) && JSON.stringify(calls.at(-1)?.parameters) === JSON.stringify({ p_group_id: id }), 'the history comes back as recorded');
+    replies.participant_responses_pull = { ...pull, responses: [{ ...pull.responses[0], proof: null }] };
+    assert((await app.request('/api/v1/participant_responses_pull', { method: 'POST', headers, body: JSON.stringify({ groupId: id }) })).status === 503, 'an answer missing its proof summary fails closed');
+    const reminded = await app.request('/api/v1/participant_reminder', { method: 'POST', headers, body: JSON.stringify({ groupId: id, poolId, personId }) });
+    assert(reminded.status === 200 && JSON.stringify(await reminded.json()) === JSON.stringify(reminder)
+      && JSON.stringify(calls.at(-1)) === JSON.stringify({ name: 'participant_reminder_mark', authorization: `Bearer ${token}`, parameters: { p_group_id: id, p_pool_id: poolId, p_person_id: personId } }), 'the reminder is marked');
+    const sent = calls.length;
+    for (const body of [{ groupId: id, poolId }, { groupId: id, poolId, personId, extra: 1 }, { groupId: id, poolId, personId: 'person' }]) {
+      assert((await app.request('/api/v1/participant_reminder', { method: 'POST', headers, body: JSON.stringify(body) })).status === 400 && calls.length === sent, 'a bad reminder never reaches the database');
+    }
+    const anonymous = { 'Content-Type': 'application/json' };
+    for (const response of [await app.request(`/api/v1/participant_proof_download?id=${proofId}`), await app.request('/api/v1/participant_responses_pull', { method: 'POST', headers: anonymous, body: JSON.stringify({ groupId: id }) }),
+      await app.request('/api/v1/participant_reminder', { method: 'POST', headers: anonymous, body: JSON.stringify({ groupId: id, poolId, personId }) })]) {
+      assert(response.status === 401 && calls.length === sent, 'the organizer routes need a session');
+    }
+  } finally { globalThis.fetch = originalFetch; }
+});
