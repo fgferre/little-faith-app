@@ -65,15 +65,16 @@ export function validatePixReceiver(input: { keyType: string; key: string; name:
 
 /** Static BR Code with the amount; txid is up to 25 letters and digits, "***" when there is none. */
 export function buildPixPayload(
-  { key, name, city, amountCents, txid = '' }: { key: string; name: string; city: string; amountCents: string; txid?: string },
+  { key, name, city, amountCents, txid = '' }: { key: string; name: string; city: string; amountCents: string | null; txid?: string },
 ): string {
   if (key.length > KEY_MAX || !/^[!-~]+$/.test(key)) throw new Error('Chave Pix inválida.');
   const merchant = pixText(name).slice(0, NAME_MAX).trim();
   const town = pixText(city).slice(0, CITY_MAX).trim();
   if (!merchant || !town) throw new Error('Informe o nome e a cidade de quem recebe o Pix.');
-  const cents = centsValue(amountCents);
-  if (cents <= 0n) throw new Error('O valor do Pix precisa ser maior que zero.');
-  const amount = `${cents / 100n}.${(cents % 100n).toString().padStart(2, '0')}`;
+  // Without an amount (null) the payer types the value: field 54 is left out, as the BR Code allows (the donation code).
+  const cents = amountCents === null ? null : centsValue(amountCents);
+  if (cents !== null && cents <= 0n) throw new Error('O valor do Pix precisa ser maior que zero.');
+  const amount = cents === null ? '' : `${cents / 100n}.${(cents % 100n).toString().padStart(2, '0')}`;
   if (amount.length > 13) throw new Error('Valor alto demais para um código Pix.');
   const reference = txid || '***';
   if (reference !== '***' && !/^[A-Za-z0-9]{1,25}$/.test(reference)) {
@@ -81,7 +82,7 @@ export function buildPixPayload(
   }
   const body = field('00', '01')
     + field('26', field('00', 'br.gov.bcb.pix') + field('01', key))
-    + field('52', '0000') + field('53', '986') + field('54', amount) + field('58', 'BR')
+    + field('52', '0000') + field('53', '986') + (amount ? field('54', amount) : '') + field('58', 'BR')
     + field('59', merchant) + field('60', town) + field('62', field('05', reference)) + '6304';
   return body + pixCrc16(body);
 }

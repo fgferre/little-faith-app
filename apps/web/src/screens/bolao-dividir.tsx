@@ -32,6 +32,7 @@ import {
   Money,
   ProblemBox,
 } from "../ui";
+import { DoacaoConvite } from "../doacao";
 import { hoje, prazoResgate } from "../ui/texto";
 import { downloadText } from "../registration-handoff";
 import { DivisaoDecisao } from "./bolao-dividir-decisao";
@@ -1025,6 +1026,7 @@ export function BolaoDividir(
                 {balance.closed ? "Encerramento" : "Encerrar o bolão"}
               </Eyebrow>
               {closingCard(balance)}
+              {balance.closed && <DoacaoConvite />}
             </Card>
           )}
           {!!facts.length && (

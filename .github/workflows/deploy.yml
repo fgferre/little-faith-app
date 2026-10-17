@@ -31,10 +31,14 @@ jobs:
       - run: npm ci
       # A URL do projeto e a chave anon são públicas por desenho e entram no app publicado.
       # Nunca cadastre aqui a chave service_role.
+      # A doação é opcional: sem as três variáveis o botão "Manter o Little Faith" fica escondido.
       - run: npm run build
         env:
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          VITE_DONATION_PIX_KEY: ${{ vars.VITE_DONATION_PIX_KEY }}
+          VITE_DONATION_PIX_NAME: ${{ vars.VITE_DONATION_PIX_NAME }}
+          VITE_DONATION_PIX_CITY: ${{ vars.VITE_DONATION_PIX_CITY }}
       - uses: actions/upload-pages-artifact@v4
         with:
           path: apps/web/dist

@@ -55,7 +55,7 @@ Doação:
 3. [x] Arrecadar: selos da linha A, "Conferir pagamento", total confirmado em destaque, "lembrado em", adicionar cota de quem disse
    "Dentro"; e o convite com "Responda no seu cartão".
 4. [ ] Próximo sorteio: leitura dos campos novos no núcleo, consulta compartilhada no aparelho, Início, barra lateral, convite e cartão.
-5. [ ] Doação com a chave em configuração (escondida sem chave).
+5. [x] Doação com a chave em configuração (escondida sem chave).
 6. [ ] `npm run done` verde; telas olhadas em três larguras; quadro atualizado se algo mudar; commits por passo; item 14 com as
    migrações novas na ordem.
 

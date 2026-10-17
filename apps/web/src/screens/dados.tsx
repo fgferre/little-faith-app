@@ -7,6 +7,7 @@ import type { BolaoDatabase } from "@bolao/local";
 import { loginWithGoogle, supabase } from "../auth";
 import { downloadText } from "../registration-handoff";
 import { Button, Card, Chip, Eyebrow, PageHead, ProblemBox } from "../ui";
+import { DoacaoCard } from "../doacao";
 import { errorMessage, formatDate, supportedTimeZones } from "../app-shared";
 import type { FormKind, Notice, Snapshot } from "../app-shared";
 
@@ -299,6 +300,7 @@ export function DadosScreen(
             )}
           </div>
         </Card>
+        <DoacaoCard />
       </div>
     </>
   );

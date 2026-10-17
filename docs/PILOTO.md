@@ -51,6 +51,7 @@ São seis arquivos em `supabase/migrations/`, **nesta ordem** (a do nome mais no
 ## 7. Publicar no GitHub Pages [SUA CONTA]
 - **Fazer:** no repositório, **Settings > Pages > Build and deployment > Source: GitHub Actions**.
 - **Colar:** em **Settings > Secrets and variables > Actions > aba Variables > New repository variable**, crie `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` com os mesmos valores do `.env`. São variáveis (não segredos) porque ficam dentro do app publicado.
+- **Doação (opcional):** `VITE_DONATION_PIX_KEY`, `VITE_DONATION_PIX_NAME` e `VITE_DONATION_PIX_CITY` (chave Pix, nome e cidade de quem mantém o app) ligam o botão "Manter o Little Faith" em Dados; sem elas o botão não aparece.
 - **Publicar:** aba **Actions > Publicar no GitHub Pages > Run workflow** (branch `main`). Nada publica por commit: cada publicação nova é um clique seu.
 - **Não compartilhar:** não cadastre a `service_role` aqui.
 - **Conferir:** o fluxo termina verde e mostra o endereço `https://<usuario>.github.io/<repo>/`. Abra, entre com Google e repita o teste do passo 5. Esse endereço precisa ser igual ao do passo 4 (retorno) e ao do passo 3 (origem).

@@ -46,6 +46,13 @@ describe('Pix BR Code', () => {
     expect(top.get('63')).toBe(tableCrc(payload.slice(0, -4)));
   });
 
+  it('leaves the amount out when none is fixed, so the payer types the value', () => {
+    const payload = buildPixPayload({ key: 'chave@exemplo.com', name: 'Fulano de Tal', city: 'BRASILIA', amountCents: null });
+    const top = fields(payload);
+    expect([...top.keys()]).toEqual(['00', '26', '52', '53', '58', '59', '60', '62', '63']);
+    expect(top.get('63')).toBe(tableCrc(payload.slice(0, -4)));
+  });
+
   it('removes accents, cuts name and city to 25 and 15 characters and keeps a given txid', () => {
     const payload = buildPixPayload({
       key: '+5511912345678', name: 'João Pé de Feijão Comércio Ltda', city: 'São José dos Campos', amountCents: '7', txid: 'BOLAO42',
