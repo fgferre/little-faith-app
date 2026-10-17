@@ -56,6 +56,7 @@ interface TicketDraft {
   present: boolean;
   lottery: LotteryId | "";
   contest: string;
+  contestCount: string;
   numbers: string;
   cost: string;
   fee: string;
@@ -73,6 +74,7 @@ const emptyTicket = (): TicketDraft => ({
   present: false,
   lottery: "",
   contest: "",
+  contestCount: "1",
   numbers: "",
   cost: "",
   fee: "",
@@ -809,6 +811,9 @@ function RegistrationForm({
                 contestNumber: value.contest.trim()
                   ? Number(value.contest)
                   : null,
+                contestCount: value.contestCount.trim()
+                  ? Number(value.contestCount)
+                  : null,
                 betNumbers: value.numbers.trim()
                   ? value.numbers.trim().split(/\n+/).map((line) =>
                     line.trim().split(/[\s,;]+/).map(Number)
@@ -943,29 +948,38 @@ function RegistrationForm({
                 </p>
               )}
           </fieldset>
+          <label>
+            Modalidade lida no recibo<select
+              value={value.lottery}
+              onChange={(event) =>
+                update(ticket.key, {
+                  lottery: event.target.value as LotteryId | "",
+                })}
+            >
+              <option value="">Não legível</option>
+              {Object.values(LOTTERIES).map((lottery) => (
+                <option value={lottery.id} key={lottery.id}>
+                  {lottery.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <div className="form-columns">
-            <label>
-              Modalidade lida no recibo<select
-                value={value.lottery}
-                onChange={(event) =>
-                  update(ticket.key, {
-                    lottery: event.target.value as LotteryId | "",
-                  })}
-              >
-                <option value="">Não legível</option>
-                {Object.values(LOTTERIES).map((lottery) => (
-                  <option value={lottery.id} key={lottery.id}>
-                    {lottery.label}
-                  </option>
-                ))}
-              </select>
-            </label>
             <label>
               Concurso lido no recibo<input
                 inputMode="numeric"
                 value={value.contest}
                 onChange={(event) =>
                   update(ticket.key, { contest: event.target.value })}
+              />
+            </label>
+            <label>
+              Concursos cobertos<input
+                inputMode="numeric"
+                placeholder="1 se não é teimosinha"
+                value={value.contestCount}
+                onChange={(event) =>
+                  update(ticket.key, { contestCount: event.target.value })}
               />
             </label>
           </div>

@@ -284,6 +284,14 @@ begin
   perform pg_temp.assert_true(r ->> 'status' = 'accepted'
     and (select jsonb_agg(jsonb_build_array(j.contest_number,c.contest_number) order by j.contest_number) from public.result_collection_jobs j
       join public.contest_calendar_versions c on c.id = j.calendar_id where j.pool_id = p) = '[[42,42],[43,43]]','calendar of contest 43 adds its own job and keeps the job of 42');
+  r := public.sync_push(pg_temp.draft(g,p,'pool','{"title":"Teimosinha","lotteryId":"mega-sena","contestNumber":42,"contestCount":1,"deadlineAt":null,
+    "quotaPriceCents":"2500","participationMode":"undecided","status":"draft"}',(select version from public.draft_records where id = p)));
+  perform pg_temp.assert_true(r ->> 'status' = 'rejected'
+    and r ->> 'message' = 'Um concurso que já tem resultado ou calendário não pode sair da teimosinha; preserve a quantidade de concursos.',
+    'a contest with a result or calendar cannot leave the teimosinha');
+  r := public.sync_push(pg_temp.draft(g,p,'pool','{"title":"Teimosinha","lotteryId":"mega-sena","contestNumber":42,"contestCount":2,"deadlineAt":null,
+    "quotaPriceCents":"2500","participationMode":"undecided","status":"draft"}',(select version from public.draft_records where id = p)));
+  perform pg_temp.assert_true(r ->> 'status' = 'accepted','the same count is still accepted');
   perform pg_temp.assert_true(public.result_collection_context(g,p,43) ->> 'contestNumber' = '43' and public.result_collection_context(g,p) ->> 'contestNumber' = '42','collection context per contest, first by default');
   begin perform public.result_collection_context(g,p,44); raise exception 'contest outside the range accepted';
   exception when invalid_parameter_value then perform pg_temp.assert_true(sqlerrm = 'contest_out_of_range','collection context refuses a contest outside the range'); end;

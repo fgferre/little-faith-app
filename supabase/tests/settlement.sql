@@ -401,8 +401,8 @@ end; $$;
 
 -- Teimosinha (owner's decision of 17/10): pool 4 plays the same four games in contests 42 and 43, paid once.
 -- Quota price 5000: 5000 + 2500 = 7500 funded; plan cost = 4 games x 600 x 2 contests = 4800, leftover 2700.
--- The receipts name contest 42 and cost 1200 each (both contests); the registration check still prices one contest (600), so each
--- ticket is a bet-cost-mismatch divergence explained by a human reason, and the report stays divergent (registrationIncomplete).
+-- The receipts name contest 42, carry contestCount 2 and cost 1200 each (both contests); the registration check prices each game at
+-- 600 x 2, so the report is complete. A calendar confirmed only for contest 43 (closing in the past) must not be the one frozen.
 -- Contest 42 drawn [1,2,3,4,5,7]: the known game hits 5 -> 5000000. Contest 43 drawn [7,8,9,10,11,60]: generated-1 [7..12] hits 5
 -- -> 3000000 and generated-2 [8..13] hits 4 -> 80000, so 3080000. One prize per contest; the pool's confirmed prize is 8080000.
 -- Rights 2:1 by largest remainder: 5000000 -> 3333333/1666667, 3080000 -> 2053333/1026667, so 5386666/2693334.
@@ -449,14 +449,18 @@ select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-00000000
 do $$ declare g uuid := 'a1000000-0000-4000-8000-000000000001'; p4 uuid := 'a4000000-0000-4000-8000-000000000004'; ev4 uuid := 'a8000000-0000-4000-8000-000000000004';
   items jsonb; report4 uuid; result42 uuid; result43 uuid; prize42 uuid; r jsonb; cmd jsonb; c integer;
 begin
-  select jsonb_agg(i.value || jsonb_build_object('reason','O comprovante da teimosinha cobre os dois concursos.') order by i.ordinality) into items
+  r := public.result_decide(pg_temp.command(g,jsonb_build_object('type','calendar_confirm','poolId',p4,'poolVersion',pg_temp.pool_version(p4),'lotteryId','mega-sena',
+    'contestNumber',43,'drawDate','2026-01-02','expectedDrawAt','2026-01-02T23:00:00.000Z','registrationClosesAt','2026-01-01T00:00:00.000Z',
+    'sourceReference','Calendário do concurso 43','reason','Só o segundo concurso tem calendário.')));
+  perform pg_temp.assert_true(r ->> 'status' = 'accepted','calendar of the second contest only');
+  select jsonb_agg(jsonb_set(i.value,'{observed,contestCount}','2'::jsonb) order by i.ordinality) into items
     from jsonb_array_elements(pg_temp.observed_items(p4)) with ordinality i(value,ordinality);
   r := public.registration_decide(pg_temp.command(g,jsonb_build_object('type','registration_confirm','poolId',p4,'poolVersion',pg_temp.pool_version(p4),
     'manifestId',(select id from public.pool_manifests where pool_id = p4 order by version desc limit 1),'items',items,'reason','')));
   select id into report4 from public.registration_reports where pool_id = p4 order by version desc limit 1;
-  perform pg_temp.assert_true(r ->> 'status' = 'accepted' and (select comparison ->> 'status' = 'divergent' and comparison ->> 'observedBetCostCents' = '4800'
-    and (select count(*) = 4 and bool_and(e.value ->> 'code' = 'bet-cost-mismatch') from jsonb_array_elements(comparison -> 'issues') e)
-    from public.registration_reports where id = report4),'teimosinha receipts registered with the known one-contest price gap explained');
+  perform pg_temp.assert_true(r ->> 'status' = 'accepted' and (select comparison ->> 'status' = 'complete' and comparison ->> 'observedBetCostCents' = '4800'
+    and jsonb_array_length(comparison -> 'issues') = 0 from public.registration_reports where id = report4),'teimosinha receipts cover both contests at the catalog price times two');
+  perform pg_temp.assert_true((select calendar is null from public.registration_reports where id = report4),'registration freezes the calendar of the first contest, not the newest one');
   foreach c in array array[42,43] loop
     r := public.result_decide(pg_temp.command(g,jsonb_build_object('type','result_manual','poolId',p4,'poolVersion',pg_temp.pool_version(p4),
       'data',jsonb_build_object('lotteryId','mega-sena','contestNumber',c,'drawDate',case c when 42 then '2026-10-08' else '2026-10-10' end,
@@ -483,7 +487,7 @@ begin
   perform pg_temp.assert_true(r ->> 'status' = 'rejected' and r ->> 'message' = 'Prêmio exige relatório atual, fonte atual sem conflito e revisão explícita.'
     and (select count(*) from public.settlement_prizes where pool_id = p4) = 1,'a contest prize cannot supersede another contest''s prize');
   insert into settlement_contract_samples values('teimosinha prize superseding another contest','receipt',r);
-  -- Closing while contest 43 has no prize needs an explanation (the divergent report and the unpaid prize also stay open).
+  -- Closing while contest 43 has no prize needs an explanation (the unpaid prize also stays open).
   r := public.settlement_decide(pg_temp.settle(jsonb_build_object('type','pool_settle','poolId',p4,'poolVersion',pg_temp.pool_version(p4),'registrationReportId',report4,
     'prizeConfirmationId',prize42,'expenseConfirmationId',null,'leftoverDisposition','pending-refund','pendingExplanation','','reason','Encerramento antes do segundo concurso.')));
   perform pg_temp.assert_true(r ->> 'status' = 'rejected' and r ->> 'message' = 'Pendências, reserva, prêmio ausente ou despesa desconhecida precisam permanecer explicados.'
@@ -511,7 +515,7 @@ begin
   perform pg_temp.assert_true(b -> 'contests' -> 0 ->> 'calculatedPrizeCents' = '5000000' and b -> 'contests' -> 0 ->> 'confirmedPrizeCents' = '5000000'
     and b -> 'contests' -> 1 ->> 'calculatedPrizeCents' = '3080000' and b -> 'contests' -> 1 ->> 'confirmedPrizeCents' = '3080000'
     and b ->> 'calculatedPrizeCents' = '8080000' and b ->> 'confirmedPrizeCents' = '8080000' and b ->> 'prizeConfirmationId' = prizes -> 1 ->> 'prizeConfirmationId'
-    and b ->> 'registrationIncomplete' = 'true'
+    and b ->> 'registrationIncomplete' = 'false'
     and (select string_agg(x.value ->> 'prizeRightCents',',') from jsonb_array_elements(b -> 'persons') x) = '5386666,2693334','teimosinha figures are the sums over its contests');
 end; $$;
 set local role service_role;

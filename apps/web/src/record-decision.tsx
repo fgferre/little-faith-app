@@ -256,7 +256,13 @@ export function RecordDialog(
           manifest,
           request.action.items,
           registration.evidence,
-          calendarSnapshot ? currentCalendar(calendarSnapshot, pool.id) : null,
+          calendarSnapshot
+            ? currentCalendar(
+              calendarSnapshot,
+              pool.id,
+              pool.data.contestNumber ?? undefined,
+            )
+            : null,
         );
         withoutReason = request.action.items.flatMap((item, index) =>
           !item.reason.trim() && comparison.issues.some((issue) =>

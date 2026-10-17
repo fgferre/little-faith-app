@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { EvidenceUploadMetadata, ResultAction } from './index';
-import { assessRegisteredPrizes, compareRegistration, currentResult, hashEvidenceBytes, manualResultRaw, MAX_EVIDENCE_BYTES, registrationHandoff, sha256Hex, validateEvidenceBytes, validateEvidenceMetadata, validateEvidenceUploadMetadata, validateRegistrationCommand, validateRegistrationReceipt, validateRegistrationSnapshot } from './index';
+import { assessRegisteredPrizes, compareRegistration, currentResult, hashEvidenceBytes, manualResultRaw, MAX_EVIDENCE_BYTES, registrationHandoff, sha256Hex, validateEvidenceBytes, validateEvidenceMetadata, validateEvidenceUploadMetadata, validateObservedTicket, validateRegistrationCommand, validateRegistrationReceipt, validateRegistrationSnapshot } from './index';
 import { fixtureId, manualResult, REG_GROUP, REG_POOL, REG_REVIEWED, registrationCalendar, registrationEvidence, registrationItems, registrationManifest, registrationReport, registrationSnapshot, resultSnapshot } from './registration.test-fixtures';
 
 describe('private, immutable original evidence', () => {
@@ -84,6 +84,18 @@ describe('complete registration checklist and historical comparison', () => {
     const rawText = manualResultRaw(action);
     const earlyClose = { ...calendar, expectedDrawAt: action.expectedDrawAt, registrationClosesAt: action.registrationClosesAt, rawText, sha256: sha256Hex(rawText) };
     expect(compareRegistration(manifest, items, [registrationEvidence()], earlyClose).issues).toContainEqual(expect.objectContaining({ code: 'registration-after-channel-close', severity: 'divergence' }));
+  });
+  it('prices a teimosinha receipt once per contest it covers and reads an old receipt as one contest', () => {
+    const manifest = registrationManifest('internal', false, 2), items = registrationItems(manifest), evidence = [registrationEvidence()];
+    expect(manifest.content.plan.contestCount).toBe(2);
+    expect(compareRegistration(manifest, items, evidence)).toMatchObject({ status: 'complete', observedBetCostCents: manifest.content.plan.betCostCents, issues: [] });
+    items[0]!.observed!.contestCount = 1;
+    expect(compareRegistration(manifest, items, evidence).issues.map((i) => i.code)).toEqual(['contest-count-mismatch', 'bet-cost-mismatch']);
+    items[0]!.observed!.contestCount = null;
+    expect(compareRegistration(manifest, items, evidence)).toMatchObject({ status: 'partial', issues: [expect.objectContaining({ code: 'missing-field', message: expect.stringContaining('contestCount') })] });
+    const { contestCount: _absent, ...legacy } = items[0]!.observed!;
+    expect(validateObservedTicket(legacy).contestCount).toBe(1);
+    expect(() => validateObservedTicket({ ...legacy, contestCount: 13 })).toThrow('fora do limite');
   });
   it('rejects future events and proofs from another pool, and requires revision reasons', () => {
     const manifest = registrationManifest(), items = registrationItems(manifest);

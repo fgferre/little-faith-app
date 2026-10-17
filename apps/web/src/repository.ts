@@ -132,6 +132,26 @@ export function saveLocalDraft<K extends EntityKind>(
               "Este bolão já possui uma fonte de resultado ou calendário. Preserve o concurso e crie outro bolão para um concurso diferente.",
             );
           }
+          const kept = next.contestCount ?? 1;
+          if (
+            old && old.contestNumber !== null && kept < (old.contestCount ?? 1)
+          ) {
+            const first = old.contestNumber;
+            const leaving = (row: { contestNumber: number }) =>
+              row.contestNumber >= first + kept;
+            if (
+              await db.contestResults.where("poolId").equals(input.id).filter(
+                leaving,
+              ).count() ||
+              await db.contestCalendars.where("poolId").equals(input.id).filter(
+                leaving,
+              ).count()
+            ) {
+              throw new Error(
+                "Um concurso que já tem resultado ou calendário não pode sair da teimosinha. Preserve a quantidade de concursos.",
+              );
+            }
+          }
           const quotas = (await listRecords(db, "quota", input.groupId)).filter(
             (quota) => quota.data.poolId === input.id,
           );

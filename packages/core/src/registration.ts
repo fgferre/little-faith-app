@@ -13,7 +13,7 @@ import { sourceTime } from './source-validation';
 
 export const MAX_REGISTRATION_COMMAND_BYTES = 1_048_576;
 const LOTTERY_IDS: readonly LotteryId[] = ['mega-sena', 'lotofacil', 'quina'];
-const ISSUE_CODES: readonly RegistrationIssue['code'][] = ['missing-receipt', 'unreadable-receipt', 'missing-field', 'lottery-mismatch', 'contest-mismatch', 'numbers-mismatch', 'bet-cost-mismatch', 'fee-mismatch', 'official-quota-mismatch', 'official-assignment-mismatch', 'official-rule-mismatch', 'registered-before-lock', 'registration-after-channel-close', 'evidence-after-internal-deadline'];
+const ISSUE_CODES: readonly RegistrationIssue['code'][] = ['missing-receipt', 'unreadable-receipt', 'missing-field', 'lottery-mismatch', 'contest-mismatch', 'contest-count-mismatch', 'numbers-mismatch', 'bet-cost-mismatch', 'fee-mismatch', 'official-quota-mismatch', 'official-assignment-mismatch', 'official-rule-mismatch', 'registered-before-lock', 'registration-after-channel-close', 'evidence-after-internal-deadline'];
 function ticketKey(value: unknown, field = 'plannedTicketKey'): string {
   if (typeof value !== 'string' || !/^[A-Za-z0-9_-]{1,80}$/.test(value)) return planningInvalid(field, 'Chave de cartela inválida.');
   return value;
@@ -32,7 +32,8 @@ function assignments(input: unknown): OfficialQuotaAssignment[] {
   return values;
 }
 export function validateObservedTicket(input: unknown): ObservedTicket {
-  const source = planningRecord(input, 'observed'); planningShape(source, ['lotteryId', 'contestNumber', 'betNumbers', 'betCostCents', 'feeCents', 'officialQuotaCount', 'officialAssignments', 'registeredAt'], 'observed');
+  const source = planningRecord(input, 'observed'), hasContestCount = Object.hasOwn(source, 'contestCount');
+  planningShape(source, [...(hasContestCount ? ['contestCount'] : []), 'lotteryId', 'contestNumber', 'betNumbers', 'betCostCents', 'feeCents', 'officialQuotaCount', 'officialAssignments', 'registeredAt'], 'observed');
   const lotteryId = source.lotteryId === null ? null : planningOption<LotteryId>(source.lotteryId, LOTTERY_IDS, 'lotteryId');
   let betNumbers: number[][] | null = null;
   if (source.betNumbers !== null) {
@@ -44,7 +45,7 @@ export function validateObservedTicket(input: unknown): ObservedTicket {
     });
     if (!betNumbers.length) planningInvalid('betNumbers', 'Use null para jogos ainda ilegíveis.');
   }
-  return { lotteryId, contestNumber: source.contestNumber === null ? null : planningInt(source.contestNumber, 'contestNumber', 1, 999_999), betNumbers, betCostCents: source.betCostCents === null ? null : planningMoney(source.betCostCents, 'betCostCents'), feeCents: source.feeCents === null ? null : planningMoney(source.feeCents, 'feeCents'), officialQuotaCount: source.officialQuotaCount === null ? null : planningInt(source.officialQuotaCount, 'officialQuotaCount', 0, 1_000_000), officialAssignments: source.officialAssignments === null ? null : assignments(source.officialAssignments), registeredAt: source.registeredAt === null ? null : sourceTime(source.registeredAt, 'registeredAt') };
+  return { lotteryId, contestNumber: source.contestNumber === null ? null : planningInt(source.contestNumber, 'contestNumber', 1, 999_999), contestCount: !hasContestCount ? 1 : source.contestCount === null ? null : planningInt(source.contestCount, 'contestCount', 1, 12), betNumbers, betCostCents: source.betCostCents === null ? null : planningMoney(source.betCostCents, 'betCostCents'), feeCents: source.feeCents === null ? null : planningMoney(source.feeCents, 'feeCents'), officialQuotaCount: source.officialQuotaCount === null ? null : planningInt(source.officialQuotaCount, 'officialQuotaCount', 0, 1_000_000), officialAssignments: source.officialAssignments === null ? null : assignments(source.officialAssignments), registeredAt: source.registeredAt === null ? null : sourceTime(source.registeredAt, 'registeredAt') };
 }
 export function validateRegistrationItems(input: unknown): RegistrationItem[] {
   return unique(planningList(input, 'items').map((inputItem): RegistrationItem => {
@@ -120,14 +121,16 @@ function compareValidated(manifest: PoolManifest, items: RegistrationItem[], evi
     observedTicketCount++;
     if (!sources.length) issue(key, 'missing-receipt', 'incomplete', 'Dados informados ainda não têm original enviado.');
     const missing: string[] = [];
-    for (const field of ['lotteryId', 'contestNumber', 'betNumbers', 'betCostCents', 'feeCents', 'registeredAt'] as const) if (actual[field] === null) missing.push(field);
+    for (const field of ['lotteryId', 'contestNumber', 'contestCount', 'betNumbers', 'betCostCents', 'feeCents', 'registeredAt'] as const) if (actual[field] === null) missing.push(field);
     if (plan.participationMode === 'official') for (const field of ['officialQuotaCount', 'officialAssignments'] as const) if (actual[field] === null) missing.push(field);
     if (missing.length) issue(key, 'missing-field', 'incomplete', `Campos do comprovante ainda desconhecidos: ${missing.join(', ')}.`);
     if (actual.lotteryId !== null && actual.lotteryId !== plan.lotteryId) issue(key, 'lottery-mismatch', 'divergence', 'Modalidade registrada diverge do plano.');
     if (actual.contestNumber !== null && actual.contestNumber !== plan.contestNumber) issue(key, 'contest-mismatch', 'divergence', 'Concurso registrado diverge do plano.');
+    if (actual.contestCount !== null && actual.contestCount !== (plan.contestCount ?? 1)) issue(key, 'contest-count-mismatch', 'divergence', 'Quantidade de concursos registrada diverge do plano.');
     const plannedNumbers = planned.betKeys.map((betKey) => plan.bets.find((bet) => bet.key === betKey)!.numbers);
     if (actual.betNumbers !== null && !sameNumbers(actual.betNumbers, plannedNumbers)) issue(key, 'numbers-mismatch', 'divergence', 'Jogos registrados divergem dos jogos planejados.');
-    const actualPrice = actual.lotteryId && actual.betNumbers ? actual.betNumbers.reduce((sum, numbers) => sum + BigInt(betCost(actual.lotteryId!, numbers)), 0n) : null;
+    // A teimosinha receipt bills every legible game once per contest it covers.
+    const actualPrice = actual.lotteryId && actual.betNumbers && actual.contestCount !== null ? actual.betNumbers.reduce((sum, numbers) => sum + BigInt(betCost(actual.lotteryId!, numbers)), 0n) * BigInt(actual.contestCount) : null;
     if (actual.betCostCents !== null && (actual.betCostCents !== planned.betCostCents || (actualPrice !== null && BigInt(actual.betCostCents) !== actualPrice))) issue(key, 'bet-cost-mismatch', 'divergence', 'Custo observado diverge da cartela ou do preço oficial dos jogos legíveis.');
     if (actual.betCostCents === null) totalCost = null; else if (totalCost !== null) totalCost += BigInt(actual.betCostCents);
     if (actual.feeCents === null) totalFees = null; else if (totalFees !== null) totalFees += BigInt(actual.feeCents);

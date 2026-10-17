@@ -20,7 +20,7 @@ export function registrationItems(missing = false): RegistrationItem[] {
   const plan = frozen.content.plan;
   return plan.tickets.map(ticket => {
     const observed: ObservedTicket = {
-      lotteryId: plan.lotteryId, contestNumber: plan.contestNumber,
+      lotteryId: plan.lotteryId, contestNumber: plan.contestNumber, contestCount: plan.contestCount ?? 1,
       betNumbers: ticket.betKeys.map(key => plan.bets.find(bet => bet.key === key)!.numbers),
       betCostCents: ticket.betCostCents, feeCents: '0', officialQuotaCount: null, officialAssignments: null,
       registeredAt: REGISTERED_AT,

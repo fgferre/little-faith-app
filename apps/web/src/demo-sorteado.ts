@@ -269,6 +269,7 @@ function drawnPool(now: Date, calendars: ContestCalendarVersion[]) {
     observed: {
       lotteryId: plan.lotteryId,
       contestNumber: plan.contestNumber,
+      contestCount: plan.contestCount ?? 1,
       betNumbers: ticket.betKeys.map((key) =>
         plan.bets.find((bet) => bet.key === key)!.numbers
       ),

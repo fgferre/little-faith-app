@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { LeftoverPolicy, OfficialPrizeEntitlement, PoolSettlementBalance, SettlementAction, SettlementRecord, SettlementSnapshot } from './index';
 import { buildSettlementFact, canonicalManifest, computeSettlement,createRedemptionDeadline, createSettlementView, keptPrize, redemptionAlerts, redemptionCountdown, settlementStatement, sha256Hex, validateRedemptionDeadline, validateSettlementActionContext, validateSettlementCommand, validateSettlementReceipt, validateSettlementSnapshot } from './index';
-import { fixtureId, manualResult, REG_GROUP, REG_POOL, registrationItems, registrationManifest, registrationReport, registrationSnapshot, resultSnapshot } from './registration.test-fixtures';
+import { fixtureId, manualResult, REG_GROUP, REG_POOL, registrationManifest, registrationReport, registrationSnapshot, resultSnapshot } from './registration.test-fixtures';
 
 type Act<T extends SettlementAction['type']> = Extract<SettlementAction, { type: T }>;
 const A = fixtureId(20), B = fixtureId(21), REPORT = fixtureId(4000), RESULT = fixtureId(5001), EVIDENCE = [fixtureId(3000)], START = 20;
@@ -79,8 +79,7 @@ describe('teimosinha: one prize per contest', () => {
       for (const quota of money.quotas) quota.dueCents = '4200';
     }
     frozen.canonical = canonicalManifest(frozen.content); frozen.sha256 = sha256Hex(frozen.canonical);
-    // One receipt bills both draws while registration still prices the legible games for a single draw: a human reason covers that divergence.
-    s.registration = { ...s.registration, reports: [registrationReport(frozen, registrationItems(frozen).map((item) => ({ ...item, reason: 'Recibo único da teimosinha de 2 concursos.' })))] };
+    s.registration = { ...s.registration, reports: [registrationReport(frozen)] };
     s.results = { ...s.results, results: [...s.results.results, SECOND] };
     return s;
   }

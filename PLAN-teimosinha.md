@@ -1,10 +1,11 @@
 Teimosinha de verdade: um bolão só com vários concursos seguidos, pagamento único e conferência de cada sorteio — decisão do dono em 17/10 ("a Confraria pediu para repetir os números"). Plano escrito em 17/10 a partir do inventário de tudo que hoje assume um concurso por bolão.
 
-Estado em 17/10 (noite): passos 1, 2 e 3 feitos e commitados (113a7c1, 17fc468, dcb5368); nada publicado (3 migrações
-novas: 20261017000000, 20261017010000, 20261017020000, mais a função api e o app). `npm run done` verde depois do passo 3 (351 unitários, 52 fluxos). Faltam os
-passos 4, 5 e 6. Achado em 17/10 (passo 3): a comparação do registro não conhece `contestCount` e acusa `bet-cost-mismatch` num recibo
-de teimosinha (o custo observado é N vezes o de um sorteio); o teste do núcleo `teimosinha: one prize per contest` contorna com uma
-razão humana no item, e o cenário SQL em `supabase/tests/settlement.sql` idem; o passo 4 conserta e tira os contornos.
+Estado em 17/10 (noite): passos 1 a 4 feitos e commitados (113a7c1, 17fc468, dcb5368 e o commit do passo 4); nada publicado (4 migrações
+novas: 20261017000000, 20261017010000, 20261017020000, 20261017030000, mais a função api e o app). `npm run done` verde depois do passo 4
+(352 unitários, 52 fluxos). Faltam os passos 5 e 6. O achado do passo 3 (a comparação do registro não conhecia `contestCount` e acusava
+`bet-cost-mismatch` num recibo de teimosinha; o teste do núcleo e o cenário SQL contornavam com uma razão humana) foi resolvido no passo 4
+e os contornos saíram. Na tela Registrar o campo "Concursos cobertos" começa em 1 (um recibo sem teimosinha cobre um concurso); o corte da
+cota no banco já olhava o primeiro concurso desde o passo 2, só o registro (servidor) pegava o calendário mais novo do bolão.
 
 ## O que é (nas palavras dele e da especificação)
 
@@ -48,7 +49,7 @@ razão humana no item, e o cenário SQL em `supabase/tests/settlement.sql` idem;
    `result_decide`/`result_collect`/`result_jobs_due` por concurso, cortes no primeiro concurso; testes núcleo, SQL e API.
 3. [x] Prêmio por concurso (feito em 17/10, `npm run done` verde): `settlement.ts` e `settlement.sql` (prêmio por concurso, soma na divisão, `prize_confirm` com concurso),
    `settlement_pool_balance`, cartão com `draws`; fixture de 2 concursos na paridade SQL↔núcleo; testes.
-4. [ ] Registro: `contestCount` no bilhete observado, comparação e divergências, tela Registrar com "Concursos cobertos"; o calendário
+4. [x] Registro (feito em 17/10, `npm run done` verde): `contestCount` no bilhete observado, comparação e divergências, tela Registrar com "Concursos cobertos"; o calendário
    usado no registro e no corte da cota passa a ser o do primeiro concurso (hoje é o último calendário do bolão); a guarda do bolão
    recusa diminuir `contestCount` abaixo de um concurso que já tem resultado ou calendário; testes.
 5. [ ] Telas: formulário do bolão ("Concursos seguidos"), Sorteio com uma seção por concurso (busca, manual, calendário, resultado e

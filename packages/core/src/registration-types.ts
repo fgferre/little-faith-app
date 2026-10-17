@@ -27,6 +27,8 @@ export interface EvidenceTransport {
 export interface ObservedTicket {
   lotteryId: LotteryId | null;
   contestNumber: number | null;
+  /** Contests the receipt covers (a teimosinha prints them); absent in reports written before 17/10 means 1. */
+  contestCount: number | null;
   betNumbers: number[][] | null;
   betCostCents: string | null;
   feeCents: string | null;
@@ -43,7 +45,7 @@ export interface RegistrationItem {
 }
 export type RegistrationIssueCode =
   | 'missing-receipt' | 'unreadable-receipt' | 'missing-field' | 'lottery-mismatch'
-  | 'contest-mismatch' | 'numbers-mismatch' | 'bet-cost-mismatch' | 'fee-mismatch'
+  | 'contest-mismatch' | 'contest-count-mismatch' | 'numbers-mismatch' | 'bet-cost-mismatch' | 'fee-mismatch'
   | 'official-quota-mismatch' | 'official-assignment-mismatch' | 'official-rule-mismatch'
   | 'registered-before-lock' | 'registration-after-channel-close' | 'evidence-after-internal-deadline';
 export interface RegistrationIssue {
