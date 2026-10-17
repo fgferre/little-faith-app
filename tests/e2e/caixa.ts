@@ -10,9 +10,14 @@ const FIXTURES = {
 /**
  * The next-draw query the app makes from the device (the bare CAIXA URL, no contest number) answers with the captured
  * fixtures, so no flow touches the internet and the home, sidebar, invite and card show the same numbers everywhere.
- * Numbered URLs (the manual result fill) are left alone: the flows that need them mock them themselves.
+ * Numbered URLs (the manual result fill) fail at once unless a flow mocks the contest it needs (its route wins, being newer).
  */
 export async function mockCaixa(context: BrowserContext) {
+  // A numbered contest a flow did not mock fails at once (the form's silent fill on opening), never waiting on the internet.
+  await context.route(
+    /servicebus2\.caixa\.gov\.br\/portaldeloterias\/api\/\w+\/\d+$/,
+    (route) => route.abort(),
+  );
   for (const [path, file] of Object.entries(FIXTURES)) {
     const body = readFileSync(
       new URL(`../../packages/core/src/fixtures/${file}`, import.meta.url),

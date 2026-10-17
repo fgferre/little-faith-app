@@ -35,6 +35,7 @@ import {
 } from "@bolao/local";
 import type { BolaoDatabase } from "@bolao/local";
 import { createAccountTransport } from "../auth";
+import { useProximoSorteio } from "../proximo-sorteio";
 import { useSheetPresence } from "../components";
 import { downloadText } from "../registration-handoff";
 import type { RecordRequest } from "../record-decision";
@@ -227,6 +228,17 @@ export function BolaoSorteio(
   const [chosen, setChosen] = useState("");
   const [reason, setReason] = useState("");
   const [manualOpen, setManualOpen] = useState(false);
+  // Depois do sorteio (a CAIXA já publicou o concurso do bolão) e sem resultado guardado, o cartão de informar já abre
+  // sozinho e vem preenchido com o oficial, para a pessoa só conferir (pedido do dono em 17/10).
+  const { data: proximo } = useProximoSorteio(pool.data.lotteryId);
+  const latestDrawn = proximo?.extras.contestNumber ?? null;
+  const { contestNumber } = pool.data;
+  useEffect(() => {
+    if (
+      local && !view && contestNumber && latestDrawn !== null &&
+      latestDrawn >= contestNumber
+    ) setManualOpen(true);
+  }, [local, view, contestNumber, latestDrawn]);
   const operation = useRef(false);
   const mounted = useRef(true);
   useEffect(() => {
@@ -1198,8 +1210,16 @@ function ManualForm(
     pool,
   );
   const [fetching, setFetching] = useState(false);
-  /** O servidor pode ser barrado pelo site da CAIXA; este aparelho busca o oficial e só preenche, quem confirma é a pessoa. */
-  async function fillFromOfficial() {
+  // O último concurso sorteado que a CAIXA publicou (consulta compartilhada): se já passou do concurso do bolão, o resultado saiu.
+  const { data: proximo, status: proximoStatus } = useProximoSorteio(
+    pool.data.lotteryId,
+  );
+  const tried = useRef(false);
+  /**
+   * O servidor pode ser barrado pelo site da CAIXA; este aparelho busca o oficial e só preenche, quem confirma é a pessoa.
+   * `quiet` é a busca sozinha ao abrir: sem mensagem quando o resultado ainda não saiu.
+   */
+  async function fillFromOfficial(quiet = false) {
     const { lotteryId, contestNumber } = pool.data;
     if (!contestNumber) return;
     setFetching(true);
@@ -1221,7 +1241,7 @@ function ManualForm(
         collectedAt: collectedAt.toISOString(),
       });
       if (!parsed.drawnNumbers) {
-        setError("O resultado deste concurso ainda não saiu na CAIXA.");
+        if (!quiet) setError("O resultado deste concurso ainda não saiu na CAIXA.");
         return;
       }
       const fetchedAt = formatInstant(collectedAt.toISOString(), BRASILIA)
@@ -1243,13 +1263,27 @@ function ManualForm(
           "A busca pelo servidor foi barrada pelo site da CAIXA; o resultado oficial foi buscado por este aparelho.",
       });
     } catch {
-      setError(
-        "Não deu para buscar o resultado oficial agora. Tente de novo ou digite.",
-      );
+      if (!quiet) {
+        setError(
+          "Não deu para buscar o resultado oficial agora. Tente de novo ou digite.",
+        );
+      }
     } finally {
       setFetching(false);
     }
   }
+  // Ao abrir depois do sorteio, o formulário vazio já vem preenchido com o oficial, sem botão (pedido do dono em 17/10).
+  // Com a consulta compartilhada fresca dizendo que o concurso ainda não correu, nem tenta; sem ela, tenta uma vez em silêncio.
+  useEffect(() => {
+    const { contestNumber } = pool.data;
+    if (tried.current || !loaded || !contestNumber || draft.numbers.trim()) return;
+    if (!navigator.onLine || proximoStatus === "loading") return;
+    const latest = proximo?.extras.contestNumber;
+    if (proximoStatus === "fresh" && latest !== null && latest !== undefined && latest < contestNumber) return;
+    tried.current = true;
+    void fillFromOfficial(true);
+    // A busca é uma por abertura do formulário; o que ela preenche a pessoa confere e confirma.
+  }, [loaded, draft.numbers, proximo, proximoStatus]);
   async function review() {
     try {
       await writes.current;

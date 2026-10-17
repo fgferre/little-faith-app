@@ -1466,7 +1466,10 @@ test("the manual result form fills itself from the official CAIXA data fetched b
   const date = page.getByLabel("Data do sorteio em Brasília");
   // The textarea sits inside its label, so its text becomes part of the label once filled.
   const numbers = page.getByLabel("Dezenas sorteadas");
-  await page.getByRole("button", { name: "Informar resultado", exact: true }).click();
+  // The card opens by itself once CAIXA has drawn the pool's contest (the mocked latest is 3000); open it only when it has not.
+  const toggle = page.getByRole("button", { name: "Informar resultado", exact: true });
+  if ((await toggle.getAttribute("aria-expanded")) !== "true") await toggle.click();
+  await expect(fetchButton).toBeEnabled();
   await fetchButton.click();
   await expect(page.getByText("Não deu para buscar o resultado oficial agora. Tente de novo ou digite.")).toBeVisible();
   await expect(date).toHaveValue("");
