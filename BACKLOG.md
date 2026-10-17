@@ -16,3 +16,4 @@
 - (13/10) A mensagem "Avisar a turma" do Sorteio só mostra a parte de cada pessoa quando as cotas são iguais; o núcleo já calcula o direito de cada um (usado em Dividir).
 - (13/10) O teste SQL do cartão do participante confere `redemptionDeadlineDate`/`prizeRedeemed` só no caso já resgatado; falta o caso com prêmio por resgatar, e o conferidor PGlite não cruza esses campos com o núcleo.
 - (13/10) Movimento: a seta de "Ver conta" só gira de volta quando o recolher termina (open sai no fim); em Dividir, "ir para Registrar" troca de tela e a janela some seca; na gaveta "Avisar a turma", compartilhar/copiar/baixar fecham seco de propósito (o aviso tem que aparecer por cima).
+- (17/10) Comprovante pelo cartão: se o registro da resposta falhar depois do upload, o arquivo fica órfão no bucket `participant-proofs` (ninguém o lê; nada apaga lá); um contador de órfãos ou uma limpeza no servidor resolveria.

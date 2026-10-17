@@ -1,5 +1,8 @@
 Responder pelo cartão e próximo sorteio automático (e o gancho da doação) — pedido do dono em 16/10, cartão primeiro.
 
+Estado em 17/10: passos 1, 2, 3 e 5 feitos e commitados (44c678a, e3005ed, 8f3cc85, 808121c), `npm run done` verde; falta o passo 4
+(esperando o sim dele ao desenho) e a publicação (ordem no bastão de `docs/PENDENCIAS.md`).
+
 ## Por quê, nas palavras dele (16/10)
 
 - "o pulo do gato é o organizador deixar de ser uma pessoa e ser o próprio app"; "o app [...] está só sendo um assistente, friendly
