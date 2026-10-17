@@ -1,7 +1,7 @@
 Teimosinha de verdade: um bolão só com vários concursos seguidos, pagamento único e conferência de cada sorteio — decisão do dono em 17/10 ("a Confraria pediu para repetir os números"). Plano escrito em 17/10 a partir do inventário de tudo que hoje assume um concurso por bolão.
 
 Estado em 17/10 (noite): passos 1, 2 e 3 feitos e commitados (113a7c1, 17fc468 e o commit do passo 3); nada publicado (3 migrações
-novas: 20261017000000, 20261017010000, 20261017020000, mais a função api e o app). Falta: `npm run done` do passo 3, depois os
+novas: 20261017000000, 20261017010000, 20261017020000, mais a função api e o app). `npm run done` verde depois do passo 3 (351 unitários, 52 fluxos). Faltam os
 passos 4, 5 e 6. Achado em 17/10 (passo 3): a comparação do registro não conhece `contestCount` e acusa `bet-cost-mismatch` num recibo
 de teimosinha (o custo observado é N vezes o de um sorteio); o teste do núcleo `teimosinha: one prize per contest` contorna com uma
 razão humana no item, e o cenário SQL em `supabase/tests/settlement.sql` idem; o passo 4 conserta e tira os contornos.
@@ -46,7 +46,7 @@ razão humana no item, e o cenário SQL em `supabase/tests/settlement.sql` idem;
 2. [x] Resultado e calendário por concurso: `results.ts` (snapshot por faixa, atual por concurso, conflito só no mesmo concurso),
    `caixa-results.ts` (busca com o concurso pedido), migração `contest_number` em `contest_result_versions` e job por concurso,
    `result_decide`/`result_collect`/`result_jobs_due` por concurso, cortes no primeiro concurso; testes núcleo, SQL e API.
-3. [x] Prêmio por concurso (feito em 17/10; `npm run done` completo ainda não rodou para este passo: rodar antes de seguir): `settlement.ts` e `settlement.sql` (prêmio por concurso, soma na divisão, `prize_confirm` com concurso),
+3. [x] Prêmio por concurso (feito em 17/10, `npm run done` verde): `settlement.ts` e `settlement.sql` (prêmio por concurso, soma na divisão, `prize_confirm` com concurso),
    `settlement_pool_balance`, cartão com `draws`; fixture de 2 concursos na paridade SQL↔núcleo; testes.
 4. [ ] Registro: `contestCount` no bilhete observado, comparação e divergências, tela Registrar com "Concursos cobertos"; o calendário
    usado no registro e no corte da cota passa a ser o do primeiro concurso (hoje é o último calendário do bolão); a guarda do bolão

@@ -4,12 +4,12 @@ Lista viva do que está aberto. Leia só a seção O BASTÃO e o item da vez; o 
 Item resolvido sai da lista e vira commit com o número entre parênteses; a história de cada número fica no git (`git log --all --grep="(NNN)"`).
 Número é identidade, não posição: item novo entra no fim da sua seção. **Próximo número livre: 16.**
 
-## O BASTÃO — onde a rodada parou (17/10, noite) — TEIMOSINHA: PASSOS 1 A 3 FEITOS, NÃO PUBLICADOS; PRÓXIMO: `npm run done` E PASSO 4
+## O BASTÃO — onde a rodada parou (17/10, noite) — TEIMOSINHA: PASSOS 1 A 3 FEITOS E VERIFICADOS, NÃO PUBLICADOS; PRÓXIMO: PASSO 4
 
 **Para quem pega agora:** leia o `PLAN-teimosinha.md` (decisões fechadas, 6 passos; os passos 1, 2 e 3 estão feitos e commitados em
 17/10: quantidade de concursos no bolão e no custo do plano; resultado e calendário por concurso; um prêmio por concurso somado na
-divisão, cartão com `draws`). Primeiro rode `npm run done` (o passo 3 só passou por tipos, lint, testes do núcleo, SQL e API; o build e
-os fluxos do navegador não rodaram depois dele); depois o passo 4 (registro: `contestCount` no bilhete observado e na comparação,
+divisão, cartão com `draws`; `npm run done` verde depois do passo 3: 351 unitários, SQL com 29 respostas de divisão conferidas pelo
+núcleo, 20 da API, 52 fluxos). Comece pelo passo 4 (registro: `contestCount` no bilhete observado e na comparação,
 que hoje acusa `bet-cost-mismatch` num recibo de teimosinha; calendário do primeiro concurso no registro e no corte da cota; guarda
 contra diminuir a quantidade com resultados já gravados), o passo 5 (telas) e o 6 (publicar: 3 migrações novas, função api e app, com
 o sim dele). A conversa de 17/10 foi encerrada pelo dono por contexto cheio; comece esta numa conversa nova. A teimosinha é um bolão só com vários concursos seguidos, pagamento único e conferência
