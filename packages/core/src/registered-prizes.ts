@@ -6,7 +6,8 @@ import { validateResultVersion } from './results';
 import { planningInvalid, planningOption, planningUid } from './prepared-plans';
 
 /** Applies result tiers to human-reviewed, legible actual games; the plan is never a substitute receipt. */
-export function assessRegisteredPrizes(report: RegistrationReport, view: CurrentResultView): RegistrationPrizeAssessment {
+/** contestCount: a teimosinha receipt (its ticket names the first contest) also covers the next contestCount - 1 contests. */
+export function assessRegisteredPrizes(report: RegistrationReport, view: CurrentResultView, contestCount = 1): RegistrationPrizeAssessment {
   const groupId = planningUid(report.groupId, 'groupId'), poolId = planningUid(report.poolId, 'poolId');
   const items = validateRegistrationItems(report.items);
   const status = planningOption(view.status, ['waiting', 'numbers-only', 'complete', 'manual', 'conflict'], 'status');
@@ -20,7 +21,8 @@ export function assessRegisteredPrizes(report: RegistrationReport, view: Current
   const drawn = new Set(result.drawnNumbers), games: RegisteredPrize[] = [], skippedTicketKeys: string[] = [];
   for (const item of items) {
     const actual = item.observed;
-    if (!item.evidenceIds.length || !actual?.betNumbers || actual.lotteryId !== result.lotteryId || actual.contestNumber !== result.contestNumber) { skippedTicketKeys.push(item.plannedTicketKey); continue; }
+    const covered = actual?.contestNumber !== null && actual?.contestNumber !== undefined && result.contestNumber >= actual.contestNumber && result.contestNumber < actual.contestNumber + contestCount;
+    if (!item.evidenceIds.length || !actual?.betNumbers || actual.lotteryId !== result.lotteryId || !covered) { skippedTicketKeys.push(item.plannedTicketKey); continue; }
     actual.betNumbers.forEach((numbers, observedBetIndex) => {
       const tiers = prizeMultiplicities(result.lotteryId, numbers, result.drawnNumbers!).map((tier) => {
         const prizeCents = payouts.get(tier.hits) ?? null;

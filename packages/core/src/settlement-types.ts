@@ -144,6 +144,16 @@ export interface PoolSettlementBalance {
   registrationIncomplete: boolean;
   closed: boolean;
   persons: SettlementPersonBalance[];
+  /** One entry per contest of the pool (a teimosinha has several): the current result, the prize calculated on it and the confirmed one. */
+  contests: SettlementContestBalance[];
+}
+export interface SettlementContestBalance {
+  contestNumber: number;
+  resultId: string | null;
+  resultConflict: boolean;
+  calculatedPrizeCents: string | null;
+  prizeConfirmationId: string | null;
+  confirmedPrizeCents: string | null;
 }
 export interface PoolSettlement extends SettlementFact {
   direction: 'closed' | 'reopened';

@@ -68,6 +68,12 @@ export interface ParticipantCardPool {
   /** Frozen plan's limit under which a confirmed prize stays in the group cash (internal agreement); null when none. Absent in cards served before it. */
   groupPrizeLimitCents?: string | null;
   closed: boolean;
+  /**
+   * One entry per contest the pool covers (a teimosinha has several, a normal pool one): its draw instant or date, and its result
+   * as `result` above (null before the draw). For a teimosinha, `drawAt` is the next pending draw and `result` the last drawn one.
+   * Absent in cards served before it.
+   */
+  draws?: { contestNumber: number; drawAt: string | null; result: ParticipantCardPool['result'] }[];
 }
 
 export type ParticipantAnswerKind = 'in' | 'out' | 'paid';

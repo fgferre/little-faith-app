@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { LeftoverPolicy, OfficialPrizeEntitlement, PoolSettlementBalance, SettlementAction, SettlementRecord, SettlementSnapshot } from './index';
 import { buildSettlementFact, canonicalManifest, computeSettlement,createRedemptionDeadline, createSettlementView, keptPrize, redemptionAlerts, redemptionCountdown, settlementStatement, sha256Hex, validateRedemptionDeadline, validateSettlementActionContext, validateSettlementCommand, validateSettlementReceipt, validateSettlementSnapshot } from './index';
-import { fixtureId, manualResult, REG_GROUP, REG_POOL, registrationManifest, registrationSnapshot, resultSnapshot } from './registration.test-fixtures';
+import { fixtureId, manualResult, REG_GROUP, REG_POOL, registrationItems, registrationManifest, registrationReport, registrationSnapshot, resultSnapshot } from './registration.test-fixtures';
 
 type Act<T extends SettlementAction['type']> = Extract<SettlementAction, { type: T }>;
 const A = fixtureId(20), B = fixtureId(21), REPORT = fixtureId(4000), RESULT = fixtureId(5001), EVIDENCE = [fixtureId(3000)], START = 20;
@@ -63,6 +63,58 @@ describe('calculated, confirmed, redeemed, right, paid and pending are distinct 
     s = apply(s, pay(s, A, '20000'));
     expect(person(s, A)).toMatchObject({ prizeRightCents: '53000', prizeReceivedCents: '20000', prizePendingCents: '33000' });
     expect(pool(s)).toMatchObject({ prizePaidCents: '20000', unpaidPrizeCents: '86000', organizerCashCents: '90200' });
+  });
+});
+
+describe('teimosinha: one prize per contest', () => {
+  const SECOND = manualResult({ lotteryId: 'mega-sena', contestNumber: 3001, drawDate: '2026-10-11', drawnNumbers: [1, 2, 3, 4, 5, 60], payouts: manualResult().payouts }, 2);
+  /** The expanded game over two contests: twice the cost and the contributions, and the receipt of 3000 also covers 3001, where 1..7 hits five twice and four five times (2 × 1000 + 5 × 100 = 2500). */
+  function twoContests(): SettlementSnapshot {
+    const s = base(), frozen = s.registration.manifests[0]!, plan = frozen.content.plan;
+    plan.contestCount = 2; frozen.content.pool.data.contestCount = 2; frozen.content.pool.data.quotaPriceCents = '4200';
+    for (const right of plan.rights) right.dueCents = '4200';
+    plan.budgetCents = plan.betCostCents = plan.totalCostCents = plan.tickets[0]!.betCostCents = '8400';
+    for (const money of [frozen.content.financial, s.financial]) {
+      for (const row of [...money.payments, ...money.allocations, ...money.movements]) row.amountCents = '4200';
+      for (const quota of money.quotas) quota.dueCents = '4200';
+    }
+    frozen.canonical = canonicalManifest(frozen.content); frozen.sha256 = sha256Hex(frozen.canonical);
+    // One receipt bills both draws while registration still prices the legible games for a single draw: a human reason covers that divergence.
+    s.registration = { ...s.registration, reports: [registrationReport(frozen, registrationItems(frozen).map((item) => ({ ...item, reason: 'Recibo único da teimosinha de 2 concursos.' })))] };
+    s.results = { ...s.results, results: [...s.results.results, SECOND] };
+    return s;
+  }
+  const prizeSecond = (s: SettlementSnapshot, supersedesId: string | null = null): Act<'prize_confirm'> => ({ ...prize(s, '2500'), resultId: SECOND.id, supersedesId, redemptionDeadline: createRedemptionDeadline('mega-sena', SECOND.drawDate!) });
+  it('a teimosinha confirms one prize per contest and sums them', () => {
+    let s = twoContests();
+    expect(pool(s)).toMatchObject({ calculatedPrizeCents: '108500', confirmedPrizeCents: null });
+    s = apply(s, prize(s));
+    s = apply(s, prizeSecond(s));
+    expect(pool(s).contests).toEqual([
+      { contestNumber: 3000, resultId: RESULT, resultConflict: false, calculatedPrizeCents: '106000', prizeConfirmationId: s.prizes[0]!.id, confirmedPrizeCents: '106000' },
+      { contestNumber: 3001, resultId: SECOND.id, resultConflict: false, calculatedPrizeCents: '2500', prizeConfirmationId: s.prizes[1]!.id, confirmedPrizeCents: '2500' },
+    ]);
+    expect(pool(s)).toMatchObject({ calculatedPrizeCents: '108500', confirmedPrizeCents: '108500', unredeemedPrizeCents: '108500' });
+    expect(person(s, A).prizeRightCents).toBe('54250');
+    expect(person(s, B).prizeRightCents).toBe('54250');
+  });
+  it('a prize must supersede the latest prize of its own contest', () => {
+    let s = apply(twoContests(), prize(twoContests()));
+    s = apply(s, prizeSecond(s));
+    expect(() => fact(s, prizeSecond(s, s.prizes[0]!.id))).toThrow('revisão explícita');
+    expect(() => fact(s, prizeSecond(s))).toThrow('revisão explícita');
+    const revised = apply(s, prizeSecond(s, s.prizes[1]!.id));
+    expect(pool(revised).contests.map((c) => c.prizeConfirmationId)).toEqual([revised.prizes[0]!.id, revised.prizes[2]!.id]);
+  });
+  it('closing stays pending until every contest has its prize', () => {
+    let s = apply(twoContests(), expense(twoContests(), { betCostCents: '8400' }));
+    s = apply(s, prize(s));
+    s = apply(s, redeem(s, '106000'));
+    s = apply(s, pay(s, A, '53000'));
+    s = apply(s, pay(s, B, '53000'));
+    expect(pool(s).contests.map((c) => c.prizeConfirmationId)).toEqual([s.prizes[0]!.id, null]);
+    expect(() => fact(s, settle(s))).toThrow('explicados');
+    expect(pool(apply(s, settle(s, 'Segundo concurso ainda sem prêmio.'))).closed).toBe(true);
   });
 });
 

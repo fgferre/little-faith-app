@@ -12,7 +12,8 @@ create temporary table settlement_contract_samples(label text,kind text,data jso
 grant all on settlement_contract_samples to authenticated,service_role;
 
 -- Same fixture as registration/results: four known games, 2:1 rights, two internal pools and one official pool (the official one and pool 3 keep their leftover as group credit; pool 3 also freezes a prize limit).
-create function pg_temp.prepared(p_group uuid,p_pool uuid,p_policy text default 'refund-pro-rata',p_limit text default null) returns jsonb language plpgsql as $$
+-- p_contests > 1 is a teimosinha: the plan carries contestCount and every catalog cost is multiplied by it.
+create function pg_temp.prepared(p_group uuid,p_pool uuid,p_policy text default 'refund-pro-rata',p_limit text default null,p_contests integer default 1) returns jsonb language plpgsql as $$
 declare v_pool public.draft_records; v_source public.draft_records; v_rights jsonb; v_budget bigint;
   v_bets jsonb; v_tickets jsonb := '[]'; v_bet jsonb; v_assignments jsonb; i integer;
 begin
@@ -29,18 +30,19 @@ begin
     i := 0;
     for v_bet in select value from jsonb_array_elements(v_bets) loop i := i+1;
       v_tickets := v_tickets || jsonb_build_array(jsonb_build_object('key','ticket-' || i,'numberCount',6,'betKeys',jsonb_build_array(v_bet -> 'key'),
-        'betCostCents','600','officialQuotaCount',null,'officialQuotaValueCents',null,'assignments','[]'::jsonb)); end loop;
+        'betCostCents',(600*p_contests)::text,'officialQuotaCount',null,'officialQuotaValueCents',null,'assignments','[]'::jsonb)); end loop;
   else
     select jsonb_agg(jsonb_build_object('quotaId',value -> 'quotaId','personId',value -> 'personId','officialQuotas',(value ->> 'units')::integer / 50)) into v_assignments from jsonb_array_elements(v_rights);
     v_tickets := jsonb_build_array(jsonb_build_object('key','ticket-1','numberCount',6,'betKeys','["fixed-1","generated-1","generated-2","generated-3"]'::jsonb,
-      'betCostCents','2400','officialQuotaCount',3,'officialQuotaValueCents','800','assignments',v_assignments));
+      'betCostCents',(2400*p_contests)::text,'officialQuotaCount',3,'officialQuotaValueCents',(800*p_contests)::text,'assignments',v_assignments));
   end if;
   return jsonb_build_object('id',gen_random_uuid(),'groupId',p_group,'poolId',p_pool,'poolVersion',v_pool.version,
     'groupRevision',(select revision from public.groups where id = p_group),'lotteryId','mega-sena','contestNumber',42,'participationMode',v_pool.data -> 'participationMode',
     'strategy','balanced','seed',repeat('ab',32),'catalogVersion','caixa-pools-2026-10-08-v1','sourceBets',jsonb_build_array(jsonb_build_object('id',v_source.id,'version',v_source.version)),
-    'rights',v_rights,'budgetCents',v_budget::text,'betCostCents','2400','feeCents','0','feeLabel','','totalCostCents','2400',
-    'leftoverCents',(v_budget-2400)::text,'leftoverPolicy',p_policy,'bets',v_bets,'tickets',v_tickets,'explanation','Plano privado de apuração 🙂.')
-    || case when p_limit is null then '{}'::jsonb else jsonb_build_object('groupPrizeLimitCents',p_limit) end;
+    'rights',v_rights,'budgetCents',v_budget::text,'betCostCents',(2400*p_contests)::text,'feeCents','0','feeLabel','','totalCostCents',(2400*p_contests)::text,
+    'leftoverCents',(v_budget-2400*p_contests)::text,'leftoverPolicy',p_policy,'bets',v_bets,'tickets',v_tickets,'explanation','Plano privado de apuração 🙂.')
+    || case when p_limit is null then '{}'::jsonb else jsonb_build_object('groupPrizeLimitCents',p_limit) end
+    || case when p_contests = 1 then '{}'::jsonb else jsonb_build_object('contestCount',p_contests) end;
 end;
 $$;
 create function pg_temp.observed_items(p_pool uuid) returns jsonb
@@ -396,6 +398,134 @@ begin
   insert into settlement_contract_samples values('pool settled with kept prize','receipt',r);
   insert into settlement_contract_samples values('kept prize snapshot','snapshot',public.settlement_pull(g));
 end; $$;
+
+-- Teimosinha (owner's decision of 17/10): pool 4 plays the same four games in contests 42 and 43, paid once.
+-- Quota price 5000: 5000 + 2500 = 7500 funded; plan cost = 4 games x 600 x 2 contests = 4800, leftover 2700.
+-- The receipts name contest 42 and cost 1200 each (both contests); the registration check still prices one contest (600), so each
+-- ticket is a bet-cost-mismatch divergence explained by a human reason, and the report stays divergent (registrationIncomplete).
+-- Contest 42 drawn [1,2,3,4,5,7]: the known game hits 5 -> 5000000. Contest 43 drawn [7,8,9,10,11,60]: generated-1 [7..12] hits 5
+-- -> 3000000 and generated-2 [8..13] hits 4 -> 80000, so 3080000. One prize per contest; the pool's confirmed prize is 8080000.
+-- Rights 2:1 by largest remainder: 5000000 -> 3333333/1666667, 3080000 -> 2053333/1026667, so 5386666/2693334.
+do $$ declare g uuid := 'a1000000-0000-4000-8000-000000000001'; p4 uuid := 'a4000000-0000-4000-8000-000000000004'; v_person uuid; v_statute uuid; r jsonb; plan_id uuid; j integer;
+begin
+  r := public.sync_push(pg_temp.draft(g,p4,'pool',jsonb_build_object('title','Bolão 4','lotteryId','mega-sena','contestNumber',42,'contestCount',2,
+    'deadlineAt','2099-01-01T00:00:00Z','quotaPriceCents','5000','participationMode','internal','status','draft')));
+  perform pg_temp.assert_true(r ->> 'status' = 'accepted','teimosinha pool covers contests 42 and 43');
+  perform public.sync_push(pg_temp.draft(g,'a7000000-0000-4000-8000-000000000004','bet',jsonb_build_object('poolId',p4,
+    'lotteryId','mega-sena','numbers','[1,2,3,4,5,6]'::jsonb,'authorIds','["a3000000-0000-4000-8000-000000000001"]'::jsonb,'catalogVersion','caixa-basic-2026-10-07-v1','seed',null,'generationAlgorithmVersion',null)));
+  select id into v_statute from public.statute_versions where group_id = g;
+  for j in 1..2 loop
+    v_person := ('a3000000-0000-4000-8000-' || lpad(j::text,12,'0'))::uuid;
+    perform public.sync_push(pg_temp.draft(g,('a5000000-0000-4000-8000-' || lpad((40+j)::text,12,'0'))::uuid,'quota',
+      jsonb_build_object('poolId',p4,'personId',v_person,'units',case when j = 1 then 100 else 50 end)));
+    perform public.sync_push(pg_temp.draft(g,('a6000000-0000-4000-8000-' || lpad((40+j)::text,12,'0'))::uuid,'payment-proposal',
+      jsonb_build_object('poolId',p4,'personId',v_person,'amountCents',case when j = 1 then '5000' else '2500' end,'note','','status','pending')));
+    r := public.review_decide(pg_temp.command(g,jsonb_build_object('type','payment_confirm','proposalId',
+      ('a6000000-0000-4000-8000-' || lpad((40+j)::text,12,'0'))::uuid,'proposalVersion',1,'bankReference',null,'declaredReceivedAt',null,
+      'allocations',jsonb_build_array(jsonb_build_object('poolId',p4,'amountCents',case when j = 1 then '5000' else '2500' end)))));
+    perform pg_temp.assert_true(r ->> 'status' = 'accepted','teimosinha funded');
+    r := public.review_decide(pg_temp.command(g,jsonb_build_object('type','quota_confirm','quotaId',
+      ('a5000000-0000-4000-8000-' || lpad((40+j)::text,12,'0'))::uuid,'quotaVersion',1,'statuteId',v_statute)));
+    perform pg_temp.assert_true(r ->> 'status' = 'accepted','teimosinha quota confirmed');
+  end loop;
+  r := public.planning_decide(pg_temp.command(g,jsonb_build_object('type','plan_apply','plan',pg_temp.prepared(g,p4,'refund-pro-rata',null,2))));
+  select id into plan_id from public.pool_plan_versions where pool_id = p4 order by version desc limit 1;
+  perform pg_temp.assert_true(r ->> 'status' = 'accepted' and (select prepared_plan ->> 'contestCount' = '2' and prepared_plan ->> 'betCostCents' = '4800' and prepared_plan ->> 'leftoverCents' = '2700'
+    and (select bool_and(t.value ->> 'betCostCents' = '1200') from jsonb_array_elements(prepared_plan -> 'tickets') t) from public.pool_plan_versions where id = plan_id),
+    'teimosinha plan carries contestCount 2 and doubled costs');
+  r := public.planning_decide(pg_temp.command(g,jsonb_build_object('type','pool_lock','poolId',p4,'poolVersion',pg_temp.pool_version(p4),'appliedPlanId',plan_id,
+    'responsible',jsonb_build_object('registrarPersonId','a3000000-0000-4000-8000-000000000003','ticketHolderPersonId','a3000000-0000-4000-8000-000000000003'))));
+  perform pg_temp.assert_true(r ->> 'status' = 'accepted','teimosinha manifest locked');
+end; $$;
+reset role;
+insert into storage.objects(bucket_id,name) values('evidence','a1000000-0000-4000-8000-000000000001/a8000000-0000-4000-8000-000000000004.pdf');
+set local role service_role;
+select set_config('request.jwt.claims','{"role":"service_role"}',true);
+select public.evidence_seal(jsonb_build_object('id','a8000000-0000-4000-8000-000000000004','groupId','a1000000-0000-4000-8000-000000000001',
+  'poolId','a4000000-0000-4000-8000-000000000004','sha256',encode(sha256(convert_to('%PDF-teimosinha','UTF8')),'hex'),
+  'mimeType','application/pdf','byteSize',15,'originalName','Comprovante da teimosinha.pdf'),'00000000-0000-4000-8000-000000000971') is not null as sealed;
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000971","role":"authenticated","session_id":"00000000-0000-4000-8000-100000000971","app_metadata":{}}',true);
+do $$ declare g uuid := 'a1000000-0000-4000-8000-000000000001'; p4 uuid := 'a4000000-0000-4000-8000-000000000004'; ev4 uuid := 'a8000000-0000-4000-8000-000000000004';
+  items jsonb; report4 uuid; result42 uuid; result43 uuid; prize42 uuid; r jsonb; cmd jsonb; c integer;
+begin
+  select jsonb_agg(i.value || jsonb_build_object('reason','O comprovante da teimosinha cobre os dois concursos.') order by i.ordinality) into items
+    from jsonb_array_elements(pg_temp.observed_items(p4)) with ordinality i(value,ordinality);
+  r := public.registration_decide(pg_temp.command(g,jsonb_build_object('type','registration_confirm','poolId',p4,'poolVersion',pg_temp.pool_version(p4),
+    'manifestId',(select id from public.pool_manifests where pool_id = p4 order by version desc limit 1),'items',items,'reason','')));
+  select id into report4 from public.registration_reports where pool_id = p4 order by version desc limit 1;
+  perform pg_temp.assert_true(r ->> 'status' = 'accepted' and (select comparison ->> 'status' = 'divergent' and comparison ->> 'observedBetCostCents' = '4800'
+    and (select count(*) = 4 and bool_and(e.value ->> 'code' = 'bet-cost-mismatch') from jsonb_array_elements(comparison -> 'issues') e)
+    from public.registration_reports where id = report4),'teimosinha receipts registered with the known one-contest price gap explained');
+  foreach c in array array[42,43] loop
+    r := public.result_decide(pg_temp.command(g,jsonb_build_object('type','result_manual','poolId',p4,'poolVersion',pg_temp.pool_version(p4),
+      'data',jsonb_build_object('lotteryId','mega-sena','contestNumber',c,'drawDate',case c when 42 then '2026-10-08' else '2026-10-10' end,
+        'drawnNumbers',case c when 42 then '[1,2,3,4,5,7]' else '[7,8,9,10,11,60]' end::jsonb,
+        'payouts',case c when 42 then '[{"hits":6,"winnerCount":"0","prizeCents":"0"},{"hits":5,"winnerCount":"10","prizeCents":"5000000"},{"hits":4,"winnerCount":"1000","prizeCents":"100000"}]'
+          else '[{"hits":6,"winnerCount":"0","prizeCents":"0"},{"hits":5,"winnerCount":"20","prizeCents":"3000000"},{"hits":4,"winnerCount":"2000","prizeCents":"80000"}]' end::jsonb),
+      'sourceReference','Resultado oficial do concurso ' || c,'reason','Rateio publicado e conferido.')));
+    perform pg_temp.assert_true(r ->> 'status' = 'accepted','teimosinha result recorded for contest ' || c);
+  end loop;
+  select id into result42 from public.contest_result_versions where pool_id = p4 and contest_number = 42;
+  select id into result43 from public.contest_result_versions where pool_id = p4 and contest_number = 43;
+
+  -- One prize per contest: the 42 confirmation starts its own chain.
+  cmd := jsonb_build_object('type','prize_confirm','poolId',p4,'registrationReportId',report4,'resultId',result42,'supersedesId',null,'amountCents','5000000',
+    'officialEntitlements','[]'::jsonb,'evidenceIds',jsonb_build_array(ev4),'sourceReference','Resultado do concurso 42 e bilhetes conferidos','reason','','redemptionDeadline',null);
+  r := public.settlement_decide(pg_temp.settle(cmd || jsonb_build_object('poolVersion',pg_temp.pool_version(p4))));
+  select id into prize42 from public.settlement_prizes where pool_id = p4 and result_id = result42;
+  perform pg_temp.assert_true(r ->> 'status' = 'accepted' and prize42 is not null and exists (select 1 from jsonb_array_elements(r -> 'snapshot' -> 'prizes') p
+    where p.value ->> 'id' = prize42::text and p.value ->> 'calculatedPrizeCents' = '5000000' and p.value -> 'supersedesId' = 'null'::jsonb),'teimosinha prize of contest 42 confirmed');
+  insert into settlement_contract_samples values('teimosinha prize contest 42','receipt',r);
+  -- Contest 43 has no confirmation yet: naming the 42 prize as the one revised is not an explicit revision of 43.
+  r := public.settlement_decide(pg_temp.settle(cmd || jsonb_build_object('poolVersion',pg_temp.pool_version(p4),'resultId',result43,'supersedesId',prize42,
+    'amountCents','3080000','sourceReference','Resultado do concurso 43 e bilhetes conferidos','reason','Prêmio do segundo concurso.')));
+  perform pg_temp.assert_true(r ->> 'status' = 'rejected' and r ->> 'message' = 'Prêmio exige relatório atual, fonte atual sem conflito e revisão explícita.'
+    and (select count(*) from public.settlement_prizes where pool_id = p4) = 1,'a contest prize cannot supersede another contest''s prize');
+  insert into settlement_contract_samples values('teimosinha prize superseding another contest','receipt',r);
+  -- Closing while contest 43 has no prize needs an explanation (the divergent report and the unpaid prize also stay open).
+  r := public.settlement_decide(pg_temp.settle(jsonb_build_object('type','pool_settle','poolId',p4,'poolVersion',pg_temp.pool_version(p4),'registrationReportId',report4,
+    'prizeConfirmationId',prize42,'expenseConfirmationId',null,'leftoverDisposition','pending-refund','pendingExplanation','','reason','Encerramento antes do segundo concurso.')));
+  perform pg_temp.assert_true(r ->> 'status' = 'rejected' and r ->> 'message' = 'Pendências, reserva, prêmio ausente ou despesa desconhecida precisam permanecer explicados.'
+    and not exists (select 1 from public.settlement_closures where pool_id = p4),'a teimosinha with a contest still unconfirmed does not close unexplained');
+  insert into settlement_contract_samples values('teimosinha pool settle unexplained','receipt',r);
+  r := public.settlement_decide(pg_temp.settle(cmd || jsonb_build_object('poolVersion',pg_temp.pool_version(p4),'resultId',result43,'amountCents','3080000',
+    'sourceReference','Resultado do concurso 43 e bilhetes conferidos')));
+  perform pg_temp.assert_true(r ->> 'status' = 'accepted' and exists (select 1 from jsonb_array_elements(r -> 'snapshot' -> 'prizes') p
+    where p.value ->> 'poolId' = p4::text and p.value ->> 'resultId' = result43::text and p.value ->> 'calculatedPrizeCents' = '3080000' and p.value -> 'supersedesId' = 'null'::jsonb
+      and (select string_agg(x.value ->> 'amountCents',',' order by x.value ->> 'personId') from jsonb_array_elements(p.value -> 'rights') x) = '2053333,1026667'),
+    'teimosinha prize of contest 43 confirmed from the receipt naming contest 42');
+  insert into settlement_contract_samples values('teimosinha prize contest 43','receipt',r);
+  insert into settlement_contract_samples values('teimosinha snapshot','snapshot',public.settlement_pull(g));
+  perform public.participant_link_create(g,'a3000000-0000-4000-8000-000000000001',encode(sha256(convert_to('teimosinha-card','UTF8')),'hex'));
+end; $$;
+reset role;
+do $$ declare g uuid := 'a1000000-0000-4000-8000-000000000001'; p4 uuid := 'a4000000-0000-4000-8000-000000000004'; b jsonb := private.settlement_pool_balance(g,p4);
+  prizes jsonb;
+begin
+  select jsonb_agg(jsonb_build_object('contestNumber',r.contest_number,'prizeConfirmationId',p.id::text) order by r.contest_number) into prizes
+    from public.settlement_prizes p join public.contest_result_versions r on r.id = p.result_id where p.pool_id = p4;
+  perform pg_temp.assert_true(jsonb_array_length(b -> 'contests') = 2 and jsonb_array_length(prizes) = 2
+    and (select jsonb_agg(jsonb_build_object('contestNumber',(c.value ->> 'contestNumber')::integer,'prizeConfirmationId',c.value ->> 'prizeConfirmationId') order by c.ordinality)
+      from jsonb_array_elements(b -> 'contests') with ordinality c(value,ordinality)) = prizes,'balance lists both contests with their own prize');
+  perform pg_temp.assert_true(b -> 'contests' -> 0 ->> 'calculatedPrizeCents' = '5000000' and b -> 'contests' -> 0 ->> 'confirmedPrizeCents' = '5000000'
+    and b -> 'contests' -> 1 ->> 'calculatedPrizeCents' = '3080000' and b -> 'contests' -> 1 ->> 'confirmedPrizeCents' = '3080000'
+    and b ->> 'calculatedPrizeCents' = '8080000' and b ->> 'confirmedPrizeCents' = '8080000' and b ->> 'prizeConfirmationId' = prizes -> 1 ->> 'prizeConfirmationId'
+    and b ->> 'registrationIncomplete' = 'true'
+    and (select string_agg(x.value ->> 'prizeRightCents',',') from jsonb_array_elements(b -> 'persons') x) = '5386666,2693334','teimosinha figures are the sums over its contests');
+end; $$;
+set local role service_role;
+select set_config('request.jwt.claims','{"role":"service_role"}',true);
+do $$ declare card jsonb := public.participant_card(encode(sha256(convert_to('teimosinha-card','UTF8')),'hex')); pool jsonb;
+begin
+  select value into pool from jsonb_array_elements(card -> 'pools') where value ->> 'id' = 'a4000000-0000-4000-8000-000000000004';
+  perform pg_temp.assert_true(jsonb_array_length(pool -> 'draws') = 2 and pool -> 'draws' -> 0 ->> 'contestNumber' = '42' and pool -> 'draws' -> 1 ->> 'contestNumber' = '43'
+    and pool -> 'draws' -> 0 -> 'result' ->> 'prizeConfirmedCents' = '5000000' and pool -> 'draws' -> 1 -> 'result' ->> 'prizeConfirmedCents' = '3080000'
+    and pool -> 'draws' -> 1 -> 'result' ->> 'prizeCalculatedCents' = '3080000' and pool -> 'result' = pool -> 'draws' -> 1 -> 'result'
+    and pool -> 'result' -> 'drawnNumbers' = '[7,8,9,10,11,60]'::jsonb,'teimosinha card shows one draw per contest and the last drawn result');
+end; $$;
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000971","role":"authenticated","session_id":"00000000-0000-4000-8000-100000000971","app_metadata":{}}',true);
 
 select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000972","role":"authenticated","session_id":"00000000-0000-4000-8000-100000000972","app_metadata":{}}',true);
 do $$ begin

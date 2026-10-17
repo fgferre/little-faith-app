@@ -151,7 +151,16 @@ try {
       const actual = pool.share ? [pool.share.rightCents, pool.share.receivedCents, pool.share.pendingCents, pool.share.refundRightCents, pool.share.refundedCents] : null;
       if (JSON.stringify(expected) !== JSON.stringify(actual)) throw new Error(`SQL/core participant share mismatch: ${label} ${pool.id} ${JSON.stringify({ expected, actual })}`);
       if (balance && pool.groupReserveCents !== balance.groupReserveCents) throw new Error(`SQL/core participant group reserve mismatch: ${label} ${pool.id} ${JSON.stringify({ expected: balance.groupReserveCents, actual: pool.groupReserveCents })}`);
-      if (pool.result && balance && (pool.result.prizeCalculatedCents !== balance.calculatedPrizeCents || pool.result.prizeConfirmedCents !== balance.confirmedPrizeCents)) {
+      // A teimosinha card carries one result per draw: each is checked against its contest; the pool-level result is the last drawn one.
+      const draws = Array.isArray(pool.draws) && pool.draws.length > 1 ? pool.draws : null;
+      if (draws && balance) {
+        for (const draw of draws) {
+          const contest = balance.contests.find(entry => entry.contestNumber === draw.contestNumber);
+          if (draw.result && (!contest || draw.result.prizeCalculatedCents !== contest.calculatedPrizeCents || draw.result.prizeConfirmedCents !== contest.confirmedPrizeCents)) {
+            throw new Error(`SQL/core participant draw prize mismatch: ${label} ${pool.id} ${draw.contestNumber}`);
+          }
+        }
+      } else if (pool.result && balance && (pool.result.prizeCalculatedCents !== balance.calculatedPrizeCents || pool.result.prizeConfirmedCents !== balance.confirmedPrizeCents)) {
         throw new Error(`SQL/core participant prize mismatch: ${label} ${pool.id}`);
       }
       if (person) cardShares++;
