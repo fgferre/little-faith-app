@@ -56,7 +56,7 @@ export interface ParticipantCardPool {
     refundRightCents: string | null;
     refundedCents: string;
   } | null;
-  /** The pool's leftover kept as the group's reserve (group-credit plan), null before expenses are confirmed. Absent in cards served before it. */
+  /** The pool's groupReserveCents: the leftover kept by a group-credit plan plus a prize kept under groupPrizeLimitCents; null before expenses are confirmed. Absent in cards served before it. */
   groupReserveCents?: string | null;
   /** Frozen plan's limit under which a confirmed prize stays in the group cash (internal agreement); null when none. Absent in cards served before it. */
   groupPrizeLimitCents?: string | null;

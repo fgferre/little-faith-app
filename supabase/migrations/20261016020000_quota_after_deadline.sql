@@ -9,7 +9,18 @@
 --   private.current_plan_error      from 20261008000000_planning.sql: the plan_apply/pool_lock refusal after the deadline and the
 --     refusal of rights whose quota was confirmed after it;
 --   public.planning_decide          from 20261008000000_planning.sql: the "deadline ended during the review" refusal.
+-- The draw is the hard cut instead: once the expected draw time of the latest calendar collected for the pool's contest has
+-- passed (private.pool_draw_passed), quota_confirm, plan_apply and pool_lock are refused, so nobody joins or locks a pool whose
+-- result may already be known. Without a collected calendar there is no cut beyond the lock.
 -- create or replace keeps the existing grants.
+create function private.pool_draw_passed(p_group uuid,p_pool uuid,p_contest jsonb) returns boolean
+language sql stable set search_path = '' as $$
+  select coalesce((select c.expected_draw_at <= clock_timestamp() from public.contest_calendar_versions c
+    where c.group_id = p_group and c.pool_id = p_pool and to_jsonb(c.contest_number) = p_contest
+    order by c.version desc limit 1),false);
+$$;
+revoke all on function private.pool_draw_passed(uuid,uuid,jsonb) from public,anon,authenticated;
+
 create or replace function private.financial_decide_base(p_command jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
@@ -124,7 +135,8 @@ begin
       if v_error is null then
         select * into v_pool from public.draft_records where group_id = v_group_id and id = (v_quota.data ->> 'poolId')::uuid and kind = 'pool';
         if not found or v_pool.data ->> 'status' <> 'draft' then v_error := 'A cota só pode ser confirmada em um bolão em rascunho.';
-        elsif v_pool.data -> 'deadlineAt' = 'null'::jsonb then v_error := 'Defina o prazo do bolão antes de confirmar uma cota.'; end if;
+        elsif v_pool.data -> 'deadlineAt' = 'null'::jsonb then v_error := 'Defina o prazo do bolão antes de confirmar uma cota.';
+        elsif private.pool_draw_passed(v_group_id,v_pool.id,v_pool.data -> 'contestNumber') then v_error := 'O sorteio deste concurso já passou; a cota não entra mais.'; end if;
         select * into v_person from public.draft_records where group_id = v_group_id and id = (v_quota.data ->> 'personId')::uuid and kind = 'person';
         if v_error is null and (not found or v_person.data -> 'adultDeclared' is distinct from 'true'::jsonb) then
           v_error := 'A pessoa precisa ter a declaração de maioridade registrada.';
@@ -230,6 +242,7 @@ begin
   if (p_plan ->> 'poolVersion')::bigint > v_pool.version then return 'O plano usa uma versão futura do bolão.'; end if;
   if v_pool.data -> 'contestNumber' = 'null'::jsonb or v_pool.data -> 'deadlineAt' = 'null'::jsonb
     or v_pool.data ->> 'participationMode' = 'undecided' then return 'Defina concurso, prazo e tipo de participação antes de aplicar um plano.'; end if;
+  if private.pool_draw_passed(p_group,p_pool,v_pool.data -> 'contestNumber') then return 'O sorteio deste concurso já passou; o plano ou a trava não foram confirmados.'; end if;
   if v_pool.data ->> 'lotteryId' <> p_plan ->> 'lotteryId' or v_pool.data -> 'contestNumber' <> p_plan -> 'contestNumber'
     or v_pool.data ->> 'participationMode' <> p_plan ->> 'participationMode' then return 'Modalidade, concurso ou participação divergem do bolão atual.'; end if;
   if private.pool_funding(p_group,p_pool) < (p_plan ->> 'budgetCents')::numeric then return 'O orçamento excede o dinheiro líquido confirmado e alocado neste bolão.'; end if;

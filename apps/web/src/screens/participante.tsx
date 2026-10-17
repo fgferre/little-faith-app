@@ -343,10 +343,15 @@ function ShareCard(
 ) {
   const pending = positive(share.pendingCents);
   // Prêmio até o limite combinado fica no caixa do grupo: ninguém tem parte dele para receber.
-  const kept = keptPrize({
+  const keptCents = keptPrize({
     participationMode: internal ? "internal" : "",
     groupPrizeLimitCents: groupPrizeLimit,
-  }, result?.prizeConfirmedCents ?? null) > 0n;
+  }, result?.prizeConfirmedCents ?? null);
+  const kept = keptCents > 0n;
+  // A reserva do grupo inclui o prêmio que ficou no caixa; a sobra das cotas é o resto.
+  const leftover = groupReserve === null
+    ? null
+    : (BigInt(groupReserve) - keptCents).toString();
   const refund = positive(share.refundRightCents);
   const deadline = result && positive(result.prizeConfirmedCents) &&
       result.redemptionDeadlineDate && result.prizeRedeemed !== true
@@ -400,10 +405,10 @@ function ShareCard(
             </dd>
           </div>
         )}
-        {positive(groupReserve) && (
+        {positive(leftover) && (
           <div>
             <dt>Sobra do bolão</dt>
-            <dd>{formatBRL(groupReserve!)} · fica no caixa do grupo</dd>
+            <dd>{formatBRL(leftover!)} · fica no caixa do grupo</dd>
           </div>
         )}
       </dl>
@@ -610,7 +615,7 @@ function PinGate(
   );
 }
 
-/** Criar, trocar ou tirar o PIN do cartão; o PIN de agora vem do aparelho e só é pedido quando não está guardado. */
+/** Criar, trocar ou tirar o PIN do cartão; para trocar ou tirar, o PIN de agora é pedido. */
 function PinDialog(
   { token, mode, pinSet, onDone, onClose }: {
     token: string;
@@ -620,14 +625,14 @@ function PinDialog(
     onClose: () => void;
   },
 ) {
-  const [saved, setSaved] = useState(() => rememberedPin(token));
+  // O PIN de agora é sempre pedido para trocar ou tirar, mesmo no aparelho que o guarda para abrir o cartão.
+  const [asksCurrent, setAsksCurrent] = useState(pinSet);
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [again, setAgain] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const removing = mode === "remove";
-  const asksCurrent = pinSet && !saved;
 
   async function run() {
     if (asksCurrent && !PIN.test(current)) {
@@ -649,15 +654,14 @@ function PinDialog(
       const result = await setParticipantPin(
         token,
         pin,
-        pinSet ? saved ?? current : null,
+        asksCurrent ? current : null,
       );
       rememberPin(token, pin);
       onDone(result.pinSet);
     } catch (failure) {
-      if (saved && failure instanceof ParticipantApiError && failure.code === "pin_wrong") {
-        // O PIN guardado já não vale (foi trocado em outro aparelho): a janela passa a pedir o atual.
-        rememberPin(token, null);
-        setSaved(null);
+      if (failure instanceof ParticipantApiError && failure.code === "pin_required") {
+        // Outro aparelho criou um PIN enquanto este cartão estava aberto: a janela passa a pedir o atual.
+        setAsksCurrent(true);
       }
       setError(
         failure instanceof ParticipantApiError

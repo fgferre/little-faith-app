@@ -62,10 +62,35 @@ describe("parsePastedGames", () => {
     expect(game).toMatchObject({ error: "A dezena 00 está fora de 1 a 60." });
   });
 
-  it("flags a game already in the pool, in any order", () => {
+  it("skips a game already in the pool, in any order, without blocking the rest", () => {
     const inPool = [[1, 2, 3, 4, 5, 6]];
     const [game] = parsePastedGames("06 05 04 03 02 01", mega, inPool);
-    expect(game).toMatchObject({ error: "Este jogo já está no bolão." });
+    expect(game).toMatchObject({ skipped: "Já está no bolão; fica de fora." });
+  });
+
+  it("does not count list numbers, labels or dates as numbers", () => {
+    const games = parsePastedGames(
+      [
+        "1) 05 12 23 34 45 56",
+        "2. 05 12 23 34 45 57",
+        "3º 05 12 23 34 45 58",
+        "Jogo 4 - 05 12 23 34 45 59",
+        "Jogo 5: 05 12 23 34 45 60",
+        "15/10: 06 12 23 34 45 56",
+        "05.08.12.26.48.51",
+      ].join("\n"),
+      mega,
+      [],
+    );
+    expect(games.map((g) => "numbers" in g && g.numbers)).toEqual([
+      [5, 12, 23, 34, 45, 56],
+      [5, 12, 23, 34, 45, 57],
+      [5, 12, 23, 34, 45, 58],
+      [5, 12, 23, 34, 45, 59],
+      [5, 12, 23, 34, 45, 60],
+      [6, 12, 23, 34, 45, 56],
+      [5, 8, 12, 26, 48, 51],
+    ]);
   });
 
   it("keeps the first copy and flags the repeats inside the paste", () => {

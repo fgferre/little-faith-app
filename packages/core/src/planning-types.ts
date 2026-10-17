@@ -63,7 +63,7 @@ export interface PreparedPlan {
   totalCostCents: string;
   leftoverCents: string;
   leftoverPolicy: LeftoverPolicy;
-  /** Confirmed prizes up to this amount are not split: they stay in the group cash (internal agreement only). Null = no limit. Absent in plans made before it existed, and kept absent so their frozen hashes stay valid; read absent as null. */
+  /** Confirmed prizes up to this amount are not split: they stay in the group cash (internal agreement only). Absent (or null) = no limit: plans without one keep the shape and hash they had before the field existed. */
   groupPrizeLimitCents?: string | null;
   bets: PlanBet[];
   tickets: PlanTicket[];

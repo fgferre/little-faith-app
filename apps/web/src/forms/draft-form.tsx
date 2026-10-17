@@ -96,7 +96,9 @@ export function DraftForm(
     (sum, numbers) => sum + BigInt(betCost(lotteryId, numbers)),
     0n,
   );
-  const pasteReady = pasted.length > 0 && pastedGames.length === pasted.length;
+  // Jogo que já está no bolão só fica de fora; linha com erro precisa ser corrigida.
+  const pasteReady = pastedGames.length > 0 &&
+    pasted.every((g) => !("error" in g));
   const titles = {
     group: "Um grupo para chamar de nosso",
     "edit-group": "Editar grupo e combinados",
@@ -689,7 +691,9 @@ export function DraftForm(
                       : (
                         <>
                           <span className="paste-text">{g.text}</span>
-                          <span className="paste-error">{g.error}</span>
+                          {"error" in g
+                            ? <span className="paste-error">{g.error}</span>
+                            : <span className="ui-sec">{g.skipped}</span>}
                         </>
                       )}
                   </li>

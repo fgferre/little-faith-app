@@ -31,7 +31,15 @@ import {
 import type { BolaoDatabase, PersistentFinancialCommand } from "@bolao/local";
 import { createAccountTransport } from "./auth";
 import { Modal } from "./components";
-import { Button, Card, Chip, Eyebrow, MoneyInput, ReviewItem } from "./ui";
+import {
+  Button,
+  Card,
+  Chip,
+  Eyebrow,
+  formatInstant,
+  MoneyInput,
+  ReviewItem,
+} from "./ui";
 import { draftQuotaCost } from "./quota-display";
 import { readReviewSnapshot } from "./review-snapshot";
 
@@ -56,34 +64,6 @@ const titles: Record<FinancialRequest["type"], string> = {
 const date = (value: string) =>
   new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" })
     .format(new Date(value));
-const brasiliaParts = (instant: number) => {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Sao_Paulo",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(new Date(instant));
-  const part = (type: string) => parts.find((p) => p.type === type)!.value;
-  return {
-    year: part("year"),
-    month: part("month"),
-    day: part("day"),
-    hour: part("hour"),
-    minute: part("minute"),
-  };
-};
-/** Agora no relógio de Brasília, no formato do campo de data e hora. */
-const brasiliaNowInput = () => {
-  const t = brasiliaParts(Date.now());
-  return `${t.year}-${t.month}-${t.day}T${t.hour}:${t.minute}`;
-};
-const brasiliaShort = (value: string) => {
-  const t = brasiliaParts(Date.parse(value));
-  return `${t.day}/${t.month}, ${t.hour}:${t.minute}`;
-};
 const message = (error: unknown) =>
   error instanceof Error
     ? error.message
@@ -536,9 +516,7 @@ export function FinancialDialog(
   const [amount, setAmount] = useState("");
   const [allocate, setAllocate] = useState(true);
   const [bankReference, setBankReference] = useState("");
-  const [receivedAt, setReceivedAt] = useState(() =>
-    request.type === "payment_confirm" ? brasiliaNowInput() : ""
-  );
+  const [receivedAt, setReceivedAt] = useState("");
   const [evidence, setEvidence] = useState("");
   const [reason, setReason] = useState("");
   const [reviewed, setReviewed] = useState(false);
@@ -675,7 +653,7 @@ export function FinancialDialog(
     try {
       const received = Date.parse(brasiliaDateTimeToUTC(receivedAt));
       return received >= Date.parse(deadlineAt)
-        ? brasiliaShort(deadlineAt)
+        ? formatInstant(deadlineAt, "America/Sao_Paulo")
         : null;
     } catch {
       return null;
@@ -1091,7 +1069,7 @@ export function FinancialDialog(
                         </label>
                         <label>
                           Data do recebimento{" "}
-                          <span className="muted">(horário de Brasília)</span>
+                          <span className="muted">(horário de Brasília, opcional)</span>
                           <input
                             type="datetime-local"
                             value={receivedAt}

@@ -3,6 +3,21 @@
 -- ('0' for the other policies, null while expenses are unconfirmed), as in the core's projectPool.
 -- private.settlement_pool_balance is re-created from 20261010000000_settlement.sql with only that rule and the new key.
 -- private.participant_card_pix_base is re-created from 20261016000000_participant_card_registered_games.sql with only groupReserveCents added to each pool.
+-- The rule also reaches facts already recorded: a contribution refund paid on a group-credit pool under the old split would
+-- now exceed the person's refund right, the core would reject the group's whole settlement history and every new fact on that
+-- pool would be refused. Old closures are rebuilt under the old rule, refunds are not, so this migration stops instead of
+-- applying when such a refund exists; it needs a decision before publishing.
+do $$
+begin
+  if exists (select 1 from public.settlement_distributions d
+      where d.kind = 'contribution-refund'
+        and (select m.content -> 'plan' ->> 'leftoverPolicy' from public.pool_manifests m
+          where m.group_id = d.group_id and m.pool_id = d.pool_id order by m.version desc limit 1) = 'group-credit') then
+    raise exception 'Há devolução registrada em bolão cuja sobra fica no caixa do grupo; decida o que fazer com ela antes desta migração.';
+  end if;
+end;
+$$;
+
 -- projectPool: one pool's balance in the core's PoolSettlementBalance shape. Null when the core could not split the frozen rights.
 create or replace function private.settlement_pool_balance(p_group uuid,p_pool uuid) returns jsonb
 language plpgsql stable set search_path = '' as $$

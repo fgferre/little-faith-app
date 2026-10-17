@@ -512,6 +512,8 @@ export function BolaoDividir(
     }
     const holder = manifest?.content.responsible.ticketHolderPersonId ?? null;
     const missing = balance.unredeemedPrizeCents ?? "0";
+    const kept = !!manifest &&
+      keptPrize(manifest.content.plan, balance.confirmedPrizeCents) > 0n;
     return (
       <>
         {!!redemptions.length && (
@@ -573,7 +575,11 @@ export function BolaoDividir(
             </p>
           )}
         <p className="ui-sec">
-          {holder
+          {kept
+            ? `${
+              holder ? `O prêmio cai no nome de ${name(manifest, holder)} e` : "O prêmio"
+            } fica no caixa do grupo, como combinado; ninguém recebe parte dele. Imposto pede um contador; o app não dá orientação fiscal.`
+            : holder
             ? `O prêmio cai no nome de ${name(manifest, holder)} e ${
               name(manifest, holder)
             } repassa a cada pessoa. Imposto e repasse entre pessoas pedem um contador; o app não dá orientação fiscal.`

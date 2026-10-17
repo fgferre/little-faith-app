@@ -53,6 +53,7 @@ import {
   Disclosure,
   EnviarWhatsApp,
   Eyebrow,
+  formatInstant,
   formatWhen,
   GameGroups,
   Money,
@@ -1223,15 +1224,8 @@ function ManualForm(
         setError("O resultado deste concurso ainda não saiu na CAIXA.");
         return;
       }
-      const fetchedAt = new Intl.DateTimeFormat("pt-BR", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        hourCycle: "h23",
-        timeZone: BRASILIA,
-      }).format(collectedAt).replace(", ", " ");
+      const fetchedAt = formatInstant(collectedAt.toISOString(), BRASILIA)
+        .replace(", ", " ");
       update({
         date: parsed.drawDate ?? "",
         numbers: parsed.drawnNumbers.map(pad).join(" "),

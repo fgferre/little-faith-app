@@ -201,7 +201,7 @@ export function suggestPlans(input: SuggestPlansInput): PlanSuggestionResult {
         }
       }
       const explanation=strategy==='spread'?'Prioriza jogos simples distintos dentro do orçamento.':strategy==='balanced'?'Combina jogos ampliados menores e jogos simples quando o orçamento permite.':'Prioriza jogos com mais dezenas que cabem no orçamento.';
-      const draft:Omit<PreparedPlan,'id'>={groupId,poolId,poolVersion,groupRevision,lotteryId:lottery.id,contestNumber,participationMode:mode,strategy,seed,catalogVersion:PLANNING_CATALOG_VERSION,sourceBets:fixed.map((b)=>({id:b.sourceBetId!,version:b.sourceBetVersion!})),rights,budgetCents:budget.toString(),betCostCents:cost.toString(),feeCents,feeLabel,totalCostCents:(cost+BigInt(feeCents)).toString(),leftoverCents:(available-cost).toString(),leftoverPolicy,groupPrizeLimitCents,bets,tickets:packPlanTickets(lottery.id,bets,rights,mode),explanation};
+      const draft:Omit<PreparedPlan,'id'>={groupId,poolId,poolVersion,groupRevision,lotteryId:lottery.id,contestNumber,participationMode:mode,strategy,seed,catalogVersion:PLANNING_CATALOG_VERSION,sourceBets:fixed.map((b)=>({id:b.sourceBetId!,version:b.sourceBetVersion!})),rights,budgetCents:budget.toString(),betCostCents:cost.toString(),feeCents,feeLabel,totalCostCents:(cost+BigInt(feeCents)).toString(),leftoverCents:(available-cost).toString(),leftoverPolicy,...(groupPrizeLimitCents?{groupPrizeLimitCents}:{}),bets,tickets:packPlanTickets(lottery.id,bets,rights,mode),explanation};
       result.plans.push(validatePreparedPlan({id:deterministicId(draft),...draft}));
     } catch (error) { result.unavailable.push({strategy,reason:error instanceof Error?error.message:'Plano indisponível.'}); }
   }

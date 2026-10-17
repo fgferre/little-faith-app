@@ -289,6 +289,15 @@ do $$ declare v_group uuid := '91000000-0000-4000-8000-000000000001'; v_pool uui
   perform pg_temp.assert_true(v_result ->> 'status' = 'rejected','registered pool cannot revise plan');
   perform pg_temp.assert_true((select revision = v_revision from public.groups where id = v_group),'deadline/state rejections do not advance group');
   update public.draft_records set data = jsonb_set(v_data,'{deadlineAt}','"2000-01-01T00:00:00.000Z"') where id = v_pool;
+  insert into public.contest_calendar_versions(id,group_id,pool_id,version,lottery_id,contest_number,source,source_url,source_reference,raw_text,sha256,collected_at,expected_draw_at)
+    values('9c000000-0000-4000-8000-000000000001',v_group,v_pool,1,v_data ->> 'lotteryId',(v_data ->> 'contestNumber')::bigint,'caixa','https://servicebus2.caixa.gov.br/',
+      'Calendário de teste','{}',encode(sha256(convert_to('{}','UTF8')),'hex'),now(),now() - interval '1 minute');
+  v_result := public.planning_decide(pg_temp.command(v_group,jsonb_build_object('type','plan_apply','plan',v_plan)));
+  perform pg_temp.assert_true(v_result ->> 'status' = 'rejected' and v_result ->> 'message' like '%sorteio%','server refuses a plan once the contest draw has passed');
+  -- A newer calendar without a draw time lifts the cut (calendars are append-only).
+  insert into public.contest_calendar_versions(id,group_id,pool_id,version,lottery_id,contest_number,source,source_url,source_reference,raw_text,sha256,collected_at)
+    values('9c000000-0000-4000-8000-000000000002',v_group,v_pool,2,v_data ->> 'lotteryId',(v_data ->> 'contestNumber')::bigint,'caixa','https://servicebus2.caixa.gov.br/',
+      'Calendário de teste','{}',encode(sha256(convert_to('{}','UTF8')),'hex'),now());
   v_result := public.planning_decide(pg_temp.command(v_group,jsonb_build_object('type','plan_apply','plan',v_plan)));
   perform pg_temp.assert_true(v_result ->> 'status' = 'accepted','server accepts a plan revision after the deadline while the pool is not registered');
   select id into v_applied from public.pool_plan_versions where pool_id = v_pool order by version desc limit 1;

@@ -42,10 +42,13 @@ export function umEm(probability: number) {
 
 export const PHONE_INVALID = "Telefone inválido: use só números, com DDI e DDD.";
 
-/** WhatsApp como o servidor guarda: só dígitos, DDI primeiro; 10 ou 11 dígitos são do Brasil (entra o 55). `null` quando não serve. */
+/** WhatsApp como o servidor guarda: só dígitos, DDI primeiro; sem "+", 10 ou 11 dígitos são do Brasil (entra o 55). `null` quando não serve. */
 export function normalizePhone(input: string) {
   let digits = input.replace(/\D/g, "");
-  if (digits.length === 10 || digits.length === 11) digits = `55${digits}`;
+  const country = input.trim().startsWith("+");
+  if (!country && (digits.length === 10 || digits.length === 11)) {
+    digits = `55${digits}`;
+  }
   return /^[1-9][0-9]{9,14}$/.test(digits) ? digits : null;
 }
 

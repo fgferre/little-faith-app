@@ -523,7 +523,9 @@ test("a card with a PIN asks for it, opens with the right one and lets the perso
   await expect(page.getByText("Seu cartão está protegido com PIN."))
     .toBeVisible();
 
+  // Changing the PIN asks for the current one, even on the device that keeps it to open the card.
   await page.getByRole("button", { name: "Trocar PIN" }).click();
+  await page.getByLabel("PIN atual").fill("1234");
   await page.getByLabel("Novo PIN", { exact: true }).fill("5678");
   await page.getByLabel("Repita o PIN").fill("5678");
   await page.getByRole("button", { name: "Salvar PIN" }).click();

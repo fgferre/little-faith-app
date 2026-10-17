@@ -127,7 +127,7 @@ describe('confirmed-budget plan heuristics and contracts',()=>{
     expect(()=>validatePlanningCommand({apiVersion:'v1',idempotencyKey:id(99),groupId:GROUP,expectedRevision:10,action:{type:'plan_apply',plan},actorId:id(20)})).toThrow('Campo');
   });
   it('accepts the group prize limit absent, null or valid and rejects an invalid one or one on official participation',()=>{
-    const plan=suggestPlans(input()).plans[0]!;expect(plan.groupPrizeLimitCents).toBeNull();
+    const plan=suggestPlans(input()).plans[0]!;expect('groupPrizeLimitCents' in plan).toBe(false);
     const legacy:Record<string,unknown>={...plan};delete legacy.groupPrizeLimitCents;
     expect(validatePreparedPlan(legacy)).toEqual(legacy);expect('groupPrizeLimitCents' in validatePreparedPlan(legacy)).toBe(false);
     expect(validatePreparedPlan({...plan,groupPrizeLimitCents:null}).groupPrizeLimitCents).toBeNull();
@@ -136,7 +136,7 @@ describe('confirmed-budget plan heuristics and contracts',()=>{
     expect(validatePreparedPlan({...plan,groupPrizeLimitCents:'9007199254740991'}).groupPrizeLimitCents).toBe('9007199254740991');
     for (const bad of ['0','-5','1.5','01','','9007199254740992',2500,undefined]) expect(()=>validatePreparedPlan({...plan,groupPrizeLimitCents:bad})).toThrow();
     expect(()=>suggestPlans({...input(),groupPrizeLimitCents:'0'})).toThrow();
-    const official=suggestPlans(input('1500','official')).plans[0]!;expect(official.groupPrizeLimitCents).toBeNull();
+    const official=suggestPlans(input('1500','official')).plans[0]!;expect('groupPrizeLimitCents' in official).toBe(false);
     expect(validatePreparedPlan({...official,groupPrizeLimitCents:null}).groupPrizeLimitCents).toBeNull();
     expect(()=>validatePreparedPlan({...official,groupPrizeLimitCents:'2500'})).toThrow('só vale no combinado interno');
     expect(()=>suggestPlans({...input('1500','official'),groupPrizeLimitCents:'2500'})).toThrow('só vale no combinado interno');
