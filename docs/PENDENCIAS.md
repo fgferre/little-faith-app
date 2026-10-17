@@ -4,21 +4,21 @@ Lista viva do que está aberto. Leia só a seção O BASTÃO e o item da vez; o 
 Item resolvido sai da lista e vira commit com o número entre parênteses; a história de cada número fica no git (`git log --all --grep="(NNN)"`).
 Número é identidade, não posição: item novo entra no fim da sua seção. **Próximo número livre: 16.**
 
-## O BASTÃO — onde a rodada parou (17/10, madrugada) — RESPONDER PELO CARTÃO E DOAÇÃO FEITOS, NÃO PUBLICADOS; PRÓXIMO: PRÓXIMO SORTEIO (ESPERA O SIM AO DESENHO)
+## O BASTÃO — onde a rodada parou (17/10, manhã) — CARTÃO, ARRECADAR, DOAÇÃO E PRÓXIMO SORTEIO FEITOS, NÃO PUBLICADOS; PRÓXIMO: PUBLICAR COM O SIM DELE
 
-**Para quem pega agora:** leia este bastão e o `PLAN-cartao.md`: os passos 1, 2, 3 e 5 estão feitos e commitados (44c678a, e3005ed,
-8f3cc85, 808121c; mais 1 commit de testes); falta o passo 4, o próximo sorteio automático, que espera o sim dele ao desenho do quadro
-(`PLAN.md` é o quadro https://claude.ai/artifact/AfAkydz8o4DtoQjhmRVWFU, versão 16; imagens em `.tmp/critica/ProximoSorteio-390.png`
-e `BarraLateral-640.png`, mandadas a ele em 17/10). Antes de começar o 4, leia o item (d) de `.tmp/critica/astra-2.md`.
+**Para quem pega agora:** o plano do cartão (`PLAN-cartao.md`, apagado em 17/10; git guarda) terminou: responder pelo cartão
+(44c678a, e3005ed, 8f3cc85), doação (808121c) e próximo sorteio automático (a5afbad, desenho aprovado por ele em 17/10 depois de ver as
+imagens), mais o ajuste dos testes (4403fc2). `PLAN.md` é o quadro https://claude.ai/artifact/AfAkydz8o4DtoQjhmRVWFU (versão 16).
 Produção: em dia até 34a56cc (16/10 à noite). O que veio depois NÃO está publicado e sobe junto, com o sim dele, nesta ordem:
 (1) `npx -y supabase@2 db push --yes` com a migração nova `20261016060000_participant_responses.sql` (tabelas de respostas, comprovantes
 e lembretes, bucket privado `participant-proofs`, cartão com convite); (2) `npx -y supabase@2 functions deploy api` (5 rotas novas:
 responder, comprovante, baixar comprovante, respostas do grupo, lembrete); (3) as 3 variáveis da doação no GitHub (Settings > Variables):
 `VITE_DONATION_PIX_KEY` = fgferre@gmail.com, `VITE_DONATION_PIX_NAME` = Felipe Ferreira, `VITE_DONATION_PIX_CITY` = Rio de Janeiro
-(sem elas o botão fica escondido); (4) push e `gh workflow run deploy.yml --ref main`. `npm run done` verde em 17/10 (340 unitários,
-20 da API, SQL no PGlite, 51 fluxos; os fluxos do cartão agora rodam depois dos financeiros, projeto "cartão" do Playwright, porque os
-dois reiniciam o mesmo cenário). Esperando ele: o sim ao desenho do próximo sorteio; ler a política de privacidade
-(https://fgferre.github.io/little-faith-app/privacidade.html) para destravar o item 10; pipo-labs.com (compra dele).
+(sem elas o botão fica escondido); (4) push e `gh workflow run deploy.yml --ref main`. `npm run done` verde em 17/10 (343 unitários,
+20 da API, SQL no PGlite, 52 fluxos; os fluxos do cartão rodam depois dos financeiros, projeto "cartão" do Playwright, porque os dois
+reiniciam o mesmo cenário; a consulta à CAIXA é simulada em todos os fluxos por `tests/e2e/caixa.ts`). Esperando ele: o sim para
+publicar; ler a política de privacidade (https://fgferre.github.io/little-faith-app/privacidade.html) para destravar o item 10;
+pipo-labs.com (compra dele).
 
 **O que mudou no uso (16 e 17/10), para contar a ele:**
 - Cartão: lista também os bolões abertos em que a pessoa ainda não tem cota ("Vai entrar nesta rodada?"), com "Estou dentro",
@@ -33,6 +33,13 @@ dois reiniciam o mesmo cenário). Esperando ele: o sim ao desenho do próximo so
   não carregam e a lista fica como antes (sem dizer que ninguém respondeu).
 - Doação: "Manter o Little Faith" em Dados (QR Code e copia e cola sem valor fixo: o código Pix sai sem o campo do valor) e uma linha
   depois de encerrar um bolão ("Apoiar o app" / "Agora não", some para sempre no aparelho).
+- Próximo sorteio: o aparelho lê a API da CAIXA (o servidor leva 403) uma vez para a modalidade do bolão da vez (Mega-Sena sem bolão),
+  guarda por 3 h com a hora da coleta e, se a busca falha, mantém o último dado dizendo de quando é (espera que cresce a cada falha);
+  sem dado, "Estimativa indisponível". Início: cartão com prêmio estimado em destaque, concurso e dia (data sem hora fica data),
+  "Acumulou", os valores especiais num detalhe "Acumulado para concursos especiais" (nunca somados), "Abrir a rodada" e "Fonte: CAIXA ·
+  atualizado …". Barra lateral: "Acumulou. Dia de fezinha." com o prêmio, ou "Vai uma fezinha?". Convite do grupo começa com
+  "Mega-Sena 3071 · domingo, 18/10. Acumulou. Prêmio estimado: R$ 170 milhões." quando o concurso do bolão é o próximo (ou não tem
+  número). Cartão: "R$ 170 mi estimado · acumulou" e o dia, no bolão em rascunho sem resultado. Conferido ao vivo em 17/10.
 - Decidido por mim, sem ele (dizer): "Já paguei" aceita sem comprovante; o comprovante vai para um bucket próprio, só o organizador lê,
   nada é apagado; quando já existe proposta pendente, a linha mostra "Pix avisado" e o "Conferir" não aparece (o resto se resolve na
   Revisão); o botão "Ver comprovante" do descasamento de valor virou "Ver na Revisão"; os selos entraram na lista atual de Arrecadar,
@@ -65,9 +72,6 @@ dois reiniciam o mesmo cenário). Esperando ele: o sim ao desenho do próximo so
   "sem prefers-reduced-motion: reduce".
 
 **A FILA (uma lista só, nesta ordem; quem pegar começa pelo primeiro aberto):**
-2. Próximo sorteio automático (prêmio estimado, acumulou, data) pela API da CAIXA no aparelho: Início, convite, cartão e barra
-lateral; desenho no quadro (`PLAN.md`) e decisões 10 a 13 do `PLAN-cartao.md`, riscos no item d da resposta do Astra. Esperando o sim
-dele ao desenho (imagens mandadas em 17/10).
 16. Publicar a rodada de 16 e 17/10 (ordem acima no bastão), com o sim dele.
 4. Quadro: escolher a versão da linha da pessoa (A recomendada). Página de venda só vai ao ar com o app do Google em produção (item 10).
 5. Revelação de verdade para a Confraria (rodada nova), agora que está publicado; anotar o que a turma estranhar.
