@@ -4,9 +4,12 @@ Lista viva do que está aberto. Leia só a seção O BASTÃO e o item da vez; o 
 Item resolvido sai da lista e vira commit com o número entre parênteses; a história de cada número fica no git (`git log --all --grep="(NNN)"`).
 Número é identidade, não posição: item novo entra no fim da sua seção. **Próximo número livre: 16.**
 
-## O BASTÃO — onde a rodada parou (17/10, tarde) — RODADA DO CARTÃO PUBLICADA; PRÓXIMO: TEIMOSINHA, DEPOIS BACKUP COM SENHA
+## O BASTÃO — onde a rodada parou (17/10, tarde) — TUDO PUBLICADO; PRÓXIMO: TEIMOSINHA DE VERDADE, PASSO 1 DO PLAN-teimosinha.md
 
-**Para quem pega agora:** o plano do cartão (`PLAN-cartao.md`, apagado em 17/10; git guarda) terminou: responder pelo cartão
+**Para quem pega agora:** leia o `PLAN-teimosinha.md` (escrito em 17/10 com as decisões fechadas e 6 passos; comece pelo passo 1) e
+recomece numa conversa nova: esta ficou pesada. A teimosinha é um bolão só com vários concursos seguidos, pagamento único e conferência
+de cada sorteio (escolha dele em 17/10 entre isso e uma série de bolões). O plano do cartão (`PLAN-cartao.md`, apagado em 17/10; git
+guarda) terminou: responder pelo cartão
 (44c678a, e3005ed, 8f3cc85), doação (808121c) e próximo sorteio automático (a5afbad, desenho aprovado por ele em 17/10 depois de ver as
 imagens), mais o ajuste dos testes (4403fc2). `PLAN.md` é o quadro https://claude.ai/artifact/AfAkydz8o4DtoQjhmRVWFU (versão 16).
 Produção: publicada em 17/10 à tarde com o sim dele, a partir de 78431cc: migração `20261016060000_participant_responses.sql`
@@ -14,8 +17,8 @@ aplicada (`db push --yes`, o CLI respondeu mesmo com ele remoto), função `api`
 variáveis da doação cadastradas pelo `gh variable set` (`VITE_DONATION_PIX_KEY` = fgferre@gmail.com, `..._NAME` = Felipe Ferreira,
 `..._CITY` = Rio de Janeiro) e o app republicado (`gh workflow run deploy.yml --ref main`); no ar a barra lateral já dizia "Acumulou.
 Dia de fezinha" com o prêmio de domingo. Um aparelho que já tinha o app guardado pelo service worker mostra a versão velha até a
-próxima abertura (vi isso no navegador embutido). Depois da publicação entrou o resultado automático ao abrir (commit seguinte), que
-ainda precisa de push e republicação do app. `npm run done` verde em 17/10 (343 unitários, 20 da API, SQL no PGlite, 52 fluxos; os
+próxima abertura (vi isso no navegador embutido). O resultado automático ao abrir (9a51af8) também foi publicado em 17/10 à tarde
+(app republicado; `npm run done` verde de novo, 52 fluxos). Produção em dia com 1ce46c0. `npm run done` verde em 17/10 (343 unitários, 20 da API, SQL no PGlite, 52 fluxos; os
 fluxos do cartão rodam depois dos financeiros, projeto "cartão" do Playwright; a consulta à CAIXA é simulada em todos os fluxos por
 `tests/e2e/caixa.ts`). Esperando ele: ler a política de privacidade
 (https://fgferre.github.io/little-faith-app/privacidade.html) para destravar o item 10.
@@ -84,7 +87,8 @@ a turma não usar o cartão); Pipo Labs, "quero só usar o nome por enquanto nos
   "sem prefers-reduced-motion: reduce".
 
 **A FILA (uma lista só, nesta ordem; quem pegar começa pelo primeiro aberto):**
-9. Teimosinha e série de concursos (a Confraria pediu para "repetir os números") (~1 dia). Ok dele em 17/10: é o próximo.
+9. Teimosinha de verdade: um bolão com vários concursos seguidos, pagamento único, conferência de cada sorteio (escolha dele em 17/10;
+plano com decisões e passos em `PLAN-teimosinha.md`, ~2 dias). É o próximo: passo 1.
 11. Backup completo com senha (etapa 8 da especificação) (~4 h). Ele em 17/10: fazer já, sem esperar rodada real.
 7. Jogos lidos da foto do bilhete, para o organizador só conferir (~1 dia). Recomendação (17/10): leitura no próprio aparelho
 (Tesseract.js, só dígitos, sem servidor e sem custo), um jogo por linha, cada um conferido pelo organizador antes de entrar; medir a
