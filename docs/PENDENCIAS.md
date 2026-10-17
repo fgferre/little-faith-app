@@ -4,21 +4,19 @@ Lista viva do que está aberto. Leia só a seção O BASTÃO e o item da vez; o 
 Item resolvido sai da lista e vira commit com o número entre parênteses; a história de cada número fica no git (`git log --all --grep="(NNN)"`).
 Número é identidade, não posição: item novo entra no fim da sua seção. **Próximo número livre: 16.**
 
-## O BASTÃO — onde a rodada parou (17/10, noite) — TEIMOSINHA: PASSOS 1 A 5 FEITOS E VERIFICADOS, NÃO PUBLICADOS; PRÓXIMO: PASSO 6 (PUBLICAR, COM O SIM DELE)
+## O BASTÃO — onde a rodada parou (17/10, noite) — TEIMOSINHA PRONTA E PUBLICADA; PRÓXIMO: AS DUAS PERGUNTAS DE GOSTO DELE E O BACKUP COM SENHA
 
-**Para quem pega agora:** leia o `PLAN-teimosinha.md` (decisões fechadas, 6 passos; os passos 1 a 5 estão feitos e commitados em
-17/10: quantidade de concursos no bolão e no custo do plano; resultado e calendário por concurso; um prêmio por concurso somado na
-divisão, cartão com `draws`; registro com a quantidade de concursos no recibo (`contestCount` no bilhete observado, divergência
-`contest-count-mismatch`, preço oficial vezes a quantidade, calendário do primeiro concurso congelado no registro, guarda que não deixa
-diminuir a quantidade quando um concurso que sairia já tem resultado ou calendário, campo "Concursos cobertos" na tela Registrar, que
-começa em 1); telas (Sorteio com fileira de concursos e o próximo pendente marcado, Dividir com um prêmio por concurso e a soma da
-série, Início e etapa pelo próximo concurso pendente, cartão do participante com um sorteio por concurso, convite "N concursos seguidos",
-Quina da turma na demonstração como teimosinha de 3, fluxo Playwright de ponta a ponta de uma teimosinha de 2); `npm run done` verde
-depois do passo 5: 352 unitários, SQL com 29 respostas de divisão conferidas pelo núcleo, 20 da API, 53 fluxos). Falta o passo 6:
-publicar com o sim dele (4 migrações novas na ordem, `functions deploy api`, app), e duas perguntas de gosto para ele, com imagem: o campo
-"Concursos cobertos" do Registrar fica sempre visível ou só na teimosinha? A fileira de concursos do Sorteio e os blocos do Dividir
-estão do jeito que ele quer? (fotos em `.tmp/teimosinha/shots/`, somem com a limpeza; o fluxo Playwright "teimosinha" as gera de novo).
-Comece numa conversa nova. A teimosinha é um bolão só com vários concursos seguidos, pagamento único e conferência
+**Para quem pega agora:** a teimosinha (um bolão só com vários concursos seguidos, pagamento único e conferência de cada sorteio;
+escolha dele em 17/10) está pronta e publicada em 17/10 à noite com o sim dele: 4 migrações (`20261017000000` a `20261017030000`)
+aplicadas por `npx -y supabase@2 db push --yes` (a lista remota confere), função `api` republicada e app republicado por
+`gh workflow run deploy.yml --ref main` a partir do commit do passo 5 (1198866) mais este bastão. O `PLAN-teimosinha.md` terminou e
+foi apagado (git guarda: 6 passos, decisões e o que ficou fora). `npm run done` verde depois do passo 5: 352 unitários, SQL com 29
+respostas de divisão conferidas pelo núcleo, 20 da API, 53 fluxos (o fluxo "teimosinha" leva um bolão de 2 concursos do plano ao
+encerramento). O que ele ainda não viu com calma: a fileira de concursos do Sorteio e os blocos do Dividir (fotos em
+`.tmp/teimosinha/shots/`, somem com a limpeza; o fluxo Playwright "teimosinha" as gera de novo) e o campo "Concursos cobertos" do
+Registrar, que começa em 1 e aparece em todo recibo: perguntar se fica só na teimosinha. Depois, pela fila dele de 17/10: backup com
+senha ("não precisamos de ninguém para testar isso", fazer já), item 10 (política de privacidade, ele lê), item 7 (foto do bilhete, ele
+pediu recomendação), item 6 (Pix automático, esperando saber que conta ele tem). Comece numa conversa nova. A teimosinha é um bolão só com vários concursos seguidos, pagamento único e conferência
 de cada sorteio (escolha dele em 17/10 entre isso e uma série de bolões). O plano do cartão (`PLAN-cartao.md`, apagado em 17/10; git
 guarda) terminou: responder pelo cartão
 (44c678a, e3005ed, 8f3cc85), doação (808121c) e próximo sorteio automático (a5afbad, desenho aprovado por ele em 17/10 depois de ver as
@@ -29,7 +27,7 @@ variáveis da doação cadastradas pelo `gh variable set` (`VITE_DONATION_PIX_KE
 `..._CITY` = Rio de Janeiro) e o app republicado (`gh workflow run deploy.yml --ref main`); no ar a barra lateral já dizia "Acumulou.
 Dia de fezinha" com o prêmio de domingo. Um aparelho que já tinha o app guardado pelo service worker mostra a versão velha até a
 próxima abertura (vi isso no navegador embutido). O resultado automático ao abrir (9a51af8) também foi publicado em 17/10 à tarde
-(app republicado; `npm run done` verde de novo, 52 fluxos). Produção em dia com 1ce46c0. `npm run done` verde em 17/10 (343 unitários, 20 da API, SQL no PGlite, 52 fluxos; os
+(app republicado; `npm run done` verde de novo, 52 fluxos). Produção em dia com 1198866 mais o bastão de 17/10 à noite (teimosinha). `npm run done` verde em 17/10 (343 unitários, 20 da API, SQL no PGlite, 52 fluxos; os
 fluxos do cartão rodam depois dos financeiros, projeto "cartão" do Playwright; a consulta à CAIXA é simulada em todos os fluxos por
 `tests/e2e/caixa.ts`). Esperando ele: ler a política de privacidade
 (https://fgferre.github.io/little-faith-app/privacidade.html) para destravar o item 10.
