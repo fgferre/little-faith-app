@@ -50,6 +50,7 @@ export function assertCurrentPlan(
   }
   if (
     pool.data.contestNumber !== plan.contestNumber ||
+    (pool.data.contestCount ?? 1) !== (plan.contestCount ?? 1) ||
     pool.data.lotteryId !== plan.lotteryId ||
     pool.data.participationMode !== plan.participationMode
   ) {

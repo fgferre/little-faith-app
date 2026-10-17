@@ -63,7 +63,7 @@ export function validateManifestContent(input: unknown): ManifestContent {
   const data=validateEntityData('pool',pool.data);
   const poolId=planningUid(pool.id,'pool.id');
   const poolVersion=planningInt(pool.version,'pool.version',1);
-  if (poolId!==plan.poolId || data.status!=='locked' || data.lotteryId!==plan.lotteryId || data.contestNumber!==plan.contestNumber || data.participationMode!==plan.participationMode || !data.deadlineAt) planningInvalid('pool','Manifesto deve congelar o bolão travado, modalidade, concurso, participação e prazo do plano.');
+  if (poolId!==plan.poolId || data.status!=='locked' || data.lotteryId!==plan.lotteryId || data.contestNumber!==plan.contestNumber || (data.contestCount??1)!==(plan.contestCount??1) || data.participationMode!==plan.participationMode || !data.deadlineAt) planningInvalid('pool','Manifesto deve congelar o bolão travado, modalidade, concurso, participação e prazo do plano.');
   if (poolVersion<=plan.poolVersion) planningInvalid('pool.version','Trava deve avançar a versão observada do bolão.');
   const financial=validateFinancialSnapshot(source.financial);
   validatePlanFunding(plan,financial);

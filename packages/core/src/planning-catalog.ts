@@ -98,7 +98,7 @@ export function officialQuotaRatio(rights: readonly Pick<PlanRight, 'quotaId'|'p
  * Conservative certification: the official quota face value must be an exact number of cents.
  * No undocumented rounding rule or fractional official quota is inferred from internal shares.
  */
-export function packPlanTickets(lotteryId: LotteryId, bets: readonly PlanBet[], rights: readonly PlanRight[], mode: PlanParticipationMode): PlanTicket[] {
+export function packPlanTickets(lotteryId: LotteryId, bets: readonly PlanBet[], rights: readonly PlanRight[], mode: PlanParticipationMode, contestCount = 1): PlanTicket[] {
   if (!Array.isArray(bets) || bets.length < 1 || bets.length > 1_000) throw new Error('Empacote de 1 a 1.000 jogos.');
   const bySize = new Map<number, PlanBet[]>();
   const keys = new Set<string>();
@@ -113,7 +113,8 @@ export function packPlanTickets(lotteryId: LotteryId, bets: readonly PlanBet[], 
   const ratio = officialQuotaRatio(rights);
   for (const [numberCount, group] of [...bySize].sort(([a],[b]) => a-b)) {
     const rule = officialPoolRule(lotteryId, numberCount);
-    const price = BigInt(rule.betPriceCents);
+    // A teimosinha pays every game once per contest it covers.
+    const price = BigInt(rule.betPriceCents) * BigInt(contestCount);
     if (mode === 'internal') {
       // One independently registrable bet per entry: no unverified non-pool receipt capacity.
       for (const bet of group) tickets.push({key:`ticket-${tickets.length+1}`,numberCount,betKeys:[bet.key],betCostCents:price.toString(),officialQuotaCount:null,officialQuotaValueCents:null,assignments:[]});
@@ -156,7 +157,7 @@ export function packPlanTickets(lotteryId: LotteryId, bets: readonly PlanBet[], 
   return tickets;
 }
 /** Independent defensive validation; the serialized ticket fields are never trusted. */
-export function validatePlanTickets(lotteryId: LotteryId, bets: readonly PlanBet[], rights: readonly PlanRight[], mode: PlanParticipationMode, tickets: readonly PlanTicket[]): void {
+export function validatePlanTickets(lotteryId: LotteryId, bets: readonly PlanBet[], rights: readonly PlanRight[], mode: PlanParticipationMode, tickets: readonly PlanTicket[], contestCount = 1): void {
   const betMap = new Map(bets.map((bet) => [bet.key,bet]));
   const seen = new Set<string>();
   const ticketKeys = new Set<string>();
@@ -172,7 +173,7 @@ export function validatePlanTickets(lotteryId: LotteryId, bets: readonly PlanBet
       if (!bet || seen.has(key)) throw new Error('Cartelas devem conter cada jogo exatamente uma vez.');
       seen.add(key);
       if (bet.numbers.length!==ticket.numberCount) throw new Error('Uma cartela precisa ter a mesma quantidade de dezenas em todos os jogos.');
-      cost+=BigInt(betCost(lotteryId,bet.numbers));
+      cost+=BigInt(betCost(lotteryId,bet.numbers))*BigInt(contestCount);
     }
     if (cost.toString()!==ticket.betCostCents) throw new Error('Custo da cartela divergente.');
     if (mode==='internal') {

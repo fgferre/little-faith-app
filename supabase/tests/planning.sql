@@ -312,6 +312,60 @@ do $$ declare v_group uuid := '91000000-0000-4000-8000-000000000001'; v_pool uui
   perform pg_temp.assert_true(jsonb_array_length(v_pull -> 'changes') = v_revision,'every accepted draft/finance/planning action occupies one feed revision');
 end; $$;
 
+-- Teimosinha (owner's decision of 17/10): contestCount 1..12 on the pool, plan costs times contestCount, frozen by confirmed quotas.
+set local role authenticated;
+do $$ declare v_group uuid := '91000000-0000-4000-8000-000000000001'; v_pool uuid; v_person uuid; v_statute uuid;
+  v_data jsonb; v_patch jsonb; v_plan jsonb; v_result jsonb; i integer; j integer; begin
+  v_data := jsonb_build_object('title','Teimosinha','lotteryId','mega-sena','contestNumber',42,'deadlineAt','2099-01-01T00:00:00Z',
+    'quotaPriceCents','2500','participationMode','internal','status','draft');
+  foreach v_patch in array array['{"contestCount":13}','{"contestCount":0}','{"contestCount":"4"}','{"contestNumber":1000000}']::jsonb[] loop
+    v_result := public.sync_push(pg_temp.draft(v_group,'94000000-0000-4000-8000-000000000009','pool',v_data || v_patch));
+    perform pg_temp.assert_true(v_result ->> 'status' = 'rejected' and v_result ->> 'message' = 'Bolão inválido; sincronização aceita apenas rascunhos.','teimosinha pool refused: ' || v_patch::text);
+  end loop;
+  select id into v_statute from public.statute_versions where group_id = v_group;
+  for i in 4..6 loop
+    v_pool := ('94000000-0000-4000-8000-' || lpad(i::text,12,'0'))::uuid;
+    v_patch := case i when 5 then '{"contestCount":2}' when 6 then '{"contestCount":4}' else '{}' end::jsonb;
+    v_result := public.sync_push(pg_temp.draft(v_group,v_pool,'pool',v_data || v_patch));
+    perform pg_temp.assert_true(v_result ->> 'status' = 'accepted','teimosinha pool accepted: ' || v_patch::text);
+    perform public.sync_push(pg_temp.draft(v_group,('97000000-0000-4000-8000-' || lpad(i::text,12,'0'))::uuid,'bet',jsonb_build_object('poolId',v_pool,
+      'lotteryId','mega-sena','numbers','[1,2,3,4,5,6]'::jsonb,'authorIds','["93000000-0000-4000-8000-000000000001"]'::jsonb,'catalogVersion','caixa-basic-2026-10-07-v1','seed',null,'generationAlgorithmVersion',null)));
+    for j in 1..2 loop
+      v_person := ('93000000-0000-4000-8000-' || lpad(j::text,12,'0'))::uuid;
+      perform public.sync_push(pg_temp.draft(v_group,('95000000-0000-4000-8000-' || lpad((i*10+j)::text,12,'0'))::uuid,'quota',
+        jsonb_build_object('poolId',v_pool,'personId',v_person,'units',100)));
+      perform public.sync_push(pg_temp.draft(v_group,('96000000-0000-4000-8000-' || lpad((i*10+j)::text,12,'0'))::uuid,'payment-proposal',
+        jsonb_build_object('poolId',v_pool,'personId',v_person,'amountCents','2500','note','','status','pending')));
+      v_result := public.review_decide(pg_temp.command(v_group,jsonb_build_object('type','payment_confirm','proposalId',
+        ('96000000-0000-4000-8000-' || lpad((i*10+j)::text,12,'0'))::uuid,'proposalVersion',1,'bankReference',null,'declaredReceivedAt',null,
+        'allocations',jsonb_build_array(jsonb_build_object('poolId',v_pool,'amountCents','2500')))));
+      perform pg_temp.assert_true(v_result ->> 'status' = 'accepted','teimosinha funded fixture received');
+      v_result := public.review_decide(pg_temp.command(v_group,jsonb_build_object('type','quota_confirm','quotaId',
+        ('95000000-0000-4000-8000-' || lpad((i*10+j)::text,12,'0'))::uuid,'quotaVersion',1,'statuteId',v_statute)));
+      perform pg_temp.assert_true(v_result ->> 'status' = 'accepted','teimosinha quota fixture confirmed');
+    end loop;
+  end loop;
+  -- Pool 5 plays 2 contests: the 4 known games cost 4 x 600 x 2 = 4800 of its 5000 budget.
+  v_pool := '94000000-0000-4000-8000-000000000005'; v_plan := pg_temp.prepared(v_group,v_pool);
+  v_result := public.planning_decide(pg_temp.command(v_group,jsonb_build_object('type','plan_apply','plan',v_plan || '{"contestCount":2}')));
+  perform pg_temp.assert_true(v_result ->> 'status' = 'rejected' and v_result ->> 'message' = 'O custo dos jogos diverge dos preços do catálogo.','teimosinha plan priced for one contest rejected');
+  v_result := public.planning_decide(pg_temp.command(v_group,jsonb_build_object('type','plan_apply','plan',v_plan)));
+  perform pg_temp.assert_true(v_result ->> 'status' = 'rejected' and v_result ->> 'message' = 'A quantidade de concursos da teimosinha diverge do bolão atual.','single-contest plan rejected on a teimosinha pool');
+  v_plan := v_plan || '{"contestCount":2,"betCostCents":"4800","totalCostCents":"4800","leftoverCents":"200"}';
+  for i in 0..3 loop v_plan := jsonb_set(v_plan,array['tickets',i::text,'betCostCents'],'"1200"'); end loop;
+  v_result := public.planning_decide(pg_temp.command(v_group,jsonb_build_object('type','plan_apply','plan',v_plan)));
+  perform pg_temp.assert_true(v_result ->> 'status' = 'accepted' and (select prepared_plan -> 'contestCount' = '2' and total_cost_cents = 4800
+    from public.pool_plan_versions where pool_id = v_pool),'teimosinha plan accepted with the costs doubled');
+  v_plan := pg_temp.prepared(v_group,'94000000-0000-4000-8000-000000000004') || '{"contestCount":2,"betCostCents":"4800","totalCostCents":"4800","leftoverCents":"200"}';
+  for i in 0..3 loop v_plan := jsonb_set(v_plan,array['tickets',i::text,'betCostCents'],'"1200"'); end loop;
+  v_result := public.planning_decide(pg_temp.command(v_group,jsonb_build_object('type','plan_apply','plan',v_plan)));
+  perform pg_temp.assert_true(v_result ->> 'status' = 'rejected' and v_result ->> 'message' = 'A quantidade de concursos da teimosinha diverge do bolão atual.','teimosinha plan rejected on a single-contest pool');
+  v_pool := '94000000-0000-4000-8000-000000000006'; v_data := (select data from public.draft_records where id = v_pool);
+  v_result := public.sync_push(pg_temp.draft(v_group,v_pool,'pool',jsonb_set(v_data,'{contestCount}','2'),1));
+  perform pg_temp.assert_true(v_result ->> 'status' = 'rejected' and v_result ->> 'message'
+    = 'Preço, prazo, modalidade, concurso, quantidade de concursos e tipo de participação estão vinculados a cotas confirmadas ativas.','teimosinha contest count frozen by confirmed quotas');
+end; $$;
+
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000952","role":"authenticated","session_id":"00000000-0000-4000-8000-100000000952","app_metadata":{}}',true);
 do $$ begin

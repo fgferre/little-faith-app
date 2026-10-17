@@ -118,6 +118,26 @@ describe('confirmed-budget plan heuristics and contracts',()=>{
     expect(possible.plans.length).toBeGreaterThan(0);
     for (const plan of possible.plans) validatePlanTickets(plan.lotteryId,plan.bets,plan.rights,plan.participationMode,plan.tickets);
   });
+  it('charges every game and receipt once per contest, so the same budget buys fewer games',()=>{
+    const twice=input('30000');twice.pool.data.contestCount=2;
+    const once=suggestPlans(input('30000')).plans,plans=suggestPlans(twice).plans;
+    expect(plans).toHaveLength(once.length);
+    plans.forEach((plan,i)=>{
+      const cost=(keys:string[])=>plan.bets.filter((b)=>keys.includes(b.key)).reduce((sum,b)=>sum+BigInt(betCost(plan.lotteryId,b.numbers)),0n)*2n;
+      expect(plan.contestCount).toBe(2);
+      expect(BigInt(plan.betCostCents)).toBe(cost(plan.bets.map((b)=>b.key)));
+      expect(BigInt(plan.totalCostCents)).toBeLessThanOrEqual(BigInt(plan.budgetCents));
+      for (const ticket of plan.tickets) expect(BigInt(ticket.betCostCents)).toBe(cost(ticket.betKeys));
+      expect(plan.bets.length).toBeLessThanOrEqual(once[i]!.bets.length);
+      expect(validatePreparedPlan(plan)).toEqual(plan);
+    });
+    expect(plans[0]!.bets.length).toBeLessThan(once[0]!.bets.length);
+    expect(once[0]!.contestCount).toBe(1);
+    const plan=plans[0]!;
+    const { contestCount: _removed, ...withoutCount }=plan;
+    expect(()=>validatePreparedPlan(withoutCount)).toThrow('Custo da cartela');
+    expect(()=>validatePreparedPlan({...plan,contestCount:13})).toThrow();
+  });
   it('does not accept client costs, omitted fixed bets, duplicate rights or forged authority',()=>{
     const plan=suggestPlans(input()).plans[0]!;
     expect(()=>validatePreparedPlan({...plan,betCostCents:'1'})).toThrow('Custo');
@@ -254,6 +274,15 @@ describe('immutable private manifests and approval protocol',()=>{
     const legacy=structuredClone(manifest().content);delete legacy.plan.groupPrizeLimitCents;
     const old={...manifest(legacy)};expect(old.canonical).not.toContain('groupPrizeLimitCents');
     expect(validatePoolManifest(old)).toEqual(old);expect(await verifyManifest(old)).toBe(true);
+  });
+  it('refuses a lock whose contest count differs from the plan and accepts it when both agree',()=>{
+    const legacy=frozen();delete legacy.plan.contestCount;legacy.pool.data.contestCount=2;
+    expect(()=>canonicalManifest(legacy)).toThrow('Manifesto deve congelar');
+    const twice=input();twice.pool.data.contestCount=2;
+    const matching=frozen(suggestPlans(twice).plans[0]!);matching.pool.data.contestCount=2;
+    expect(()=>canonicalManifest(matching)).not.toThrow();
+    const wrong=frozen(suggestPlans(twice).plans[0]!);
+    expect(()=>canonicalManifest(wrong)).toThrow('Manifesto deve congelar');
   });
   it('rejects incoherent frozen quota prices and missing internal ticket holders',()=>{
     const wrongPrice=frozen();wrongPrice.pool.data.quotaPriceCents='1501';

@@ -199,6 +199,15 @@ describe('shared draft validation', () => {
     })).toThrow(DomainValidationError);
   });
 
+  it('keeps a pool contest count from 1 to 12 and caps the contest number', () => {
+    const pool: object = operation.data;
+    expect(validateEntityData('pool', { ...pool, contestCount: 4 })).toEqual({ ...pool, contestCount: 4 });
+    expect('contestCount' in validateEntityData('pool', pool)).toBe(false);
+    for (const bad of [13, 0, '4']) expect(() => validateEntityData('pool', { ...pool, contestCount: bad })).toThrow();
+    expect(validateEntityData('pool', { ...pool, contestNumber: 999_999 })).toMatchObject({ contestNumber: 999_999 });
+    expect(() => validateEntityData('pool', { ...pool, contestNumber: 1_000_000 })).toThrow();
+  });
+
   it('rejects invalid identity, old catalogs, malformed dates and unsupported author rights', () => {
     expect(() => validateDraftOperation({ ...operation, kind: 'group', data: { name: 'Turma', statute: '' } })).toThrow('identificador do grupo');
     expect(() => validateDraftOperation({ ...operation, expectedVersion: -1 })).toThrow();

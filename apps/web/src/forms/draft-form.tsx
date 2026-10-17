@@ -156,8 +156,14 @@ export function DraftForm(
       } else if (entityFormKind === "pool") {
         const contest = text("contest") ? Number(text("contest")) : null;
         if (
-          contest !== null && (!Number.isSafeInteger(contest) || contest < 1)
+          contest !== null &&
+          (!Number.isSafeInteger(contest) || contest < 1 || contest > 999_999)
         ) throw new Error("Informe um concurso inteiro positivo.");
+        // Teimosinha: os mesmos jogos por N concursos seguidos; 1 é o bolão de sempre e não grava a chave.
+        const contestCount = Number(text("contestCount") || "1");
+        if (!Number.isInteger(contestCount) || contestCount < 1 || contestCount > 12) {
+          throw new Error("A teimosinha vai de 1 a 12 concursos seguidos.");
+        }
         const deadlineAt = editing &&
             text("deadline") === localDateInput(pool?.data.deadlineAt ?? null)
           ? pool?.data.deadlineAt ?? null
@@ -168,6 +174,7 @@ export function DraftForm(
           title: text("name"),
           lotteryId,
           contestNumber: contest,
+          ...(contestCount > 1 ? { contestCount } : {}),
           deadlineAt,
           quotaPriceCents: parseBRL(text("price")),
           participationMode: text("mode") as
@@ -494,6 +501,21 @@ export function DraftForm(
                     ? repeatOf.data.contestNumber + 1
                     : ""}
                 />
+              </label>
+              <label>
+                Teimosinha <span className="muted">(os mesmos jogos em sorteios seguidos)</span>
+                <select
+                  name="contestCount"
+                  defaultValue={String(
+                    (editing ? pool?.data.contestCount : repeatOf?.data.contestCount) ?? 1,
+                  )}
+                >
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
+                    <option key={n} value={n}>
+                      {n === 1 ? "Não, só esta vez" : `${n} sorteios seguidos`}
+                    </option>
+                  ))}
+                </select>
               </label>
               <label>
                 Valor por cota<MoneyInput

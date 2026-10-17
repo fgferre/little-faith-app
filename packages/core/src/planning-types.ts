@@ -49,6 +49,8 @@ export interface PreparedPlan {
   groupRevision: number;
   lotteryId: LotteryId;
   contestNumber: number;
+  /** Teimosinha: consecutive contests the games are played for; every bet and ticket cost is multiplied by it. Absent in plans made before it: 1. */
+  contestCount?: number;
   participationMode: PlanParticipationMode;
   strategy: PlanStrategy;
   seed: string;

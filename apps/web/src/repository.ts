@@ -98,6 +98,7 @@ export function saveLocalDraft<K extends EntityKind>(
           if (
             old &&
             (old.quotaPriceCents !== next.quotaPriceCents ||
+              (old.contestCount ?? 1) !== (next.contestCount ?? 1) ||
               old.deadlineAt !== next.deadlineAt ||
               old.lotteryId !== next.lotteryId ||
               old.contestNumber !== next.contestNumber &&
@@ -108,7 +109,7 @@ export function saveLocalDraft<K extends EntityKind>(
                   next.participationMode !== "undecided"))
           ) {
             throw new Error(
-              "Preço, prazo e modalidade precisam preservar as participações já confirmadas.",
+              "Preço, prazo, modalidade e quantidade de concursos precisam preservar as participações já confirmadas.",
             );
           }
         }

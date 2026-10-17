@@ -33,11 +33,12 @@ export function validateEntityData(kind: EntityKind, input: unknown): EntityData
       keys(data, ['name', 'nickname', 'adultDeclared']);
       return { name: text(data.name, 'name', 120, true), nickname: text(data.nickname, 'nickname', 80), adultDeclared: boolean(data.adultDeclared, 'adultDeclared') };
     case 'pool': {
-      keys(data, ['title', 'lotteryId', 'contestNumber', 'deadlineAt', 'quotaPriceCents', 'participationMode', 'status']);
+      keys(data, ['title', 'lotteryId', 'contestNumber', 'deadlineAt', 'quotaPriceCents', 'participationMode', 'status'], ['contestCount']);
       return {
+        ...(Object.hasOwn(data, 'contestCount') ? { contestCount: positiveInteger(data.contestCount, 'contestCount', 12) } : {}),
         title: text(data.title, 'title', 160, true),
         lotteryId: lotteryId(data.lotteryId),
-        contestNumber: data.contestNumber === null ? null : positiveInteger(data.contestNumber, 'contestNumber', Number.MAX_SAFE_INTEGER),
+        contestNumber: data.contestNumber === null ? null : positiveInteger(data.contestNumber, 'contestNumber', 999_999),
         deadlineAt: data.deadlineAt === null ? null : utcTimestamp(data.deadlineAt, 'deadlineAt'),
         quotaPriceCents: positiveCents(data.quotaPriceCents, 'quotaPriceCents'),
         participationMode: member(data.participationMode, ['undecided', 'internal', 'official'], 'participationMode'),

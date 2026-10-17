@@ -34,7 +34,7 @@ Teimosinha de verdade: um bolão só com vários concursos seguidos, pagamento �
 
 ## Passos (um commit por passo; `npm run done` no fim de cada um)
 
-1. [ ] Núcleo e banco do plano: `contestCount` no bolão (tipos, validação, formulário aceita 1 a 12), custo do jogo × concursos no
+1. [x] Núcleo e banco do plano: `contestCount` no bolão (tipos, validação, formulário aceita 1 a 12), custo do jogo × concursos no
    plano e no catálogo (`prepared-plans.ts`, `planning.ts`, `planning.sql`), manifesto congela a quantidade; `sync_push` valida;
    testes do núcleo e SQL; cabeçalho do bolão mostra "Concursos 3072 a 3075 · teimosinha de 4".
 2. [ ] Resultado e calendário por concurso: `results.ts` (snapshot por faixa, atual por concurso, conflito só no mesmo concurso),

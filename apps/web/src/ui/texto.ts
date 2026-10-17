@@ -109,6 +109,25 @@ export function diaSemana(date: string) {
   return `${weekday}, ${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}`;
 }
 
+/**
+ * O concurso do bolão como texto: "Concurso 3071", "Concursos 3072 a 3075 · teimosinha de 4" ou "Concurso a definir";
+ * `short` tira a palavra "Concurso": "3071", "3072 a 3075 (teimosinha de 4)", "A definir".
+ */
+export function concursos(
+  pool: { contestNumber: number | null; contestCount?: number },
+  short = false,
+) {
+  const count = pool.contestCount ?? 1;
+  if (pool.contestNumber === null) {
+    return short ? (count > 1 ? `A definir (teimosinha de ${count})` : "A definir") : count > 1
+      ? `Concursos a definir · teimosinha de ${count}`
+      : "Concurso a definir";
+  }
+  if (count === 1) return short ? String(pool.contestNumber) : `Concurso ${pool.contestNumber}`;
+  const range = `${pool.contestNumber} a ${pool.contestNumber + count - 1}`;
+  return short ? `${range} (teimosinha de ${count})` : `Concursos ${range} · teimosinha de ${count}`;
+}
+
 /** Dia e hora em Brasília, "16/10, 14:02": quando uma resposta ou um lembrete aconteceu. */
 export function quando(at: string) {
   return new Intl.DateTimeFormat("pt-BR", {

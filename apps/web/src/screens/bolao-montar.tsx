@@ -5,6 +5,7 @@ import { Stat, StateBadge } from "../components";
 import type { FormKind } from "../app-shared";
 import type { latestApplied } from "../planning";
 import { Button, Card, Disclosure, Eyebrow, formatWhen } from "../ui";
+import { concursos } from "../ui/texto";
 
 const BRASILIA = "America/Sao_Paulo";
 
@@ -65,8 +66,8 @@ export function BolaoMontar(
             <dd>{LOTTERIES[pool.data.lotteryId].label}</dd>
           </div>
           <div>
-            <dt>Concurso</dt>
-            <dd>{pool.data.contestNumber ?? "A definir"}</dd>
+            <dt>{(pool.data.contestCount ?? 1) > 1 ? "Concursos" : "Concurso"}</dt>
+            <dd>{concursos(pool.data, true)}</dd>
           </div>
           <div>
             <dt>Preço da cota</dt>

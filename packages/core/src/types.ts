@@ -38,6 +38,8 @@ export interface PoolData {
   quotaPriceCents: string;
   participationMode: "undecided" | "internal" | "official";
   status: "draft" | "locked" | "registered" | "settled";
+  /** Teimosinha: the same games for this many consecutive contests from contestNumber, paid once (1 to 12). Absent means 1. */
+  contestCount?: number;
 }
 export interface QuotaData {
   poolId: string;

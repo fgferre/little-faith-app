@@ -9,6 +9,7 @@ import type { RecordRequest } from "../record-decision";
 import { POOL_STEPS } from "../app-shared";
 import type { FormKind, Notice, PoolStep, Route, Snapshot } from "../app-shared";
 import { Chip, formatWhen, StepStrip } from "../ui";
+import { concursos } from "../ui/texto";
 import { BolaoArrecadar } from "./bolao-arrecadar";
 import {
   BolaoDividir,
@@ -116,11 +117,7 @@ export function BolaoScreen(
             }`
             : lottery}
         </Chip>
-        <span className="ui-sec">
-          {pool.data.contestNumber
-            ? `Concurso ${pool.data.contestNumber}`
-            : "Concurso a definir"}
-        </span>
+        <span className="ui-sec">{concursos(pool.data)}</span>
       </p>
       <StepStrip
         steps={STEPS}

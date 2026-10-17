@@ -66,7 +66,8 @@ function planningGroupPrizeLimit(value: unknown, mode: PlanParticipationMode): s
 export function validatePreparedPlan(input: unknown): PreparedPlan {
   const source=planningRecord(input,'plan');
   const hasGroupPrizeLimit=Object.hasOwn(source,'groupPrizeLimitCents');
-  planningShape(source,[...(hasGroupPrizeLimit?['groupPrizeLimitCents']:[]),'id','groupId','poolId','poolVersion','groupRevision','lotteryId','contestNumber','participationMode','strategy','seed','catalogVersion','sourceBets','rights','budgetCents','betCostCents','feeCents','feeLabel','totalCostCents','leftoverCents','leftoverPolicy','bets','tickets','explanation'],'plan');
+  const hasContestCount=Object.hasOwn(source,'contestCount');
+  planningShape(source,[...(hasGroupPrizeLimit?['groupPrizeLimitCents']:[]),...(hasContestCount?['contestCount']:[]),'id','groupId','poolId','poolVersion','groupRevision','lotteryId','contestNumber','participationMode','strategy','seed','catalogVersion','sourceBets','rights','budgetCents','betCostCents','feeCents','feeLabel','totalCostCents','leftoverCents','leftoverPolicy','bets','tickets','explanation'],'plan');
   const lotteryId=planningOption<LotteryId>(source.lotteryId,['mega-sena','lotofacil','quina'],'lotteryId');
   const seed=planningSeed(source.seed);
   if (source.catalogVersion!==PLANNING_CATALOG_VERSION) planningInvalid('catalogVersion','Catálogo de planejamento não suportado.');
@@ -104,17 +105,18 @@ export function validatePreparedPlan(input: unknown): PreparedPlan {
       return {quotaId:planningUid(assignment.quotaId,'quotaId'),personId:planningUid(assignment.personId,'personId'),officialQuotas:planningInt(assignment.officialQuotas,'officialQuotas',1,100)};
     })};
   }),(ticket)=>ticket.key,'tickets');
-  validatePlanTickets(lotteryId,bets,rights,participationMode,tickets);
+  const contestCount=hasContestCount?planningInt(source.contestCount,'contestCount',1,12):1;
+  validatePlanTickets(lotteryId,bets,rights,participationMode,tickets,contestCount);
   const budgetCents=planningMoney(source.budgetCents,'budgetCents',true);
   const betCostCents=planningMoney(source.betCostCents,'betCostCents',true);
   const feeCents=planningMoney(source.feeCents,'feeCents');
   const totalCostCents=planningMoney(source.totalCostCents,'totalCostCents',true);
   const leftoverCents=planningMoney(source.leftoverCents,'leftoverCents');
   if (rights.reduce((sum,r)=>sum+BigInt(r.dueCents),0n)!==BigInt(budgetCents)) planningInvalid('budgetCents','Orçamento deve ser a soma de todos os direitos confirmados.');
-  if (bets.reduce((sum,b)=>sum+BigInt(betCost(lotteryId,b.numbers)),0n)!==BigInt(betCostCents)) planningInvalid('betCostCents','Custo dos jogos divergente dos preços oficiais.');
+  if (bets.reduce((sum,b)=>sum+BigInt(betCost(lotteryId,b.numbers))*BigInt(contestCount),0n)!==BigInt(betCostCents)) planningInvalid('betCostCents','Custo dos jogos divergente dos preços oficiais.');
   if (BigInt(betCostCents)+BigInt(feeCents)!==BigInt(totalCostCents) || BigInt(totalCostCents)+BigInt(leftoverCents)!==BigInt(budgetCents)) planningInvalid('totalCostCents','Custos, taxas e sobra não reconciliam com o orçamento.');
   const feeLabel=planningText(source.feeLabel,'feeLabel',200,BigInt(feeCents)>0n);
-  return {id:planningUid(source.id,'id'),groupId:planningUid(source.groupId,'groupId'),poolId:planningUid(source.poolId,'poolId'),poolVersion:planningInt(source.poolVersion,'poolVersion'),groupRevision:planningInt(source.groupRevision,'groupRevision'),lotteryId,contestNumber:planningInt(source.contestNumber,'contestNumber',1,999_999),participationMode,strategy:planningOption(source.strategy,['spread','balanced','concentrated'],'strategy'),seed,catalogVersion:PLANNING_CATALOG_VERSION,sourceBets,rights,budgetCents,betCostCents,feeCents,feeLabel,totalCostCents,leftoverCents,leftoverPolicy:planningOption(source.leftoverPolicy,['unassigned','refund-pro-rata','group-credit'],'leftoverPolicy'),...(hasGroupPrizeLimit?{groupPrizeLimitCents:planningGroupPrizeLimit(source.groupPrizeLimitCents,participationMode)}:{}),bets,tickets,explanation:planningText(source.explanation,'explanation',2_000,true)};
+  return {id:planningUid(source.id,'id'),groupId:planningUid(source.groupId,'groupId'),poolId:planningUid(source.poolId,'poolId'),poolVersion:planningInt(source.poolVersion,'poolVersion'),groupRevision:planningInt(source.groupRevision,'groupRevision'),lotteryId,contestNumber:planningInt(source.contestNumber,'contestNumber',1,999_999),...(hasContestCount?{contestCount}:{}),participationMode,strategy:planningOption(source.strategy,['spread','balanced','concentrated'],'strategy'),seed,catalogVersion:PLANNING_CATALOG_VERSION,sourceBets,rights,budgetCents,betCostCents,feeCents,feeLabel,totalCostCents,leftoverCents,leftoverPolicy:planningOption(source.leftoverPolicy,['unassigned','refund-pro-rata','group-credit'],'leftoverPolicy'),...(hasGroupPrizeLimit?{groupPrizeLimitCents:planningGroupPrizeLimit(source.groupPrizeLimitCents,participationMode)}:{}),bets,tickets,explanation:planningText(source.explanation,'explanation',2_000,true)};
 }
 export function assertConfirmedPlanSources(plan: PreparedPlan): void {
   if (plan.poolVersion<1 || plan.sourceBets.some((source)=>source.version<1) || plan.bets.some((bet)=>bet.sourceBetVersion!==null && bet.sourceBetVersion<1)) planningInvalid('sourceBets','Confirmação exige bolão e todos os jogos fixos sincronizados com versão positiva.');
@@ -133,6 +135,7 @@ export function suggestPlans(input: SuggestPlansInput): PlanSuggestionResult {
   if (mode==='undecided') planningInvalid('participationMode','Escolha participação interna ou oficial antes de planejar.');
   if (!['draft','locked'].includes(pool.data.status)) planningInvalid('status','Bolão registrado não pode receber outro plano.');
   const contestNumber=planningInt(pool.data.contestNumber,'contestNumber',1,999_999);
+  const contestCount=planningInt(pool.data.contestCount??1,'contestCount',1,12);
   const seed=planningSeed(input.seed);
   const financial=createFinancialView(input.financial);
   if (input.financial.groupId!==groupId || input.financial.groupRevision!==groupRevision) planningInvalid('financial','Retrato financeiro precisa corresponder ao grupo e revisão observados.');
@@ -150,7 +153,7 @@ export function suggestPlans(input: SuggestPlansInput): PlanSuggestionResult {
     return {key:`fixed-${index+1}`,sourceBetId:planningUid(record.id,'sourceBetId'),sourceBetVersion:planningInt(record.serverVersion,'sourceBetVersion'),numbers:validateBet(lottery.id,record.data.numbers),authorIds:record.data.authorIds.slice(),seed:record.data.seed,generationAlgorithmVersion:record.data.generationAlgorithmVersion};
   });
   if (fixed.length>1_000 || new Set(fixed.map((b)=>b.sourceBetId)).size!==fixed.length || new Set(fixed.map((b)=>betSignature(lottery.id,b.numbers))).size!==fixed.length) planningInvalid('sourceBets','Revise jogos fixos repetidos ou em excesso.');
-  const fixedCost=fixed.reduce((sum,b)=>sum+BigInt(betCost(lottery.id,b.numbers)),0n);
+  const fixedCost=fixed.reduce((sum,b)=>sum+BigInt(betCost(lottery.id,b.numbers))*BigInt(contestCount),0n);
   const available=budget-BigInt(feeCents);
   if (fixedCost>available) return {plans:[],unavailable:(['spread','balanced','concentrated'] as PlanStrategy[]).map((strategy)=>({strategy,reason:'Jogos fixos e taxas excedem o orçamento confirmado.'}))};
   const result:PlanSuggestionResult={plans:[],unavailable:[]};
@@ -161,7 +164,7 @@ export function suggestPlans(input: SuggestPlansInput): PlanSuggestionResult {
       const append=(n:number,count:number):void=>{
         const generated=generateBets({lotteryId:lottery.id,count,numberCount:n,seed,existing:bets.map((b)=>b.numbers)});
         for (const numbers of generated) bets.push({key:`generated-${bets.length-fixed.length+1}`,sourceBetId:null,sourceBetVersion:null,numbers,authorIds:[],seed,generationAlgorithmVersion:GENERATION_ALGORITHM_VERSION});
-        cost+=BigInt(betCost(lottery.id,Array.from({length:n},(_,i)=>i+1)))*BigInt(count);
+        cost+=BigInt(betCost(lottery.id,Array.from({length:n},(_,i)=>i+1)))*BigInt(contestCount)*BigInt(count);
       };
       // Complete each fixed number-count group before adding a differently sized receipt.
       if (mode==='official') for (const n of new Set(fixed.map((b)=>b.numbers.length))) {
@@ -169,22 +172,22 @@ export function suggestPlans(input: SuggestPlansInput): PlanSuggestionResult {
         let padding=-1;
         for (let extra=0;extra<=10;extra++) {
           if (bets.length+extra>1_000) break;
-          const price=BigInt(betCost(lottery.id,group[0]!.numbers));
+          const price=BigInt(betCost(lottery.id,group[0]!.numbers))*BigInt(contestCount);
           if (cost+price*BigInt(extra)>available) break;
           const probe=[...group,...Array.from({length:extra},(_,i)=>({...group[0]!,key:`probe-${i}`}))];
-          try { packPlanTickets(lottery.id,probe,rights,mode); padding=extra;break; } catch { /* Try another complete receipt size. */ }
+          try { packPlanTickets(lottery.id,probe,rights,mode,contestCount); padding=extra;break; } catch { /* Try another complete receipt size. */ }
         }
         if (padding<0) throw new Error('Não há orçamento para completar os recibos oficiais dos jogos fixos.');
         append(n,padding);
       }
       const addAffordable=(n:number,spend:bigint):void=>{
-        const price=BigInt(betCost(lottery.id,Array.from({length:n},(_,i)=>i+1)));
+        const price=BigInt(betCost(lottery.id,Array.from({length:n},(_,i)=>i+1)))*BigInt(contestCount);
         let count=Math.min(1_000-bets.length,Number((available-cost<spend?available-cost:spend)/price));
         if (mode==='official') {
           const current=bets.filter((b)=>b.numbers.length===n);
           while (count>0) {
             const probe=[...current,...Array.from({length:count},(_,i)=>({key:`probe-${i}`,sourceBetId:null,sourceBetVersion:null,numbers:Array.from({length:n},(_,j)=>j+1),authorIds:[],seed,generationAlgorithmVersion:GENERATION_ALGORITHM_VERSION}))];
-            try { packPlanTickets(lottery.id,probe,rights,mode);break; } catch { count--; }
+            try { packPlanTickets(lottery.id,probe,rights,mode,contestCount);break; } catch { count--; }
           }
         }
         append(n,count);
@@ -196,12 +199,12 @@ export function suggestPlans(input: SuggestPlansInput): PlanSuggestionResult {
       }
       if (strategy==='concentrated') {
         for (let n=lottery.maxNumbers;n>=lottery.minNumbers;n--) {
-          const price=BigInt(betCost(lottery.id,Array.from({length:n},(_,i)=>i+1)));
+          const price=BigInt(betCost(lottery.id,Array.from({length:n},(_,i)=>i+1)))*BigInt(contestCount);
           if (price<=available-cost) { addAffordable(n,available-cost); if (cost>fixedCost) break; }
         }
       }
       const explanation=strategy==='spread'?'Prioriza jogos simples distintos dentro do orçamento.':strategy==='balanced'?'Combina jogos ampliados menores e jogos simples quando o orçamento permite.':'Prioriza jogos com mais dezenas que cabem no orçamento.';
-      const draft:Omit<PreparedPlan,'id'>={groupId,poolId,poolVersion,groupRevision,lotteryId:lottery.id,contestNumber,participationMode:mode,strategy,seed,catalogVersion:PLANNING_CATALOG_VERSION,sourceBets:fixed.map((b)=>({id:b.sourceBetId!,version:b.sourceBetVersion!})),rights,budgetCents:budget.toString(),betCostCents:cost.toString(),feeCents,feeLabel,totalCostCents:(cost+BigInt(feeCents)).toString(),leftoverCents:(available-cost).toString(),leftoverPolicy,...(groupPrizeLimitCents?{groupPrizeLimitCents}:{}),bets,tickets:packPlanTickets(lottery.id,bets,rights,mode),explanation};
+      const draft:Omit<PreparedPlan,'id'>={groupId,poolId,poolVersion,groupRevision,lotteryId:lottery.id,contestNumber,contestCount,participationMode:mode,strategy,seed,catalogVersion:PLANNING_CATALOG_VERSION,sourceBets:fixed.map((b)=>({id:b.sourceBetId!,version:b.sourceBetVersion!})),rights,budgetCents:budget.toString(),betCostCents:cost.toString(),feeCents,feeLabel,totalCostCents:(cost+BigInt(feeCents)).toString(),leftoverCents:(available-cost).toString(),leftoverPolicy,...(groupPrizeLimitCents?{groupPrizeLimitCents}:{}),bets,tickets:packPlanTickets(lottery.id,bets,rights,mode,contestCount),explanation};
       result.plans.push(validatePreparedPlan({id:deterministicId(draft),...draft}));
     } catch (error) { result.unavailable.push({strategy,reason:error instanceof Error?error.message:'Plano indisponível.'}); }
   }
