@@ -5,6 +5,7 @@ import type {
   EntityKind,
   LocalRecord,
   LotteryId,
+  ResultView,
 } from "@bolao/core";
 import {
   getFinancialSnapshot,
@@ -94,6 +95,33 @@ export function rolloverOf(
       nextEstimatedPrizeCents: caixa.nextEstimatedPrizeCents,
     }
     : null;
+}
+
+/** Os concursos que o bolão cobre: o seu e, numa teimosinha, os contestCount - 1 seguintes; nenhum enquanto o concurso não está definido. */
+export function contestsOf(
+  pool: { contestNumber: number | null; contestCount?: number },
+): number[] {
+  const first = pool.contestNumber;
+  if (first === null) return [];
+  return Array.from({ length: pool.contestCount ?? 1 }, (_, i) => first + i);
+}
+
+/**
+ * O concurso que o bolão espera: o primeiro ainda sem resultado atual (um conflito conta como sorteado), ou o último quando todos
+ * já saíram; null sem concurso definido. Um bolão de um concurso responde o seu único concurso.
+ */
+export function pendingContest(
+  pool: {
+    id: string;
+    data: { contestNumber: number | null; contestCount?: number };
+  },
+  view: Pick<ResultView, "currentResult"> | null,
+): number | null {
+  const contests = contestsOf(pool.data);
+  if (!contests.length) return null;
+  return contests.find((contest) =>
+    !view?.currentResult(pool.id, contest).result
+  ) ?? contests.at(-1)!;
 }
 
 export async function readSnapshot(db: BolaoDatabase, groupId: string | null) {

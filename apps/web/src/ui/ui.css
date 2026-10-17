@@ -753,6 +753,8 @@ a:focus-visible > .ui-brandmark img {
 
 /* etapa Dividir: selos, ações por pessoa, totais e a conta do caixa */
 .split-chips { margin: var(--e8) 0 0; }
+/* teimosinha: um bloco por concurso no prêmio, com a mesma linha fina da lista de pessoas */
+.pool-card > .split-contest { margin-top: var(--e16); padding-top: var(--e12); border-top: 1px solid var(--border); }
 .pool-person-state.split-row-actions {
   display: flex;
   flex-wrap: wrap;

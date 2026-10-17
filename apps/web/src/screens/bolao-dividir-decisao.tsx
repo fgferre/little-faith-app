@@ -40,7 +40,7 @@ import type { Notice } from "../app-shared";
 /** O que a pessoa quer fazer; a janela monta o pedido com os dados atuais do servidor. */
 export type Intencao =
   | { type: "expense_confirm"; poolId: string }
-  | { type: "prize_confirm"; poolId: string }
+  | { type: "prize_confirm"; poolId: string; contestNumber: number }
   | { type: "redemption_record"; poolId: string; personId: string }
   | { type: "redemption_reverse"; poolId: string; redemptionId: string }
   | {
@@ -158,7 +158,10 @@ function inicial(intent: Intencao, ctx: Contexto): Campos {
     case "prize_confirm":
       return {
         ...base,
-        amount: campo(balance.calculatedPrizeCents),
+        amount: campo(
+          balance.contests.find((c) => c.contestNumber === intent.contestNumber)
+            ?.calculatedPrizeCents ?? null,
+        ),
         reference: "Resultado do concurso",
       };
     case "redemption_record": {
@@ -232,6 +235,10 @@ function montar(intent: Intencao, ctx: Contexto, f: Campos): SettlementAction {
     case "prize_confirm": {
       const result = createResultView(snapshot.results).currentResult(
         intent.poolId,
+        intent.contestNumber,
+      );
+      const contest = ctx.balance.contests.find((c) =>
+        c.contestNumber === intent.contestNumber
       );
       if (!report) throw new Error("Falta conferir o registro.");
       if (!result.result || result.status === "conflict") {
@@ -251,7 +258,7 @@ function montar(intent: Intencao, ctx: Contexto, f: Campos): SettlementAction {
         type: "prize_confirm",
         registrationReportId: report.id,
         resultId: result.result.id,
-        supersedesId: latest(snapshot.prizes, intent.poolId)?.id ?? null,
+        supersedesId: contest?.prizeConfirmationId ?? null,
         amountCents: official.length
           ? official.reduce((sum, row) => sum + BigInt(row.amountCents), 0n)
             .toString()

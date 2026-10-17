@@ -4,18 +4,21 @@ Lista viva do que está aberto. Leia só a seção O BASTÃO e o item da vez; o 
 Item resolvido sai da lista e vira commit com o número entre parênteses; a história de cada número fica no git (`git log --all --grep="(NNN)"`).
 Número é identidade, não posição: item novo entra no fim da sua seção. **Próximo número livre: 16.**
 
-## O BASTÃO — onde a rodada parou (17/10, noite) — TEIMOSINHA: PASSOS 1 A 4 FEITOS E VERIFICADOS, NÃO PUBLICADOS; PRÓXIMO: PASSO 5
+## O BASTÃO — onde a rodada parou (17/10, noite) — TEIMOSINHA: PASSOS 1 A 5 FEITOS E VERIFICADOS, NÃO PUBLICADOS; PRÓXIMO: PASSO 6 (PUBLICAR, COM O SIM DELE)
 
-**Para quem pega agora:** leia o `PLAN-teimosinha.md` (decisões fechadas, 6 passos; os passos 1 a 4 estão feitos e commitados em
+**Para quem pega agora:** leia o `PLAN-teimosinha.md` (decisões fechadas, 6 passos; os passos 1 a 5 estão feitos e commitados em
 17/10: quantidade de concursos no bolão e no custo do plano; resultado e calendário por concurso; um prêmio por concurso somado na
 divisão, cartão com `draws`; registro com a quantidade de concursos no recibo (`contestCount` no bilhete observado, divergência
 `contest-count-mismatch`, preço oficial vezes a quantidade, calendário do primeiro concurso congelado no registro, guarda que não deixa
 diminuir a quantidade quando um concurso que sairia já tem resultado ou calendário, campo "Concursos cobertos" na tela Registrar, que
-começa em 1); `npm run done` verde depois do passo 4: 352 unitários, SQL com 29 respostas de divisão conferidas pelo núcleo, 20 da API,
-52 fluxos). Comece pelo passo 5 (telas: formulário "Concursos seguidos", Sorteio com uma seção por concurso, Dividir com um prêmio por
-concurso, Início e cartão pelo próximo concurso pendente, convite, demonstração com uma teimosinha, fluxo Playwright de ponta a ponta,
-três larguras; mostrar a ele o campo "Concursos cobertos" do Registrar e perguntar se fica sempre visível ou só na teimosinha) e o 6
-(publicar: 4 migrações novas, função api e app, com o sim dele). Comece numa conversa nova. A teimosinha é um bolão só com vários concursos seguidos, pagamento único e conferência
+começa em 1); telas (Sorteio com fileira de concursos e o próximo pendente marcado, Dividir com um prêmio por concurso e a soma da
+série, Início e etapa pelo próximo concurso pendente, cartão do participante com um sorteio por concurso, convite "N concursos seguidos",
+Quina da turma na demonstração como teimosinha de 3, fluxo Playwright de ponta a ponta de uma teimosinha de 2); `npm run done` verde
+depois do passo 5: 352 unitários, SQL com 29 respostas de divisão conferidas pelo núcleo, 20 da API, 53 fluxos). Falta o passo 6:
+publicar com o sim dele (4 migrações novas na ordem, `functions deploy api`, app), e duas perguntas de gosto para ele, com imagem: o campo
+"Concursos cobertos" do Registrar fica sempre visível ou só na teimosinha? A fileira de concursos do Sorteio e os blocos do Dividir
+estão do jeito que ele quer? (fotos em `.tmp/teimosinha/shots/`, somem com a limpeza; o fluxo Playwright "teimosinha" as gera de novo).
+Comece numa conversa nova. A teimosinha é um bolão só com vários concursos seguidos, pagamento único e conferência
 de cada sorteio (escolha dele em 17/10 entre isso e uma série de bolões). O plano do cartão (`PLAN-cartao.md`, apagado em 17/10; git
 guarda) terminou: responder pelo cartão
 (44c678a, e3005ed, 8f3cc85), doação (808121c) e próximo sorteio automático (a5afbad, desenho aprovado por ele em 17/10 depois de ver as

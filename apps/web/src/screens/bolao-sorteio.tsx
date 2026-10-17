@@ -3,6 +3,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { AnimatePresence } from "motion/react";
 import {
   CalendarClock,
+  Check,
   Download,
   MessageCircle,
   RefreshCw,
@@ -39,7 +40,7 @@ import { useProximoSorteio } from "../proximo-sorteio";
 import { useSheetPresence } from "../components";
 import { downloadText } from "../registration-handoff";
 import type { RecordRequest } from "../record-decision";
-import { rolloverOf } from "../app-shared";
+import { contestsOf, pendingContest, rolloverOf } from "../app-shared";
 import type { Notice, PoolStep, Snapshot } from "../app-shared";
 import {
   ampliado,
@@ -207,16 +208,28 @@ export function BolaoSorteio(
     () => local?.results ? createResultView(local.results) : null,
     [local?.results],
   );
-  const view = indexed?.currentResult(pool.id) ?? null;
-  const calendar = indexed?.currentCalendar(pool.id) ?? null;
+  // Numa teimosinha a tela fala de um concurso por vez: o escolhido, ou o próximo que espera resultado.
+  const contests = contestsOf(pool.data);
+  const contestCount = pool.data.contestCount ?? 1;
+  const pending = pendingContest(pool, indexed);
+  const [picked, setPicked] = useState<number | null>(null);
+  const contest = picked !== null && contests.includes(picked)
+    ? picked
+    : pending;
+  const view = indexed?.currentResult(pool.id, contest ?? undefined) ?? null;
+  const calendar = indexed?.currentCalendar(pool.id, contest ?? undefined) ??
+    null;
   const report = local?.registrations?.reports.filter((item) =>
     item.poolId === pool.id
   ).sort((a, b) => b.version - a.version)[0];
   const assessment = report && view
-    ? assessRegisteredPrizes(report, view)
+    ? assessRegisteredPrizes(report, view, contestCount)
     : null;
   const versions =
-    local?.results?.results.filter((item) => item.poolId === pool.id).sort((
+    local?.results?.results.filter((item) =>
+      item.poolId === pool.id &&
+      (contest === null || item.contestNumber === contest)
+    ).sort((
       a,
       b,
     ) => b.version - a.version) ?? [];
@@ -232,13 +245,12 @@ export function BolaoSorteio(
   // sozinho e vem preenchido com o oficial, para a pessoa só conferir (pedido do dono em 17/10).
   const { data: proximo } = useProximoSorteio(pool.data.lotteryId);
   const latestDrawn = proximo?.extras.contestNumber ?? null;
-  const { contestNumber } = pool.data;
   useEffect(() => {
     if (
-      local && !view && contestNumber && latestDrawn !== null &&
-      latestDrawn >= contestNumber
+      local && !view?.result && contest && latestDrawn !== null &&
+      latestDrawn >= contest
     ) setManualOpen(true);
-  }, [local, view, contestNumber, latestDrawn]);
+  }, [local, view, contest, latestDrawn]);
   const operation = useRef(false);
   const mounted = useRef(true);
   useEffect(() => {
@@ -258,6 +270,7 @@ export function BolaoSorteio(
         createAccountTransport(db.accountId),
         groupId,
         pool.id,
+        contest ?? undefined,
       );
     } catch (failure) {
       if (mounted.current) setError(errorMessage(failure));
@@ -334,18 +347,32 @@ export function BolaoSorteio(
   const top = Math.max(0, ...winners.map((game) => bestTier(game.prize!)));
   const prizeCents = assessed ? assessment.calculatedPrizeCents : null;
 
-  const drawAt = calendar?.contestNumber === pool.data.contestNumber
+  const drawAt = calendar?.contestNumber === contest
     ? calendar?.expectedDrawAt ?? null
     : null;
+  const last = contests.at(-1);
   const next = local?.results?.calendarVersions.filter((item) =>
     item.lotteryId === lotteryId && item.expectedDrawAt &&
-    item.contestNumber > (pool.data.contestNumber ?? Infinity) &&
+    item.contestNumber > (last ?? Infinity) &&
     Date.parse(item.expectedDrawAt) > Date.now()
   ).sort((a, b) => a.expectedDrawAt!.localeCompare(b.expectedDrawAt!))[0];
-  // Só o resultado oficial diz se acumulou; com o resultado informado à mão nada muda.
+  // Só o resultado oficial diz se acumulou; com o resultado informado à mão nada muda. Numa teimosinha vale o
+  // último concurso da série: o próximo bolão começa depois dele.
+  const series = last !== undefined && last !== contest;
+  const lastView = series ? indexed?.currentResult(pool.id, last) ?? null : view;
+  const lastTop = series
+    ? report && lastView
+      ? Math.max(
+        0,
+        ...assessRegisteredPrizes(report, lastView, contestCount).games.map(
+          bestTier,
+        ),
+      )
+      : 0
+    : top;
   const rolledOver = useMemo(
-    () => rolloverOf(view, top >= prizeHits[lotteryId][0]),
-    [view, top, lotteryId],
+    () => rolloverOf(lastView, lastTop >= prizeHits[lotteryId][0]),
+    [lastView, lastTop, lotteryId],
   );
   const rolled = rolledOver !== null;
   const nextNumber = rolledOver?.nextContestNumber;
@@ -371,7 +398,7 @@ export function BolaoSorteio(
   // Mensagem de texto para o grupo: antes do sorteio, os jogos; depois, o resultado.
   function message() {
     const head = `${pool.data.title} · ${rule.label}${
-      pool.data.contestNumber ? ` · concurso ${pool.data.contestNumber}` : ""
+      contest ? ` · concurso ${contest}` : ""
     }`;
     if (!drawn) {
       return [
@@ -425,8 +452,8 @@ export function BolaoSorteio(
       }).format(new Date(drawAt))
       : /^\d{4}-\d{2}-\d{2}$/.test(result?.drawDate ?? "")
       ? result!.drawDate!.slice(5).split("-").reverse().join("/")
-      : pool.data.contestNumber
-      ? `concurso ${pool.data.contestNumber}`
+      : contest
+      ? `concurso ${contest}`
       : null;
     const count = `${games.length} ${games.length === 1 ? "jogo" : "jogos"}`;
     return {
@@ -593,9 +620,10 @@ export function BolaoSorteio(
         </dl>
         {calendar && <p>Fonte dos horários: {calendar.sourceReference}</p>}
         <CalendarForm
-          key={scope}
+          key={`${scope}:${contest}`}
           db={db}
           pool={pool}
+          contest={contest}
           enabled={enabled}
           open={open}
         />
@@ -656,19 +684,61 @@ export function BolaoSorteio(
     <Card className="pool-card" label="Informar resultado">
       <Eyebrow>Informar resultado</Eyebrow>
       <ManualForm
-        key={scope}
+        key={`${scope}:${contest}`}
         db={db}
         pool={pool}
+        contest={contest}
         enabled={enabled}
         open={open}
       />
     </Card>
   );
   const gamesList = <GameGroups groups={groups} row={gameRow} />;
+  // Teimosinha: um botão por concurso; o sorteado leva o visto, o que espera resultado diz "próximo".
   const stageHead = (
     <>
       <p className="sorteio-eyebrow">Agora é torcer.</p>
       <p className="sorteio-frase">O app confere os jogos quando o resultado sair.</p>
+      {contests.length > 1 && (
+        <div className="sorteio-concursos">
+          <p className="ui-sec">{contests.length} sorteios seguidos</p>
+          <div
+            className="sorteio-concursos-fila"
+            role="group"
+            aria-label="Concursos da teimosinha"
+          >
+            {contests.map((item) => {
+              const done = !!indexed?.currentResult(pool.id, item).result;
+              const upcoming = item === pending && !done;
+              return (
+                <button
+                  type="button"
+                  key={item}
+                  className="sorteio-concurso"
+                  aria-pressed={item === contest}
+                  title={done
+                    ? `Concurso ${item}, já sorteado`
+                    : upcoming
+                    ? `Concurso ${item}, o próximo sorteio`
+                    : `Concurso ${item}`}
+                  onClick={() => {
+                    setPicked(item);
+                    setChosen("");
+                  }}
+                >
+                  <span className="sorteio-concurso-numero">
+                    {done && <Check aria-hidden="true" />}
+                    {item}
+                  </span>
+                  {upcoming && (
+                    <span className="sorteio-concurso-proximo">próximo</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </>
   );
 
@@ -781,7 +851,9 @@ export function BolaoSorteio(
   );
   const resultCard = (
     <Card className="pool-card pool-result" label="Resultado">
-      <Eyebrow>Resultado</Eyebrow>
+      <Eyebrow>
+        {contests.length > 1 ? `Resultado do concurso ${contest}` : "Resultado"}
+      </Eyebrow>
       {conflict
         ? (
           <>
@@ -967,6 +1039,7 @@ export function BolaoSorteio(
       <Card className="pool-card pool-draw-games" label="Nossos jogos">
         <Eyebrow>Nossos jogos</Eyebrow>
         <p className="ui-sec pool-sub">
+          {contests.length > 1 && `Concurso ${contest} · `}
           {games.length} {games.length === 1 ? "jogo" : "jogos"}
           {assessed
             ? ` · ${
@@ -1159,9 +1232,18 @@ const initialDraft: ResultDraft = {
   calendarReason: "",
 };
 
-/** O que a pessoa digitou fica guardado no aparelho até a revisão; resultado e horários dividem o mesmo registro. */
-function useResultDraft(db: BolaoDatabase, pool: LocalRecord<"pool">) {
-  const key = `result-draft:${pool.groupId}:${pool.id}`;
+/**
+ * O que a pessoa digitou fica guardado no aparelho até a revisão; resultado e horários dividem o mesmo registro.
+ * Cada concurso de uma teimosinha tem o seu; o do primeiro concurso segue na chave de sempre.
+ */
+function useResultDraft(
+  db: BolaoDatabase,
+  pool: LocalRecord<"pool">,
+  contest: number | null,
+) {
+  const key = `result-draft:${pool.groupId}:${pool.id}${
+    contest === pool.data.contestNumber ? "" : `:${contest}`
+  }`;
   const [draft, setDraft] = useState<ResultDraft>(initialDraft);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1198,9 +1280,10 @@ function useResultDraft(db: BolaoDatabase, pool: LocalRecord<"pool">) {
 }
 
 function ManualForm(
-  { db, pool, enabled, open }: {
+  { db, pool, contest, enabled, open }: {
     db: BolaoDatabase;
     pool: LocalRecord<"pool">;
+    contest: number | null;
     enabled: boolean;
     open: (request: RecordRequest) => void;
   },
@@ -1208,6 +1291,7 @@ function ManualForm(
   const { draft, loaded, error, setError, update, writes } = useResultDraft(
     db,
     pool,
+    contest,
   );
   const [fetching, setFetching] = useState(false);
   // O último concurso sorteado que a CAIXA publicou (consulta compartilhada): se já passou do concurso do bolão, o resultado saiu.
@@ -1220,7 +1304,8 @@ function ManualForm(
    * `quiet` é a busca sozinha ao abrir: sem mensagem quando o resultado ainda não saiu.
    */
   async function fillFromOfficial(quiet = false) {
-    const { lotteryId, contestNumber } = pool.data;
+    const { lotteryId } = pool.data;
+    const contestNumber = contest;
     if (!contestNumber) return;
     setFetching(true);
     try {
@@ -1275,11 +1360,10 @@ function ManualForm(
   // Ao abrir depois do sorteio, o formulário vazio já vem preenchido com o oficial, sem botão (pedido do dono em 17/10).
   // Com a consulta compartilhada fresca dizendo que o concurso ainda não correu, nem tenta; sem ela, tenta uma vez em silêncio.
   useEffect(() => {
-    const { contestNumber } = pool.data;
-    if (tried.current || !loaded || !contestNumber || draft.numbers.trim()) return;
+    if (tried.current || !loaded || !contest || draft.numbers.trim()) return;
     if (!navigator.onLine || proximoStatus === "loading") return;
     const latest = proximo?.extras.contestNumber;
-    if (proximoStatus === "fresh" && latest !== null && latest !== undefined && latest < contestNumber) return;
+    if (proximoStatus === "fresh" && latest !== null && latest !== undefined && latest < contest) return;
     tried.current = true;
     void fillFromOfficial(true);
     // A busca é uma por abertura do formulário; o que ela preenche a pessoa confere e confirma.
@@ -1287,7 +1371,7 @@ function ManualForm(
   async function review() {
     try {
       await writes.current;
-      if (!pool.data.contestNumber) {
+      if (!contest) {
         throw new Error("Defina o concurso do bolão antes de informar.");
       }
       if (!draft.source.trim() || !draft.reason.trim()) {
@@ -1301,7 +1385,7 @@ function ManualForm(
         reason: draft.reason.trim(),
         data: {
           lotteryId: pool.data.lotteryId,
-          contestNumber: pool.data.contestNumber,
+          contestNumber: contest,
           drawDate: draft.date || null,
           drawnNumbers: draft.numbers.trim()
             ? draft.numbers.trim().split(/[\s,;]+/).map(Number)
@@ -1329,7 +1413,7 @@ function ManualForm(
       <p className="ui-sec">
         Copie da fonte publicada. O que ainda não saiu fica vazio e pendente.
       </p>
-      {pool.data.contestNumber && (
+      {contest && (
         <Button
           variant="ghost"
           icon={
@@ -1413,7 +1497,7 @@ function ManualForm(
       {error && <p className="form-error" role="alert">{error}</p>}
       <Button
         icon={<ShieldCheck aria-hidden="true" />}
-        disabled={!enabled || !loaded || !pool.data.contestNumber}
+        disabled={!enabled || !loaded || !contest}
         onClick={() => void review()}
       >
         Revisar resultado informado
@@ -1423,9 +1507,10 @@ function ManualForm(
 }
 
 function CalendarForm(
-  { db, pool, enabled, open }: {
+  { db, pool, contest, enabled, open }: {
     db: BolaoDatabase;
     pool: LocalRecord<"pool">;
+    contest: number | null;
     enabled: boolean;
     open: (request: RecordRequest) => void;
   },
@@ -1433,11 +1518,12 @@ function CalendarForm(
   const { draft, loaded, error, setError, update, writes } = useResultDraft(
     db,
     pool,
+    contest,
   );
   async function review() {
     try {
       await writes.current;
-      if (!pool.data.contestNumber) {
+      if (!contest) {
         throw new Error("Defina o concurso do bolão antes de informar.");
       }
       if (!draft.calendarSource.trim() || !draft.calendarReason.trim()) {
@@ -1450,7 +1536,7 @@ function CalendarForm(
           poolId: pool.id,
           poolVersion: pool.serverVersion,
           lotteryId: pool.data.lotteryId,
-          contestNumber: pool.data.contestNumber,
+          contestNumber: contest,
           drawDate: draft.calendarDate || null,
           expectedDrawAt: draft.drawAt
             ? brasiliaDateTimeToUTC(draft.drawAt)
@@ -1506,7 +1592,7 @@ function CalendarForm(
       <Button
         variant="ghost"
         icon={<CalendarClock aria-hidden="true" />}
-        disabled={!enabled || !loaded || !pool.data.contestNumber}
+        disabled={!enabled || !loaded || !contest}
         onClick={() => void review()}
       >
         Revisar horários do concurso

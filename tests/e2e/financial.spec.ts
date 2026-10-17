@@ -526,7 +526,11 @@ async function fixturePost(
   return response.json();
 }
 
-async function preparePlannerFixture(request: APIRequestContext, ready = true) {
+async function preparePlannerFixture(
+  request: APIRequestContext,
+  ready = true,
+  contestCount = 1,
+) {
   const drafts = [
     {
       entityId: poolId,
@@ -540,6 +544,7 @@ async function preparePlannerFixture(request: APIRequestContext, ready = true) {
         quotaPriceCents: "6000",
         participationMode: ready ? "internal" : "undecided",
         status: "draft",
+        ...(contestCount > 1 ? { contestCount } : {}),
       },
     },
     {
@@ -1026,6 +1031,7 @@ async function fillObserved(
   page: Page,
   manifest: PoolManifest,
   partial = false,
+  beforeReview?: () => Promise<void>,
 ) {
   const plan = manifest.content.plan;
   // The field keeps whole seconds: "now" rounded down can fall before the lock instant, and the
@@ -1049,6 +1055,11 @@ async function fillObserved(
     await page.getByLabel("Concurso lido no recibo").fill(
       String(plan.contestNumber),
     );
+    if ((plan.contestCount ?? 1) > 1) {
+      await page.getByLabel("Concursos cobertos").fill(
+        String(plan.contestCount),
+      );
+    }
     await page.getByLabel("Dezenas lidas no recibo").fill(
       ticket.betKeys.map((key) =>
         plan.bets.find((bet) => bet.key === key)!.numbers.join(" ")
@@ -1074,11 +1085,18 @@ async function fillObserved(
   // Nor may the receipt time be later than the human review.
   await expect.poll(() => Date.now()).toBeGreaterThan(registeredAt.getTime());
   await settled(page);
+  await beforeReview?.();
   await page.getByRole("button", {
     name: "Revisar conferência do registro",
     exact: true,
   }).click();
 }
+/** Abre o formulário de resultado manual; ele já pode ter aberto sozinho quando a CAIXA sorteou o concurso do bolão. */
+async function openManual(page: Page) {
+  const toggle = page.getByRole("button", { name: "Informar resultado", exact: true });
+  if ((await toggle.getAttribute("aria-expanded")) !== "true") await toggle.click();
+}
+
 async function approveRecord(page: Page) {
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByRole("checkbox")).toBeEnabled({ timeout: 15_000 });
@@ -1288,8 +1306,7 @@ test("manual results, official conflicts, failed collection and contest times pr
   await fillObserved(page, manifest);
   await approveRecord(page);
   await step(page, "Sorteio");
-  await page.getByRole("button", { name: "Informar resultado", exact: true })
-    .click();
+  await openManual(page);
   await page.getByLabel("Data do sorteio em Brasília").fill("2026-10-08");
   await page.getByLabel("Dezenas sorteadas", { exact: true }).fill(
     "1 2 3 4 5 6",
@@ -1422,7 +1439,7 @@ test("the Sorteio screen stays on screen when the result is in but the registrat
   test.setTimeout(90_000);
   await lockRegistrationFixture(page, request);
   await step(page, "Sorteio");
-  await page.getByRole("button", { name: "Informar resultado", exact: true }).click();
+  await openManual(page);
   await page.getByLabel("Data do sorteio em Brasília").fill("2026-10-08");
   await page.getByLabel("Dezenas sorteadas", { exact: true }).fill("1 2 3 4 5 6");
   await page.getByLabel("Prêmio de 6 acertos (R$)").fill("1000,00");
@@ -1512,7 +1529,7 @@ test("repeating with the same group carries the games, suggests the next contest
   const drawn = Array.from({ length: 55 }, (_, i) => [1, 2, 3, 4, 5, 6].map((k) => i + k))
     .find((c) => manifest.content.plan.bets.every((b) => c.filter((n) => b.numbers.includes(n)).length < 4))!;
   await step(page, "Sorteio");
-  await page.getByRole("button", { name: "Informar resultado", exact: true }).click();
+  await openManual(page);
   await page.getByLabel("Data do sorteio em Brasília").fill("2026-10-08");
   await page.getByLabel("Dezenas sorteadas", { exact: true }).fill(drawn.join(" "));
   await page.getByLabel("Prêmio de 6 acertos (R$)").fill("1000,00");
@@ -1617,8 +1634,7 @@ test("the prize split confirms cost and prize, records the redemption, pays, rev
   await fillObserved(page, manifest);
   await approveRecord(page);
   await step(page, "Sorteio");
-  await page.getByRole("button", { name: "Informar resultado", exact: true })
-    .click();
+  await openManual(page);
   await page.getByLabel("Data do sorteio em Brasília").fill("2026-10-08");
   await page.getByLabel("Dezenas sorteadas", { exact: true }).fill(
     "1 2 3 4 5 6",
@@ -1786,4 +1802,294 @@ test("the prize split confirms cost and prize, records the redemption, pays, rev
   expect(
     reopened.closures.map((item: { direction: string }) => item.direction),
   ).toEqual(["closed", "reopened"]);
+});
+
+test("a teimosinha of two contests plans doubled costs, registers both contests, takes one result and one prize per contest, redeems the sum and closes", async ({ page, request }) => {
+  test.setTimeout(180_000);
+  // Proof for the owner, not assertions: the same screen at three widths.
+  const shots = async (name: string) => {
+    const original = page.viewportSize()!;
+    for (const [width, height] of [[375, 812], [768, 1024], [1280, 900]]) {
+      await page.setViewportSize({ width, height });
+      await page.screenshot({
+        path: `.tmp/teimosinha/shots/${name}-${width}.png`,
+        fullPage: true,
+        animations: "disabled",
+      });
+    }
+    await page.setViewportSize(original);
+  };
+  // The pool is born a teimosinha: the app freezes the contest count once a quota is confirmed.
+  await preparePlannerFixture(request, false, 2);
+  await login(page, false);
+  await page.goto(`http://127.0.0.1:4182/#/boloes/${poolId}`);
+  await expect(
+    page.getByText("Concursos a definir · teimosinha de 2", { exact: true })
+      .first(),
+  ).toBeVisible();
+  await step(page, "Jogar");
+  await page.getByRole("button", { name: "Completar bolão", exact: true })
+    .click();
+  await page.getByLabel("Concurso", { exact: false }).fill("1234");
+  await expect(page.getByLabel("Teimosinha", { exact: false })).toHaveValue(
+    "2",
+  );
+  await page.getByLabel("Forma de participação").selectOption("internal");
+  await page.getByRole("button", { name: "Salvar neste aparelho", exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).not.toBeVisible();
+  await expect(
+    page.getByText("Concursos 1234 a 1235 · teimosinha de 2", { exact: true })
+      .first(),
+  ).toBeVisible();
+  await step(page, "Montar");
+  await expect(page.getByText("Sincronizado", { exact: true })).toBeVisible();
+  await step(page, "Jogar");
+  await expect(
+    page.getByRole("button", { name: "Comparar alternativas", exact: true }),
+  ).toBeEnabled();
+  await page.getByLabel("Destino de eventual sobra").selectOption(
+    "refund-pro-rata",
+  );
+  await page.getByRole("button", { name: "Comparar alternativas", exact: true })
+    .click();
+  const planCard = page.getByRole("region", {
+    name: "Plano Espalhada",
+    exact: true,
+  });
+  await expect(planCard).toBeVisible();
+  // Each 6-number Mega-Sena game costs R$ 12,00: R$ 6,00 for each of the two contests.
+  const facts = planCard.locator(".pool-facts");
+  const games = Number(
+    await facts.locator("div").filter({ hasText: /^Jogos/ }).locator("dd")
+      .textContent(),
+  );
+  expect(games).toBeGreaterThan(0);
+  await expect(facts).toContainText(`Custo${brl(BigInt(games) * 1200n)}`);
+  await settled(page);
+  await page.getByRole("button", {
+    name: "Revisar aplicação do plano",
+    exact: true,
+  }).click();
+  await approvePlan(page);
+  await settled(page);
+  await page.locator('[aria-label="Plano confirmado"]').getByRole("button", {
+    name: "Revisar trava do bolão",
+    exact: true,
+  }).click();
+  await page.getByLabel("Responsável pelo registro externo").selectOption(
+    personId,
+  );
+  await page.getByLabel("Titular dos bilhetes").selectOption(personId);
+  await approvePlan(page);
+  await expect(
+    page.getByText("Bolão travado · registro da trava versão 1.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  const manifest: PoolManifest =
+    (await fixturePost(request, "plan_pull", { groupId })).manifests[0];
+  const plan = manifest.content.plan;
+  expect(plan.contestNumber).toBe(1234);
+  expect(plan.contestCount).toBe(2);
+  expect(plan.bets.every((bet) => bet.numbers.length === 6)).toBe(true);
+  for (const ticket of plan.tickets) {
+    expect(ticket.betCostCents).toBe(
+      (BigInt(ticket.betKeys.length) * 1200n).toString(),
+    );
+  }
+  const planCost = plan.tickets.reduce(
+    (sum, ticket) => sum + BigInt(ticket.betCostCents),
+    0n,
+  );
+
+  await step(page, "Registrar");
+  await addOriginal(page);
+  await fillObserved(page, manifest, false, () => shots("registrar"));
+  await approveRecord(page);
+  await expect(
+    page.locator('[aria-label="O que foi registrado"]').getByText(
+      "Registro completo",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  const recorded = await fixturePost(request, "registration_pull", { groupId });
+  expect(recorded.reports[0].comparison.status).toBe("complete");
+  expect(
+    recorded.reports[0].items.map((
+      item: { observed: { contestCount: number } },
+    ) => item.observed.contestCount),
+  ).toEqual(plan.tickets.map(() => 2));
+
+  // The fixed bet 1-6 wins the sena in 1234; 1235 draws only numbers no game has.
+  const played = new Set(plan.bets.flatMap((bet) => bet.numbers));
+  const missed = Array.from({ length: 60 }, (_, index) => index + 1).filter((
+    number,
+  ) => !played.has(number)).slice(0, 6);
+  expect(missed).toHaveLength(6);
+  const informResult = async (
+    date: string,
+    numbers: readonly number[],
+  ) => {
+    // The form opens by itself once CAIXA has published a later contest (the mock does), and the
+    // button toggles it: click only while it is still closed.
+    const manual = page.getByRole("button", {
+      name: "Informar resultado",
+      exact: true,
+    });
+    await expect(async () => {
+      if (await manual.getAttribute("aria-expanded") !== "true") {
+        await manual.click();
+      }
+      await expect(page.getByLabel("Data do sorteio em Brasília"))
+        .toBeVisible({ timeout: 1_000 });
+    }).toPass();
+    await page.getByLabel("Data do sorteio em Brasília").fill(date);
+    await page.getByLabel("Dezenas sorteadas", { exact: true }).fill(
+      numbers.join(" "),
+    );
+    await page.getByLabel("Prêmio de 6 acertos (R$)").fill("1000,00");
+    await page.getByLabel("Prêmio de 5 acertos (R$)").fill("100,00");
+    await page.getByLabel("Prêmio de 4 acertos (R$)").fill("10,00");
+    await page.getByLabel("Fonte do resultado", { exact: true }).fill(
+      "Publicação sintética de integração.",
+    );
+    await page.getByLabel("Motivo do resultado manual").fill(
+      "Conferência humana sintética para testar a teimosinha.",
+    );
+    await settled(page);
+    await page.getByRole("button", {
+      name: "Revisar resultado informado",
+      exact: true,
+    }).click();
+    await approveRecord(page);
+  };
+  await step(page, "Sorteio");
+  const switcher = page.getByRole("group", { name: "Concursos da teimosinha" });
+  const first = switcher.getByRole("button", { name: /^1234/ });
+  const second = switcher.getByRole("button", { name: /^1235/ });
+  await expect(page.getByText("2 sorteios seguidos", { exact: true }))
+    .toBeVisible();
+  await expect(first).toHaveAttribute("aria-pressed", "true");
+  await expect(first).toContainText("próximo");
+  await expect(second).toHaveAttribute("aria-pressed", "false");
+  await informResult("2026-10-08", [1, 2, 3, 4, 5, 6]);
+  // The screen moves by itself to the contest still waiting for its result.
+  await expect(second).toHaveAttribute("aria-pressed", "true");
+  await expect(second).toContainText("próximo");
+  await expect(first).toHaveAttribute("title", "Concurso 1234, já sorteado");
+  await expect(first).toHaveAttribute("aria-pressed", "false");
+  await shots("sorteio");
+  await informResult("2026-10-10", missed);
+  await expect(second).toHaveAttribute("title", "Concurso 1235, já sorteado");
+  const resultCard = page.locator('[aria-label="Resultado"]');
+  await expect(
+    resultCard.getByText("Resultado do concurso 1235", { exact: true }),
+  ).toBeVisible();
+  const gamesSub = page.locator('[aria-label="Nossos jogos"] .pool-sub');
+  await expect(gamesSub).toHaveText(/^Concurso 1235 · /);
+  await expect(gamesSub).toContainText("nenhum premiado");
+  await first.click();
+  await expect(first).toHaveAttribute("aria-pressed", "true");
+  await expect(
+    resultCard.getByText("Resultado do concurso 1234", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    resultCard.getByRole("heading", { name: "Acertamos a sena!" }),
+  ).toBeVisible();
+  await expect(gamesSub).toHaveText(/^Concurso 1234 · /);
+  const results = (await fixturePost(request, "results_pull", { groupId }))
+    .results;
+  expect(
+    results.map((item: { contestNumber: number }) => item.contestNumber)
+      .sort(),
+  ).toEqual([1234, 1235]);
+
+  await step(page, "Dividir");
+  const cost = page.locator('[aria-label="Custo das apostas"]');
+  await cost.getByRole("button", { name: /^Confirmar custo R\$/ }).click({
+    timeout: 20_000,
+  });
+  await confirmSplit(page, "Custo confirmado.");
+  await expect(cost.getByText(/^Custo confirmado em/)).toBeVisible();
+
+  const prizeCard = page.locator('[aria-label="Prêmio"]');
+  await expect(prizeCard.getByText("Concurso 1234", { exact: true }))
+    .toBeVisible();
+  await expect(prizeCard.getByText("Concurso 1235", { exact: true }))
+    .toBeVisible();
+  await expect(
+    prizeCard.getByText("Sem prêmio neste concurso", { exact: true }),
+  ).toBeVisible();
+  await expect(prizeCard).toContainText(
+    `0 de 2 concursos com prêmio confirmado · ${brl(0n)} até agora`,
+  );
+  await prizeCard.getByRole("button", { name: "Confirmar prêmio", exact: true })
+    .click();
+  await confirmSplit(page, "Prêmio confirmado.");
+  const firstPrize = BigInt(
+    (await fixturePost(request, "settlement_pull", { groupId })).prizes[0]
+      .amountCents,
+  );
+  expect(firstPrize > 0n).toBe(true);
+  await expect(prizeCard).toContainText(
+    `1 de 2 concursos com prêmio confirmado · ${brl(firstPrize)} até agora`,
+  );
+  await prizeCard.getByRole("button", {
+    name: "Confirmar sem prêmio",
+    exact: true,
+  }).click();
+  await confirmSplit(page, "Prêmio confirmado.");
+  await expect(prizeCard).toContainText(
+    `2 de 2 concursos com prêmio confirmado · ${brl(firstPrize)} no total`,
+  );
+  await expect(prizeCard.getByText(/^Confirmado em/)).toHaveCount(2);
+  await shots("dividir");
+
+  const redemption = page.locator('[aria-label="Resgate"]');
+  await redemption.getByRole("button", { name: "Recebi o prêmio", exact: true })
+    .click();
+  await confirmSplit(page, "Resgate registrado.");
+  await expect(redemption.getByText("Prêmio todo resgatado", { exact: true }))
+    .toBeVisible();
+  const confirmed = await fixturePost(request, "settlement_pull", { groupId });
+  expect(
+    confirmed.prizes.map((item: { amountCents: string }) => item.amountCents),
+  ).toEqual([firstPrize.toString(), "0"]);
+  expect(confirmed.redemptions).toHaveLength(1);
+  expect(confirmed.redemptions[0].amountCents).toBe(firstPrize.toString());
+  expect(confirmed.expenses[0].totalCostCents).toBe(planCost.toString());
+
+  const division = page.locator('[aria-label="Como fica a divisão"]');
+  const row = division.locator(".pool-person").filter({
+    hasText: "Pessoa financeira",
+  });
+  await row.getByRole("button", { name: "Já paguei", exact: true }).click();
+  await confirmSplit(page, "Pagamento registrado.");
+  await expect(row.getByText("Pago", { exact: true })).toBeVisible();
+
+  const closing = page.locator('[aria-label="Encerrar o bolão"]');
+  await expect(closing).toContainText("Prêmio a pagarR$ 0,00");
+  await expect(closing).toContainText("Devoluções pendentesR$ 0,00");
+  await closing.getByRole("button", { name: "Encerrar o bolão", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("checkbox", { name: "Conferi a conta do bolão." })
+    .check();
+  await dialog.getByRole("button", { name: "Confirmar", exact: true }).click();
+  await expect(dialog.getByText("Bolão encerrado.", { exact: true }))
+    .toBeVisible();
+  await dialog.getByRole("button", { name: "Pronto", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(
+    page.locator('[aria-label="Encerramento"]').getByText(
+      /^Bolão encerrado em \d{2}\/\d{2}$/,
+    ),
+  ).toBeVisible();
+  await expect(closing).not.toBeVisible();
+  expect(
+    (await fixturePost(request, "settlement_pull", { groupId })).closures.map((
+      item: { direction: string },
+    ) => item.direction),
+  ).toEqual(["closed"]);
 });

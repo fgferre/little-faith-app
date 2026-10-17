@@ -141,8 +141,11 @@ function callText(
 ) {
   const { title, contestNumber, quotaPriceCents, deadlineAt, lotteryId } =
     view.pool.data;
+  const count = view.pool.data.contestCount ?? 1;
   const contest = contestNumber === null
     ? "o próximo concurso"
+    : count > 1
+    ? `${count} concursos seguidos, ${contestNumber} a ${contestNumber + count - 1}`
     : `o concurso ${contestNumber}`;
   const until = deadlineAt
     ? `, Pix até ${diaMes(deadlineAt, "America/Sao_Paulo")}`
@@ -1027,7 +1030,12 @@ export function BolaoArrecadar(
               {fromCard
                 ? "Responderam pelo cartão ou estavam na rodada passada."
                 : previous?.data.contestNumber
-                ? `Estavam no concurso ${previous.data.contestNumber}.`
+                ? (previous.data.contestCount ?? 1) > 1
+                  ? `Estavam nos concursos ${previous.data.contestNumber} a ${
+                    previous.data.contestNumber +
+                    (previous.data.contestCount ?? 1) - 1
+                  }.`
+                  : `Estavam no concurso ${previous.data.contestNumber}.`
                 : "Estavam na rodada passada."}
             </p>
             <div className="pool-call-action">

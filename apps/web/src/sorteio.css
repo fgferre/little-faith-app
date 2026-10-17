@@ -48,6 +48,70 @@
 .sorteio-palco > .ui-sec {
   font-size: var(--t-apoio);
 }
+/* Teimosinha: um botão por concurso; a fila desce para outra linha, nunca rola de lado nem aperta o número. */
+.sorteio-concursos {
+  margin: var(--e16) 0 var(--e8);
+}
+.sorteio-concursos > .ui-sec {
+  margin: 0 0 var(--e8);
+  font-size: var(--t-apoio);
+}
+.sorteio-concursos-fila {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--e8);
+}
+.sorteio-concurso {
+  flex: 0 0 auto;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--e2);
+  min-width: 72px;
+  min-height: 44px;
+  padding: var(--e4) var(--e12);
+  border: 1px solid #604654;
+  border-radius: var(--r-campo);
+  background: #ffffff0d;
+  color: #e6d3e6;
+  font: inherit;
+  font-size: var(--t-corpo);
+  font-weight: 600;
+  line-height: var(--lh-justo);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.sorteio-concurso:hover {
+  border-color: #d9a66c;
+}
+.sorteio-concurso-numero {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--e4);
+}
+.sorteio-concurso svg {
+  width: 14px;
+  height: 14px;
+  color: #d9a66c;
+}
+.sorteio-concurso-proximo {
+  font-size: var(--t-rotulo);
+  font-weight: 500;
+  letter-spacing: .04em;
+  color: #f0d6b3;
+}
+.sorteio-concurso[aria-pressed="true"] {
+  border-color: #d9a66c;
+  background: #d9a66c;
+  color: #24172f;
+}
+.sorteio-concurso[aria-pressed="true"] svg,
+.sorteio-concurso[aria-pressed="true"] .sorteio-concurso-proximo {
+  color: inherit;
+}
 .sorteio-palco .pool-drawn {
   margin: var(--e4) 0 var(--e16);
 }

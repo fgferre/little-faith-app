@@ -1,11 +1,15 @@
 Teimosinha de verdade: um bolão só com vários concursos seguidos, pagamento único e conferência de cada sorteio — decisão do dono em 17/10 ("a Confraria pediu para repetir os números"). Plano escrito em 17/10 a partir do inventário de tudo que hoje assume um concurso por bolão.
 
-Estado em 17/10 (noite): passos 1 a 4 feitos e commitados (113a7c1, 17fc468, dcb5368 e o commit do passo 4); nada publicado (4 migrações
-novas: 20261017000000, 20261017010000, 20261017020000, 20261017030000, mais a função api e o app). `npm run done` verde depois do passo 4
-(352 unitários, 52 fluxos). Faltam os passos 5 e 6. O achado do passo 3 (a comparação do registro não conhecia `contestCount` e acusava
-`bet-cost-mismatch` num recibo de teimosinha; o teste do núcleo e o cenário SQL contornavam com uma razão humana) foi resolvido no passo 4
-e os contornos saíram. Na tela Registrar o campo "Concursos cobertos" começa em 1 (um recibo sem teimosinha cobre um concurso); o corte da
-cota no banco já olhava o primeiro concurso desde o passo 2, só o registro (servidor) pegava o calendário mais novo do bolão.
+Estado em 17/10 (noite): passos 1 a 5 feitos e commitados (113a7c1, 17fc468, dcb5368, 8b3ea25 e o commit do passo 5); nada publicado
+(4 migrações novas: 20261017000000, 20261017010000, 20261017020000, 20261017030000, mais a função api e o app). `npm run done` verde
+depois do passo 5 (352 unitários, 53 fluxos). Falta o passo 6 (publicar, com o sim dele). Decisões do passo 5: o Sorteio trabalha num
+concurso de cada vez, escolhido numa fileira de botões (o próximo pendente vem marcado e selecionado; um bolão de um concurso não tem
+fileira); Dividir mostra um bloco por concurso com o próprio "Confirmar prêmio" e uma linha com a soma da série; a etapa do bolão só vira
+"Dividir" quando todos os concursos têm resultado, e a contagem do Início segue o próximo concurso pendente; o cartão do participante lista
+um sorteio por concurso; o convite diz "2 concursos seguidos, 3072 a 3073"; a demonstração tem a Quina da turma como teimosinha de 3;
+o formulário do bolão já perguntava "Teimosinha" desde o passo 1 e ficou como estava. Corrigido de passagem: o "Informar resultado"
+abrir sozinho só funcionava quando o grupo ainda não tinha resultado nenhum (a condição olhava a visão inteira, não o resultado do
+concurso). Na tela Registrar o campo "Concursos cobertos" começa em 1 e aparece sempre (perguntar a ele se fica só na teimosinha).
 
 ## O que é (nas palavras dele e da especificação)
 
@@ -52,7 +56,7 @@ cota no banco já olhava o primeiro concurso desde o passo 2, só o registro (se
 4. [x] Registro (feito em 17/10, `npm run done` verde): `contestCount` no bilhete observado, comparação e divergências, tela Registrar com "Concursos cobertos"; o calendário
    usado no registro e no corte da cota passa a ser o do primeiro concurso (hoje é o último calendário do bolão); a guarda do bolão
    recusa diminuir `contestCount` abaixo de um concurso que já tem resultado ou calendário; testes.
-5. [ ] Telas: formulário do bolão ("Concursos seguidos"), Sorteio com uma seção por concurso (busca, manual, calendário, resultado e
+5. [x] Telas (feito em 17/10, `npm run done` verde): formulário do bolão ("Concursos seguidos"), Sorteio com uma seção por concurso (busca, manual, calendário, resultado e
    acertos de cada um; o próximo pendente em destaque), Dividir com um prêmio por concurso, Início e contagem pelo próximo concurso
    pendente, cartão com os sorteios da série, convite em Arrecadar ("4 concursos seguidos, 3072 a 3075"), demonstração com uma
    teimosinha; fluxo Playwright de ponta a ponta (planejar, travar, registrar, dois resultados, dois prêmios, dividir); olhar em três

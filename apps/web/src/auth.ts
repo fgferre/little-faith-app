@@ -173,10 +173,12 @@ export function createAccountTransport(
     resultsPull(groupId: string) {
       return api<ResultSnapshot>(accountId, "results_pull", { groupId });
     },
-    resultsCollect(groupId: string, poolId: string) {
+    resultsCollect(groupId: string, poolId: string, contestNumber?: number) {
+      // A API recusa chaves que não conhece: o concurso só vai quando foi pedido.
       return api<ResultSnapshot>(accountId, "results_collect", {
         groupId,
         poolId,
+        ...(contestNumber === undefined ? {} : { contestNumber }),
       });
     },
     resultDecide(command: ResultCommand) {

@@ -91,8 +91,8 @@ export interface ResultReceipt {
 }
 export interface ResultTransport {
   resultsPull(groupId: string): Promise<ResultSnapshot>;
-  /** Fetch only from the configured official service; this is not approval of a manual result. */
-  resultsCollect(groupId: string, poolId: string): Promise<ResultSnapshot>;
+  /** Fetch only from the configured official service; this is not approval of a manual result. contestNumber: which contest of a teimosinha (default its first). */
+  resultsCollect(groupId: string, poolId: string, contestNumber?: number): Promise<ResultSnapshot>;
   resultDecide(command: ResultCommand): Promise<ResultReceipt>;
   resultCommandStatus(idempotencyKey: string): Promise<ResultReceipt | null>;
 }

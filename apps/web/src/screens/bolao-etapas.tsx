@@ -6,6 +6,7 @@ import { getResultSnapshot } from "@bolao/local";
 import type { BolaoDatabase } from "@bolao/local";
 import { draftQuotaCost } from "../quota-display";
 import { latestManifest } from "../planning";
+import { contestsOf, pendingContest } from "../app-shared";
 import type { PoolStep, Snapshot } from "../app-shared";
 
 export const STEP_LABEL: Record<PoolStep, string> = {
@@ -103,15 +104,21 @@ export function usePoolViews(
     });
     const dues = people.map((p) => p.dueCents);
     const funded = people.length > 0 && people.every((p) => !p.owes);
-    const result = resultView?.currentResult(pool.id).result;
+    const contest = pendingContest(pool, resultView ?? null);
+    const contests = contestsOf(pool.data);
     const registered = ["registered", "settled"].includes(pool.data.status) ||
       snapshot.registrations.some((r) => r.poolId === pool.id);
     const locked = pool.data.status === "locked" ||
       !!latestManifest(snapshot.planning, pool.id);
-    const calendar = resultView?.currentCalendar(pool.id);
+    const calendar = contest === null
+      ? undefined
+      : resultView?.currentCalendar(pool.id, contest);
     return {
       pool,
-      step: result?.drawnNumbers
+      step: contests.length > 0 &&
+          contests.every((c) =>
+            resultView?.currentResult(pool.id, c).result?.drawnNumbers
+          )
         ? "dividir"
         : registered
         ? "sorteio"
@@ -122,8 +129,7 @@ export function usePoolViews(
         : funded
         ? "jogar"
         : "arrecadar",
-      drawAt: pool.data.contestNumber !== null &&
-          calendar?.contestNumber === pool.data.contestNumber
+      drawAt: contest !== null && calendar?.contestNumber === contest
         ? calendar.expectedDrawAt
         : null,
       collectedCents: isDemo

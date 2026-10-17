@@ -98,6 +98,7 @@ export function collectResults(
   transport: ResultTransport,
   selectedGroupId: string,
   selectedPoolId: string,
+  contestNumber?: number,
 ): Promise<ResultSnapshot> {
   const groupId = identifier(selectedGroupId);
   const poolId = identifier(selectedPoolId);
@@ -110,7 +111,7 @@ export function collectResults(
     };
     await db.resultCollectionAttempts.add(attempt);
     try {
-      const input = await transport.resultsCollect(groupId, poolId);
+      const input = await transport.resultsCollect(groupId, poolId, contestNumber);
       if (input.groupId !== groupId) throw new Error('A consulta devolveu resultados de outro grupo.');
       const snapshot = validateResultSnapshot(input);
       await db.transaction('rw', [...resultTables(db), db.resultCollectionAttempts], async () => {

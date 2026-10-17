@@ -46,7 +46,14 @@ import {
   unfoldDetails,
 } from "../ui";
 import type { ChipStatus } from "../ui";
-import { diaSemana, hoje, prazoResgate, quando, reaisGrandes } from "../ui/texto";
+import {
+  concursos,
+  diaSemana,
+  hoje,
+  prazoResgate,
+  quando,
+  reaisGrandes,
+} from "../ui/texto";
 import { useProximoSorteio } from "../proximo-sorteio";
 import { cotas } from "./bolao-arrecadar";
 
@@ -131,7 +138,10 @@ function PoolHead(
         </Chip>
         <span className="ui-sec">
           {pool.contest
-            ? `Concurso ${pool.contest}`
+            ? concursos({
+              contestNumber: pool.contest,
+              contestCount: pool.draws?.length ?? 1,
+            })
             : next?.nextContestNumber
             ? `Concurso ${next.nextContestNumber}`
             : "Concurso a definir"}
@@ -292,18 +302,9 @@ function RegistrationCard({ pool }: { pool: Pool }) {
   );
 }
 
-function ResultCard({ pool }: { pool: Pool }) {
-  const { result } = pool;
-  if (!result) {
-    return (
-      <Card className="pool-card" label="Resultado">
-        <Eyebrow>Resultado</Eyebrow>
-        <p className="card-line">
-          O resultado aparece aqui depois do sorteio.
-        </p>
-      </Card>
-    );
-  }
+function ResultBody(
+  { pool, result }: { pool: Pool; result: NonNullable<Pool["result"]> },
+) {
   // Só os jogos lidos do bilhete registrado entram na conta, os mesmos da divisão do prêmio.
   const games = pool.games.filter((game) => game.registered).map((game) =>
     gameHits(pool.modality, game.numbers, result.drawnNumbers)
@@ -313,8 +314,7 @@ function ResultCard({ pool }: { pool: Pool }) {
   const best = Math.max(0, ...games.map((game) => game.hits));
   const confirmed = positive(result.prizeConfirmedCents);
   return (
-    <Card className="pool-card" label="Resultado">
-      <Eyebrow>Resultado</Eyebrow>
+    <>
       <div className="pool-drawn">
         <Balls
           numbers={result.drawnNumbers}
@@ -359,6 +359,41 @@ function ResultCard({ pool }: { pool: Pool }) {
             <Chip status="pending">Prêmio a confirmar</Chip>
           </p>
         )}
+    </>
+  );
+}
+
+function ResultCard({ pool }: { pool: Pool }) {
+  const { result } = pool;
+  // Na teimosinha o cartão traz um sorteio por concurso; um bolão de um concurso mostra só o seu resultado.
+  const draws = pool.draws && pool.draws.length > 1 ? pool.draws : null;
+  if (!result && !draws?.some((draw) => draw.result)) {
+    return (
+      <Card className="pool-card" label="Resultado">
+        <Eyebrow>Resultado</Eyebrow>
+        <p className="card-line">
+          O resultado aparece aqui depois do sorteio.
+        </p>
+      </Card>
+    );
+  }
+  return (
+    <Card className="pool-card" label="Resultado">
+      <Eyebrow>Resultado</Eyebrow>
+      {draws
+        ? draws.map((draw) => (
+          <div key={draw.contestNumber}>
+            <p className="ui-sec">
+              {`Concurso ${draw.contestNumber}${
+                draw.drawAt ? ` · ${drawWhen(draw.drawAt)}` : ""
+              }`}
+            </p>
+            {draw.result
+              ? <ResultBody pool={pool} result={draw.result} />
+              : <p className="card-line">Esperando o sorteio.</p>}
+          </div>
+        ))
+        : result && <ResultBody pool={pool} result={result} />}
     </Card>
   );
 }

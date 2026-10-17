@@ -145,6 +145,7 @@ export async function seedDemo(db: BolaoDatabase) {
         title: "Quina da turma",
         lotteryId: "quina",
         contestNumber: null,
+        contestCount: 3,
         deadlineAt: wednesdayDeadline,
         quotaPriceCents: "3000",
         participationMode: "undecided",

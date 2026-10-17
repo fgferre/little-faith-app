@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { AnimatePresence } from "motion/react";
 import { Download } from "lucide-react";
@@ -15,6 +15,7 @@ import type {
   PoolManifest,
   PoolSettlement,
   PoolSettlementBalance,
+  SettlementContestBalance,
   SettlementPersonBalance,
   SettlementSnapshot,
 } from "@bolao/core";
@@ -158,14 +159,20 @@ export function BolaoDividir(
   const manifest = snapshot?.registration.manifests.find((item) =>
     item.id === balance?.manifestId
   );
-  const result = useMemo(
-    () =>
-      snapshot
-        ? createResultView(snapshot.results).currentResult(pool.id)
-        : null,
-    [snapshot, pool.id],
+  const results = useMemo(
+    () => snapshot ? createResultView(snapshot.results) : null,
+    [snapshot],
   );
-  const prize = snapshot ? latest(snapshot.prizes, pool.id) : undefined;
+  const result = useMemo(() => results?.currentResult(pool.id) ?? null, [
+    results,
+    pool.id,
+  ]);
+  // Uma teimosinha tem um prêmio confirmado por concurso: o resgate e a divisão olham a soma e o prazo mais próximo.
+  const contestPrizes = balance && snapshot
+    ? balance.contests.flatMap((contest) =>
+      snapshot.prizes.filter((item) => item.id === contest.prizeConfirmationId)
+    )
+    : [];
   const expense = snapshot ? latest(snapshot.expenses, pool.id) : undefined;
   const closure = snapshot ? latest(snapshot.closures, pool.id) : undefined;
   const ask = (intent: Intencao) => setRequest({ intent });
@@ -295,7 +302,13 @@ export function BolaoDividir(
         </>
       );
     }
-    if (!result?.result?.drawnNumbers) {
+    // One block per contest; a teimosinha confirms one prize per contest.
+    const contests = balance.contests, series = contests.length > 1;
+    const drawn = (contest: SettlementContestBalance) =>
+      !contest.resultConflict && contest.resultId !== null &&
+      !!results?.currentResult(pool.id, contest.contestNumber).result
+        ?.drawnNumbers;
+    if (!contests.some(drawn)) {
       return (
         <>
           <h2 className="pool-card-title">Falta o resultado</h2>
@@ -306,54 +319,110 @@ export function BolaoDividir(
         </>
       );
     }
-    if (prize) {
-      const stale = prize.registrationReportId !== report.id ||
-        prize.resultId !== result.result.id;
+    const contestBlock = (contest: SettlementContestBalance) => {
+      const confirm = () =>
+        ask({
+          type: "prize_confirm",
+          poolId: pool.id,
+          contestNumber: contest.contestNumber,
+        });
+      const head = series && (
+        <p className="ui-sec split-contest">Concurso {contest.contestNumber}</p>
+      );
+      if (!drawn(contest)) {
+        return (
+          <>
+            {head}
+            <h2 className="pool-card-title">Esperando o sorteio</h2>
+          </>
+        );
+      }
+      const prize = contest.prizeConfirmationId === null
+        ? undefined
+        : snapshot?.prizes.find((item) =>
+          item.id === contest.prizeConfirmationId
+        );
+      if (prize) {
+        const stale = prize.registrationReportId !== report.id ||
+          prize.resultId !== contest.resultId;
+        return (
+          <>
+            {head}
+            <p className="ui-sec">Prêmio confirmado</p>
+            <Money cents={prize.amountCents} prize />
+            <p className="split-chips">
+              <Chip status="confirmed">
+                Confirmado em {day(prize.confirmedAt)}
+              </Chip>
+            </p>
+            {stale && (
+              <ProblemBox title="O registro ou o resultado mudou">
+                Corrija o prêmio para que ele siga os dados atuais.
+              </ProblemBox>
+            )}
+            <div className="pool-actions">
+              <Button
+                variant={stale ? "primary" : "ghost"}
+                small={!stale}
+                disabled={!enabled}
+                onClick={confirm}
+              >
+                Corrigir prêmio
+              </Button>
+            </div>
+          </>
+        );
+      }
+      const calculated = contest.calculatedPrizeCents;
       return (
         <>
-          <p className="ui-sec">Prêmio confirmado</p>
-          <Money cents={prize.amountCents} prize />
-          <p className="split-chips">
-            <Chip status="confirmed">Confirmado em {day(prize.confirmedAt)}</Chip>
+          {head}
+          <p className="ui-sec">Prêmio calculado</p>
+          {calculated === null
+            ? <h2 className="pool-card-title">Valor a confirmar</h2>
+            : calculated === "0"
+            ? <h2 className="pool-card-title">Sem prêmio neste concurso</h2>
+            : <Money cents={calculated} prize />}
+          <p className="ui-sec pool-note">
+            {calculated === null
+              ? "O cálculo não fechou com o registro. Informe o valor do comprovante."
+              : "Calculado pelos acertos. Ainda não é dinheiro recebido."}
           </p>
-          {stale && (
-            <ProblemBox title="O registro ou o resultado mudou">
-              Corrija o prêmio para que ele siga os dados atuais.
-            </ProblemBox>
-          )}
-          <div className="pool-actions">
-            <Button
-              variant={stale ? "primary" : "ghost"}
-              small={!stale}
-              disabled={!enabled}
-              onClick={() => ask({ type: "prize_confirm", poolId: pool.id })}
-            >
-              Corrigir prêmio
-            </Button>
-          </div>
+          <Button disabled={!enabled} onClick={confirm}>
+            {calculated === "0" ? "Confirmar sem prêmio" : "Confirmar prêmio"}
+          </Button>
         </>
       );
-    }
-    const calculated = balance.calculatedPrizeCents;
+    };
+    const confirmed = contests.filter((contest) =>
+      contest.prizeConfirmationId !== null
+    );
+    const confirmedCents = confirmed.reduce(
+      (sum, contest) => sum + BigInt(contest.confirmedPrizeCents ?? "0"),
+      0n,
+    );
     return (
       <>
-        <p className="ui-sec">Prêmio calculado</p>
-        {calculated === null
-          ? <h2 className="pool-card-title">Valor a confirmar</h2>
-          : calculated === "0"
-          ? <h2 className="pool-card-title">Sem prêmio neste concurso</h2>
-          : <Money cents={calculated} prize />}
-        <p className="ui-sec pool-note">
-          {calculated === null
-            ? "O cálculo não fechou com o registro. Informe o valor do comprovante."
-            : "Calculado pelos acertos. Ainda não é dinheiro recebido."}
-        </p>
-        <Button
-          disabled={!enabled}
-          onClick={() => ask({ type: "prize_confirm", poolId: pool.id })}
-        >
-          {calculated === "0" ? "Confirmar sem prêmio" : "Confirmar prêmio"}
-        </Button>
+        {series && (
+          <p className="ui-sec">
+            {confirmed.length} de {contests.length}{" "}
+            concursos com prêmio confirmado ·{" "}
+            {formatBRL(confirmedCents.toString())}{" "}
+            {confirmed.length === contests.length ? "no total" : "até agora"}
+          </p>
+        )}
+        {contests.map((contest) => (
+          <Fragment key={contest.contestNumber}>
+            {contestBlock(contest)}
+          </Fragment>
+        ))}
+        {contests.some((contest) => !drawn(contest)) && (
+          <div className="pool-actions">
+            <Button variant="ghost" small onClick={() => go("sorteio")}>
+              Ir para o Sorteio
+            </Button>
+          </div>
+        )}
       </>
     );
   }
@@ -426,15 +495,18 @@ export function BolaoDividir(
   }
 
   function redemptionCard(balance: PoolSettlementBalance) {
-    if (!prize) {
+    if (!contestPrizes.length) {
       return <p className="ui-sec pool-empty">Depois de confirmar o prêmio.</p>;
     }
-    if (prize.amountCents === "0") {
+    if (balance.confirmedPrizeCents === "0") {
       return <p className="ui-sec pool-empty">Sem prêmio para resgatar.</p>;
     }
-    const deadline = prize.redemptionDeadline &&
-        positive(balance.unredeemedPrizeCents)
-      ? prazoResgate(prize.redemptionDeadline.deadlineDate, hoje())
+    const soonest = contestPrizes
+      .filter((item) => item.amountCents !== "0" && item.redemptionDeadline)
+      .map((item) => item.redemptionDeadline!)
+      .sort((a, b) => a.deadlineDate.localeCompare(b.deadlineDate))[0];
+    const deadline = soonest && positive(balance.unredeemedPrizeCents)
+      ? prazoResgate(soonest.deadlineDate, hoje())
       : null;
     const deadlineLine = deadline && (deadline.tone === "overdue"
       ? <ProblemBox title={deadline.text} />
@@ -670,7 +742,7 @@ export function BolaoDividir(
   }
 
   function divisionCard(balance: PoolSettlementBalance) {
-    if (!prize) {
+    if (!contestPrizes.length) {
       return (
         <p className="ui-sec pool-empty">
           Depois de confirmar o prêmio, a parte de cada pessoa aparece aqui.
@@ -678,10 +750,16 @@ export function BolaoDividir(
       );
     }
     const limit = manifest?.content.plan.groupPrizeLimitCents;
-    if (manifest && keptPrize(manifest.content.plan, prize.amountCents) > 0n) {
+    const kept = manifest
+      ? contestPrizes.reduce(
+        (total, item) => total + keptPrize(manifest.content.plan, item.amountCents),
+        0n,
+      )
+      : 0n;
+    if (manifest && kept > 0n) {
       return (
         <p className="ui-sec pool-empty">
-          Prêmio de {formatBRL(prize.amountCents)} fica no caixa do grupo
+          Prêmio de {formatBRL(kept.toString())} fica no caixa do grupo
           (combinado: até {formatBRL(limit!)}).
         </p>
       );
