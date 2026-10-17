@@ -1,23 +1,29 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { Check, ChevronDown, LoaderCircle, X } from "lucide-react";
+import { Check, ChevronDown, LoaderCircle, Paperclip, X } from "lucide-react";
 import { MotionConfig } from "motion/react";
 import {
   formatBRL,
   keptPrize,
   LOTTERIES,
+  parseBRL,
   prizeMultiplicities,
 } from "@bolao/core";
 import type {
   LotteryId,
+  ParticipantAnswer,
+  ParticipantAnswerKind,
   ParticipantCard,
   ParticipantCardPool as Pool,
+  ParticipantResponse,
   PixReceiver,
 } from "@bolao/core";
 import {
   fetchParticipantCard,
   LINKS_UNAVAILABLE,
   ParticipantApiError,
+  sendParticipantAnswer,
+  sendParticipantProof,
   setParticipantPin,
 } from "../participant-client";
 import { Modal } from "../components";
@@ -34,6 +40,7 @@ import {
   Eyebrow,
   formatWhen,
   Money,
+  MoneyInput,
   PixCode,
   ProblemBox,
   unfoldDetails,
@@ -440,7 +447,327 @@ function ShareCard(
   );
 }
 
-function PoolCards({ pool, pix }: { pool: Pool; pix: PixReceiver | null }) {
+/** "16/10, 14:02" em Brasília: quando a resposta chegou ao servidor. */
+function quando(at: string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "America/Sao_Paulo",
+  }).format(new Date(at));
+}
+
+const toAnswer = (response: ParticipantResponse): ParticipantAnswer => ({
+  kind: response.kind,
+  amountCents: response.amountCents,
+  proofSent: response.proofId !== null,
+  at: response.createdAt,
+});
+
+/** Por que a resposta não chegou: o servidor diz o que recusou; sem resposta dele, foi a conexão, e nada foi registrado. */
+function sendProblem(failure: unknown) {
+  if (failure instanceof ParticipantApiError) {
+    if (failure.code === "pool_closed") {
+      return "Este bolão não aceita mais respostas.";
+    }
+    return pinProblem(failure) ?? failure.message;
+  }
+  return "Sem conexão. Sua resposta não foi enviada.";
+}
+
+const MAX_PROOF_BYTES = 10 * 1024 * 1024;
+const PROOF_TYPES = "application/pdf,image/png,image/jpeg,image/webp";
+
+/** "Já paguei": o valor pago e, se quiser, o comprovante; o tesoureiro confere e confirma, nada vira dinheiro sozinho. */
+function PaidDialog(
+  { pool, token, idempotencyKey, onDone, onClose }: {
+    pool: Pool;
+    token: string | undefined;
+    idempotencyKey: string;
+    onDone: (answer: ParticipantAnswer) => void;
+    onClose: () => void;
+  },
+) {
+  const missing = pool.quota && pool.quota.dueCents !== null
+    ? BigInt(pool.quota.dueCents) - BigInt(pool.quota.paidCents)
+    : null;
+  const [amount, setAmount] = useState(
+    missing !== null && missing > 0n
+      ? formatBRL(missing.toString()).replace(/^R\$\s?/, "")
+      : "",
+  );
+  const [file, setFile] = useState<File | null>(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function run() {
+    let cents: string;
+    try {
+      cents = parseBRL(amount);
+    } catch {
+      cents = "0";
+    }
+    if (BigInt(cents) <= 0n) {
+      setError("Digite o valor que você pagou.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      if (!token) {
+        onDone({
+          kind: "paid",
+          amountCents: cents,
+          proofSent: !!file,
+          at: new Date().toISOString(),
+        });
+        return;
+      }
+      const pin = rememberedPin(token);
+      const sent = { poolId: pool.id, amountCents: cents, idempotencyKey };
+      const { response } = file
+        ? await sendParticipantProof(token, pin, sent, file)
+        : await sendParticipantAnswer(token, pin, { ...sent, kind: "paid" });
+      onDone(toAnswer(response));
+    } catch (failure) {
+      setError(sendProblem(failure));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal
+      title="Já paguei"
+      description="O tesoureiro confere e confirma. O comprovante fica só com ele."
+      onClose={() => {
+        if (!busy) onClose();
+      }}
+    >
+      <form
+        onSubmit={(event: FormEvent) => {
+          event.preventDefault();
+          void run();
+        }}
+      >
+        <label>
+          Valor pago<MoneyInput
+            required
+            value={amount}
+            disabled={busy}
+            onChange={(event) => setAmount(event.target.value)}
+          />
+        </label>
+        <label className={`ui-btn ghost pool-attach ${busy ? "disabled" : ""}`}>
+          <Paperclip aria-hidden="true" />
+          {file ? file.name : "Anexar comprovante"}
+          <input
+            className="ui-hidden"
+            type="file"
+            accept={PROOF_TYPES}
+            disabled={busy}
+            onChange={(event) => {
+              const chosen = event.target.files?.[0] ?? null;
+              event.target.value = "";
+              if (chosen && chosen.size > MAX_PROOF_BYTES) {
+                setError("O comprovante passa de 10 MB.");
+                return;
+              }
+              setError("");
+              setFile(chosen);
+            }}
+          />
+        </label>
+        {!file && (
+          <p className="ui-sec">O comprovante é opcional: foto ou PDF.</p>
+        )}
+        {error && <p className="form-error" role="alert">{error}</p>}
+        <div className="modal-actions">
+          <Button
+            type="submit"
+            disabled={busy}
+            icon={busy
+              ? <LoaderCircle aria-hidden="true" className="spin" />
+              : <Check aria-hidden="true" />}
+          >
+            {busy ? "Enviando…" : "Avisar que paguei"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+/**
+ * A resposta da pessoa nesta rodada: "Estou dentro", "Desta vez estou fora" ou "Já paguei" (com o valor e, se quiser, o
+ * comprovante). Vale a última; nunca cria cota nem move dinheiro: o tesoureiro confirma. Sem servidor (cartão de exemplo),
+ * a resposta fica só neste aparelho.
+ */
+function AnswerCard(
+  { pool, token, onAnswer }: {
+    pool: Pool;
+    token: string | undefined;
+    onAnswer: (poolId: string, answer: ParticipantAnswer) => void;
+  },
+) {
+  const current = pool.response ?? null;
+  const [choosing, setChoosing] = useState(false);
+  const [sending, setSending] = useState<ParticipantAnswerKind | null>(null);
+  const [problem, setProblem] = useState<
+    { text: string; retry: () => void } | null
+  >(null);
+  const [paying, setPaying] = useState(false);
+  // A chave de idempotência é deste aparelho: a nova tentativa repete a mesma e o servidor não registra duas vezes.
+  const [key, setKey] = useState(() => crypto.randomUUID());
+  // Cota já paga e conferida: não há o que responder, só a resposta antiga, se houver.
+  const answerable = pool.responseOpen === true && pool.quota?.paid !== true;
+  if (!current && !answerable) return null;
+  const inside = current ? current.kind !== "out" : !!pool.quota;
+
+  function done(answer: ParticipantAnswer) {
+    setKey(crypto.randomUUID());
+    setChoosing(false);
+    setPaying(false);
+    setProblem(null);
+    onAnswer(pool.id, answer);
+  }
+  async function send(kind: "in" | "out") {
+    setSending(kind);
+    setProblem(null);
+    try {
+      if (!token) {
+        done({
+          kind,
+          amountCents: null,
+          proofSent: false,
+          at: new Date().toISOString(),
+        });
+        return;
+      }
+      const { response } = await sendParticipantAnswer(
+        token,
+        rememberedPin(token),
+        { poolId: pool.id, kind, amountCents: null, idempotencyKey: key },
+      );
+      done(toAnswer(response));
+    } catch (failure) {
+      setProblem({
+        text: sendProblem(failure),
+        retry: () => void send(kind),
+      });
+    } finally {
+      setSending(null);
+    }
+  }
+  const spinner = <LoaderCircle aria-hidden="true" className="spin" />;
+  const choices = (
+    <div className="answer-actions">
+      {!inside && (
+        <Button
+          disabled={!!sending}
+          icon={sending === "in" ? spinner : <Check aria-hidden="true" />}
+          onClick={() => void send("in")}
+        >
+          Estou dentro
+        </Button>
+      )}
+      {inside && (
+        <Button
+          disabled={!!sending}
+          icon={<Check aria-hidden="true" />}
+          onClick={() => setPaying(true)}
+        >
+          Já paguei
+        </Button>
+      )}
+      {current?.kind !== "out" && (
+        <Button
+          variant="ghost"
+          disabled={!!sending}
+          icon={sending === "out" ? spinner : <X aria-hidden="true" />}
+          onClick={() => void send("out")}
+        >
+          Desta vez estou fora
+        </Button>
+      )}
+    </div>
+  );
+  return (
+    <Card className="pool-card" label="Sua resposta">
+      <div className="pool-card-head">
+        <Eyebrow>Sua resposta</Eyebrow>
+        {current?.kind === "in" && <Chip status="confirmed">Dentro</Chip>}
+        {current?.kind === "paid" && <Chip status="pending">Pix avisado</Chip>}
+        {current?.kind === "out" && <Chip family>Fora</Chip>}
+      </div>
+      {current && (
+        <p className="answer-line">
+          {current.kind === "in" && "Você disse que está dentro"}
+          {current.kind === "out" && "Você disse que desta vez está fora"}
+          {current.kind === "paid" && (
+            <>
+              Você avisou um Pix de{" "}
+              <b>{formatBRL(current.amountCents ?? "0")}</b>
+              {current.proofSent && ", com comprovante"}
+            </>
+          )}
+          <span className="ui-sec">{` · ${quando(current.at)}`}</span>
+        </p>
+      )}
+      {current?.kind === "paid" && (
+        <p className="ui-sec">O tesoureiro confirma quando o dinheiro cair.</p>
+      )}
+      {!current && answerable && (
+        <p className="answer-ask">
+          {inside ? "Já pagou? Avise por aqui." : "Vai entrar nesta rodada?"}
+        </p>
+      )}
+      {answerable && (choosing || !current) && choices}
+      {answerable && current && !choosing && (
+        <div className="answer-actions">
+          {current.kind === "in" && (
+            <Button
+              icon={<Check aria-hidden="true" />}
+              onClick={() => setPaying(true)}
+            >
+              Já paguei
+            </Button>
+          )}
+          <Button variant="ghost" small onClick={() => setChoosing(true)}>
+            Mudar resposta
+          </Button>
+        </div>
+      )}
+      {problem && (
+        <>
+          <ProblemBox title={problem.text} />
+          <Button variant="ghost" small onClick={problem.retry}>
+            Tentar de novo
+          </Button>
+        </>
+      )}
+      {paying && (
+        <PaidDialog
+          pool={pool}
+          token={token}
+          idempotencyKey={key}
+          onDone={done}
+          onClose={() => setPaying(false)}
+        />
+      )}
+    </Card>
+  );
+}
+
+function PoolCards(
+  { pool, pix, token, onAnswer }: {
+    pool: Pool;
+    pix: PixReceiver | null;
+    token: string | undefined;
+    onAnswer: (poolId: string, answer: ParticipantAnswer) => void;
+  },
+) {
   // Depois do sorteio o que importa vem primeiro: o resultado e a parte da pessoa.
   const drawn = !!pool.result?.drawnNumbers.length;
   const outcome = (
@@ -460,6 +787,7 @@ function PoolCards({ pool, pix }: { pool: Pool; pix: PixReceiver | null }) {
   return (
     <div className="card-grid">
       {drawn && outcome}
+      <AnswerCard pool={pool} token={token} onAnswer={onAnswer} />
       {pool.quota && <QuotaCard quota={pool.quota} />}
       <PayCard pool={pool} pix={pix} />
       <GamesCard pool={pool} />
@@ -773,7 +1101,11 @@ function PinCard({ token, initial }: { token: string; initial: boolean }) {
 
 /** O cartão da pessoa: os bolões do grupo em que ela tem cota, o mais novo aberto e os outros recolhidos. */
 export function CartaoParticipante(
-  { card, token }: { card: ParticipantCard; token?: string | undefined },
+  { card, token, onAnswer = () => {} }: {
+    card: ParticipantCard;
+    token?: string | undefined;
+    onAnswer?: (poolId: string, answer: ParticipantAnswer) => void;
+  },
 ) {
   const [first, ...others] = card.pools;
   // Servidor anterior à chave Pix no cartão: sem o campo, sem o cartão de pagar.
@@ -794,12 +1126,17 @@ export function CartaoParticipante(
               <PoolHead pool={first} as="h1" />
               {you}
             </div>
-            <PoolCards pool={first} pix={pix} />
+            <PoolCards
+              pool={first}
+              pix={pix}
+              token={token}
+              onAnswer={onAnswer}
+            />
           </section>
         )
         : (
           <p className="card-line card-empty">
-            Você ainda não tem cota em nenhum bolão deste grupo.
+            Nenhum bolão aberto para você neste grupo por enquanto.
           </p>
         )}
       {!!others.length && (
@@ -815,7 +1152,12 @@ export function CartaoParticipante(
               </summary>
               <div className="card-pool">
                 {you}
-                <PoolCards pool={pool} pix={pix} />
+                <PoolCards
+                  pool={pool}
+                  pix={pix}
+                  token={token}
+                  onAnswer={onAnswer}
+                />
               </div>
             </details>
           ))}
@@ -876,6 +1218,21 @@ function failure(error: unknown): Load {
 export function ParticipanteScreen({ token }: { token: string }) {
   const [load, setLoad] = useState<Load>({ state: "loading" });
   const [attempt, setAttempt] = useState(0);
+  // A resposta registrada entra no cartão aberto, sem buscar tudo de novo.
+  const answered = (poolId: string, answer: ParticipantAnswer) =>
+    setLoad((previous) =>
+      previous.state === "ready"
+        ? {
+          state: "ready",
+          card: {
+            ...previous.card,
+            pools: previous.card.pools.map((pool) =>
+              pool.id === poolId ? { ...pool, response: answer } : pool
+            ),
+          },
+        }
+        : previous
+    );
   const open = (pin: string) =>
     fetchParticipantCard(token, pin).then(
       (card) => {
@@ -939,6 +1296,7 @@ export function ParticipanteScreen({ token }: { token: string }) {
             <CartaoParticipante
               card={load.card}
               token={token === "demo" ? undefined : token}
+              onAnswer={answered}
             />
           )}
           {load.state === "pin" && (

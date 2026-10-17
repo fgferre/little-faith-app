@@ -2038,6 +2038,22 @@ tr:last-child td {
 .pool-actions {
   margin-top: var(--e16);
 }
+/* A resposta pela pessoa no cartão: a pergunta, a linha do que ela disse e os botões um embaixo do outro, na largura do cartão. */
+.answer-ask {
+  margin: 0;
+  font-weight: 600;
+}
+.answer-line {
+  margin: 0;
+}
+.answer-actions {
+  display: grid;
+  gap: var(--e8);
+  margin-top: var(--e12);
+}
+.answer-actions > .ui-btn {
+  width: 100%;
+}
 .split-repeat {
   margin-top: var(--e24);
 }

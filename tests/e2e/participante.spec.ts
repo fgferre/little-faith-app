@@ -541,3 +541,97 @@ test("a card with a PIN asks for it, opens with the right one and lets the perso
   await expect(page.getByText("Suas cotas", { exact: true })).toBeVisible();
   await context.close();
 });
+
+test("the person answers from the card: in, then paid with the proof, and the answer stays after a reload", async ({ browser }) => {
+  const organizer = await sendLink(browser);
+  // An invitation: a draft pool of the group where the person has no quota yet.
+  const invitation = {
+    status: "draft",
+    quota: null,
+    responseOpen: true,
+    response: null as unknown,
+    registration: null,
+    games: [],
+  };
+  const participant = await openCard(browser, organizer.link, organizer.server, { pool: invitation });
+  const { page, context } = participant;
+  const answers: Record<string, unknown>[] = [];
+  let proofMetadata: Record<string, unknown> | null = null;
+  let proofFileName = "";
+  await page.route("**/v1/participant_respond", (route) => {
+    if (route.request().method() !== "POST") return reply(route, 204, {});
+    if (route.request().headers().authorization) {
+      return reply(route, 400, { code: "unexpected_authorization" });
+    }
+    const body = route.request().postDataJSON() as Record<string, unknown>;
+    answers.push(body);
+    const createdAt = "2026-10-16T17:02:00.000Z";
+    invitation.response = { kind: body.kind, amountCents: body.amountCents ?? null, proofSent: false, at: createdAt };
+    return reply(route, 200, {
+      response: {
+        id: "50900000-0000-4000-8000-000000000001",
+        poolId: body.poolId,
+        personId: "p-1",
+        linkId: "50800000-0000-4000-8000-000000000001",
+        kind: body.kind,
+        amountCents: body.amountCents ?? null,
+        proofId: null,
+        createdAt,
+      },
+    });
+  });
+  await page.route("**/v1/participant_proof", (route) => {
+    if (route.request().method() !== "POST") return reply(route, 204, {});
+    const raw = route.request().postDataBuffer()?.toString("latin1") ?? "";
+    proofMetadata = JSON.parse(raw.match(/name="metadata"\r\n\r\n([\s\S]*?)\r\n--/)![1]!);
+    proofFileName = raw.match(/name="original"; filename="([^"]+)"/)?.[1] ?? "";
+    const createdAt = "2026-10-16T17:05:00.000Z";
+    invitation.response = { kind: "paid", amountCents: proofMetadata!.amountCents, proofSent: true, at: createdAt };
+    return reply(route, 200, {
+      response: {
+        id: "50900000-0000-4000-8000-000000000002",
+        poolId: proofMetadata!.poolId,
+        personId: "p-1",
+        linkId: "50800000-0000-4000-8000-000000000001",
+        kind: "paid",
+        amountCents: proofMetadata!.amountCents,
+        proofId: "50700000-0000-4000-8000-000000000001",
+        createdAt,
+      },
+    });
+  });
+
+  await expect(page.getByText("Vai entrar nesta rodada?")).toBeVisible();
+  await expect(page.getByText("Suas cotas", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Estou dentro" }).click();
+  await expect(page.getByText("Você disse que está dentro")).toBeVisible();
+  expect(answers).toHaveLength(1);
+  expect(answers[0]).toMatchObject({ token: organizer.server.token, poolId: "pool-mega", kind: "in" });
+  expect(answers[0]!.amountCents).toBeUndefined();
+  expect(answers[0]!.idempotencyKey).toMatch(/^[0-9a-f-]{36}$/);
+
+  // "Já paguei" sends the amount and the file together; the card shows the Pix as told, not as confirmed.
+  await page.getByRole("button", { name: "Já paguei" }).click();
+  await page.getByLabel("Valor pago").fill("60,00");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "pix.png",
+    mimeType: "image/png",
+    buffer: Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82]),
+  });
+  await expect(page.getByText("pix.png")).toBeVisible();
+  await page.getByRole("button", { name: "Avisar que paguei" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByText("Você avisou um Pix de")).toBeVisible();
+  await expect(page.getByText("R$ 60,00", { exact: true })).toBeVisible();
+  await expect(page.getByText("O tesoureiro confirma quando o dinheiro cair.")).toBeVisible();
+  expect(proofMetadata).toMatchObject({ token: organizer.server.token, poolId: "pool-mega", amountCents: "6000" });
+  expect(proofFileName).toBe("pix.png");
+  expect(answers).toHaveLength(1);
+
+  // The server keeps the answer: the card reopened shows it, read from the card, not from this device.
+  await page.reload();
+  await expect(page.getByText("Você avisou um Pix de")).toBeVisible();
+  await expect(page.getByText("Pix avisado")).toBeVisible();
+  await context.close();
+  await organizer.context.close();
+});

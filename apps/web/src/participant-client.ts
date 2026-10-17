@@ -1,4 +1,8 @@
-import type { ParticipantCard } from "@bolao/core";
+import type {
+  ParticipantAnswerKind,
+  ParticipantCard,
+  ParticipantResponse,
+} from "@bolao/core";
 import { supabase } from "./auth";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -45,14 +49,18 @@ async function call<T>(
       0,
     );
   }
+  // Um FormData (comprovante) vai como está: o navegador põe o tipo com a fronteira das partes.
+  const json = body !== undefined && !(body instanceof FormData);
   const response = await fetch(`${supabaseUrl}/functions/v1/api/v1/${path}`, {
     method,
     headers: {
       apikey: supabaseKey,
       ...headers,
-      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+      ...(json ? { "Content-Type": "application/json" } : {}),
     },
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    ...(body === undefined
+      ? {}
+      : { body: body instanceof FormData ? body : JSON.stringify(body) }),
     signal: AbortSignal.timeout(20_000),
   });
   if (!response.ok) {
@@ -125,6 +133,46 @@ export function setParticipantPin(
     pin,
     currentPin,
   });
+}
+
+/**
+ * A resposta da pessoa nesta rodada ("Estou dentro", "Desta vez estou fora" ou "Já paguei" com o valor), pelo link e o PIN
+ * guardado. A chave de idempotência é do aparelho: a nova tentativa repete a mesma e o servidor não registra duas vezes.
+ */
+export function sendParticipantAnswer(
+  token: string,
+  pin: string | null,
+  answer: {
+    poolId: string;
+    kind: ParticipantAnswerKind;
+    amountCents: string | null;
+    idempotencyKey: string;
+  },
+) {
+  return call<{ response: ParticipantResponse }>("participant_respond", {}, {
+    token,
+    ...(pin ? { pin } : {}),
+    poolId: answer.poolId,
+    kind: answer.kind,
+    ...(answer.amountCents === null ? {} : { amountCents: answer.amountCents }),
+    idempotencyKey: answer.idempotencyKey,
+  });
+}
+
+/** "Já paguei" com o comprovante (foto ou PDF, até 10 MiB): o arquivo e o valor vão juntos, e a resposta vira "paid". */
+export function sendParticipantProof(
+  token: string,
+  pin: string | null,
+  answer: { poolId: string; amountCents: string; idempotencyKey: string },
+  file: Blob,
+) {
+  const form = new FormData();
+  form.append(
+    "metadata",
+    JSON.stringify({ token, ...(pin ? { pin } : {}), ...answer }),
+  );
+  form.append("original", file);
+  return call<{ response: ParticipantResponse }>("participant_proof", {}, form);
 }
 
 /** Cria o link de uma pessoa; o token só existe nesta resposta. */
