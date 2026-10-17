@@ -352,8 +352,15 @@ export function createApi(config: ApiConfig): Hono<ApiEnvironment> {
   app.post('/v1/results_collect', async c => {
     if (!server) return c.json({ code: 'results_server_unconfigured', message: 'A capacidade privada de coleta oficial ainda não está configurada.' }, 503);
     const value: unknown = await c.req.json().catch(() => null);
-    if (!isObject(value) || !exactKeys(value, ['groupId', 'poolId']) || !isUuid(value.groupId) || !isUuid(value.poolId)) return c.json({ code: 'invalid_request', message: 'Informe grupo e bolão válidos.' }, 400);
-    const context = await c.get('supabase').rpc('result_collection_context', { p_group_id: value.groupId, p_pool_id: value.poolId });
+    // A teimosinha covers several contests: the device may name the one to collect; without it the pool's first contest.
+    const withContest = isObject(value) && Object.hasOwn(value, 'contestNumber');
+    if (!isObject(value) || !exactKeys(value, withContest ? ['groupId', 'poolId', 'contestNumber'] : ['groupId', 'poolId']) || !isUuid(value.groupId) || !isUuid(value.poolId)
+      || (withContest && !(Number.isSafeInteger(value.contestNumber) && (value.contestNumber as number) >= 1 && (value.contestNumber as number) <= 999999))) {
+      return c.json({ code: 'invalid_request', message: 'Informe grupo e bolão válidos.' }, 400);
+    }
+    const context = await c.get('supabase').rpc('result_collection_context', {
+      p_group_id: value.groupId, p_pool_id: value.poolId, ...(withContest ? { p_contest_number: value.contestNumber } : {}),
+    });
     if (context.error) { const failure = rpcError(context.error.code); return c.json({ code: failure.code, message: failure.message }, failure.status); }
     try {
       const snapshot = await collectOfficialResult(server, c.get('actorId'), context.data as CollectionContext);

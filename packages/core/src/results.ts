@@ -194,21 +194,23 @@ export function validateResultSnapshot(input: unknown): ResultSnapshot {
   const resultsByPool = versions(results, 'results');
   versions(calendarVersions, 'calendarVersions');
   const selectionsByPool = versions(selections, 'selections');
+  // A teimosinha holds one pool's results for several consecutive contests (the range is checked where facts are written);
+  // every version of a pool still belongs to one lottery.
   const context = new Map<string, string>();
   for (const fact of [...results, ...calendarVersions]) {
-    const key = `${fact.lotteryId}:${fact.contestNumber}`;
-    if (context.has(fact.poolId) && context.get(fact.poolId) !== key) planningInvalid('poolId', 'Versões de um bolão precisam tratar a mesma modalidade e concurso.');
-    context.set(fact.poolId, key);
+    if (context.has(fact.poolId) && context.get(fact.poolId) !== fact.lotteryId) planningInvalid('poolId', 'Versões de um bolão precisam tratar a mesma modalidade.');
+    context.set(fact.poolId, fact.lotteryId);
   }
   for (const [poolId, poolSelections] of selectionsByPool) for (let i = 0; i < poolSelections.length; i++) {
     const selection = poolSelections[i]!;
     const picked = byResult.get(selection.resultId);
     const observed = selection.observedResultIds.map((id) => byResult.get(id));
     if (!picked || picked.poolId !== poolId || !selection.observedResultIds.includes(picked.id) || observed.some((r) => !r || r.poolId !== poolId || r.collectedAt > selection.selectedAt)) planningInvalid('selections', 'Escolha exige versões existentes, deste bolão e vistas antes da revisão.');
+    if (observed.some((r) => r!.contestNumber !== picked.contestNumber)) planningInvalid('observedResultIds', 'Uma revisão resolve as versões de um concurso só.');
     const highest = Math.max(...observed.map((r) => r!.version));
-    const prefix = resultsByPool.get(poolId)!.filter((r) => r.version <= highest);
+    const prefix = resultsByPool.get(poolId)!.filter((r) => r.contestNumber === picked.contestNumber && r.version <= highest);
     if (prefix.length !== observed.length || prefix.some((r) => !selection.observedResultIds.includes(r.id))) planningInvalid('observedResultIds', 'Revisão não pode omitir uma versão anterior ao conjunto observado.');
-    const previous = poolSelections[i - 1];
+    const previous = poolSelections.slice(0, i).reverse().find((s) => byResult.get(s.resultId)?.contestNumber === picked.contestNumber);
     if (previous && (selection.selectedAt < previous.selectedAt || previous.observedResultIds.some((id) => !selection.observedResultIds.includes(id)))) planningInvalid('selections', 'Revisões devem preservar o histórico observado e a ordem de aprovação.');
   }
   const receipts = all.map((f) => f.receiptId).filter((id) => id !== null);
@@ -259,20 +261,42 @@ function selectCurrent(results: ContestResultVersion[], selections: ResultSelect
 }
 export interface ResultView {
   snapshot: ResultSnapshot;
-  currentResult(poolId: string): CurrentResultView;
-  currentCalendar(poolId: string): ContestCalendarVersion | null;
+  /** The contests this pool has results or calendars for, ascending (a teimosinha has several). */
+  contestsOf(poolId: string): number[];
+  /** Without a contest: the pool's first (lowest) contest with facts, which is the only one of a normal pool. */
+  currentResult(poolId: string, contestNumber?: number): CurrentResultView;
+  currentCalendar(poolId: string, contestNumber?: number): ContestCalendarVersion | null;
 }
+const NO_RESULT: CurrentResultView = { status: 'waiting', result: null, conflictingResultIds: [], selectedResultId: null };
 /** Validates once; repeated UI reads do not reparse immutable raw sources. */
 export function createResultView(input: ResultSnapshot): ResultView {
   const snapshot = validateResultSnapshot(input);
-  const resultMap = new Map<string, CurrentResultView>(), calendarMap = new Map<string, ContestCalendarVersion>();
-  const pools = new Set(snapshot.results.map((r) => r.poolId));
-  for (const poolId of pools) resultMap.set(poolId, selectCurrent(snapshot.results.filter((r) => r.poolId === poolId), snapshot.selections.filter((s) => s.poolId === poolId)));
-  for (const calendar of snapshot.calendarVersions) if (calendar.version > (calendarMap.get(calendar.poolId)?.version ?? 0)) calendarMap.set(calendar.poolId, calendar);
-  return { snapshot, currentResult: (poolId) => resultMap.get(poolId) ?? { status: 'waiting', result: null, conflictingResultIds: [], selectedResultId: null }, currentCalendar: (poolId) => calendarMap.get(poolId) ?? null };
+  const byResult = new Map(snapshot.results.map((r) => [r.id, r]));
+  const resultMap = new Map<string, CurrentResultView>(), calendarMap = new Map<string, ContestCalendarVersion>(), contests = new Map<string, Set<number>>();
+  const note = (poolId: string, contestNumber: number) => { if (!contests.has(poolId)) contests.set(poolId, new Set()); contests.get(poolId)!.add(contestNumber); };
+  const keys = new Set(snapshot.results.map((r) => `${r.poolId}:${r.contestNumber}`));
+  for (const key of keys) {
+    const [poolId, contest] = key.split(':') as [string, string];
+    const contestNumber = Number(contest);
+    note(poolId, contestNumber);
+    resultMap.set(key, selectCurrent(snapshot.results.filter((r) => r.poolId === poolId && r.contestNumber === contestNumber),
+      snapshot.selections.filter((s) => s.poolId === poolId && byResult.get(s.resultId)?.contestNumber === contestNumber)));
+  }
+  for (const calendar of snapshot.calendarVersions) {
+    const key = `${calendar.poolId}:${calendar.contestNumber}`;
+    note(calendar.poolId, calendar.contestNumber);
+    if (calendar.version > (calendarMap.get(key)?.version ?? 0)) calendarMap.set(key, calendar);
+  }
+  const contestsOf = (poolId: string) => [...(contests.get(poolId) ?? [])].sort((a, b) => a - b);
+  const first = (poolId: string, contestNumber?: number) => contestNumber ?? contestsOf(poolId)[0];
+  return {
+    snapshot, contestsOf,
+    currentResult: (poolId, contestNumber) => resultMap.get(`${poolId}:${first(poolId, contestNumber)}`) ?? NO_RESULT,
+    currentCalendar: (poolId, contestNumber) => calendarMap.get(`${poolId}:${first(poolId, contestNumber)}`) ?? null,
+  };
 }
-export function currentResult(snapshot: ResultSnapshot, poolId: string): CurrentResultView { return createResultView(snapshot).currentResult(poolId); }
-export function currentCalendar(snapshot: ResultSnapshot, poolId: string): ContestCalendarVersion | null { return createResultView(snapshot).currentCalendar(poolId); }
+export function currentResult(snapshot: ResultSnapshot, poolId: string, contestNumber?: number): CurrentResultView { return createResultView(snapshot).currentResult(poolId, contestNumber); }
+export function currentCalendar(snapshot: ResultSnapshot, poolId: string, contestNumber?: number): ContestCalendarVersion | null { return createResultView(snapshot).currentCalendar(poolId, contestNumber); }
 
 /** IANA conversion, including historical DST. A missing/ambiguous civil hour needs explicit correction. */
 export function brasiliaDateTimeToUTC(localDateTime: string): string {

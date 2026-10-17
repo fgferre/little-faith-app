@@ -37,12 +37,14 @@ Teimosinha de verdade: um bolão só com vários concursos seguidos, pagamento �
 1. [x] Núcleo e banco do plano: `contestCount` no bolão (tipos, validação, formulário aceita 1 a 12), custo do jogo × concursos no
    plano e no catálogo (`prepared-plans.ts`, `planning.ts`, `planning.sql`), manifesto congela a quantidade; `sync_push` valida;
    testes do núcleo e SQL; cabeçalho do bolão mostra "Concursos 3072 a 3075 · teimosinha de 4".
-2. [ ] Resultado e calendário por concurso: `results.ts` (snapshot por faixa, atual por concurso, conflito só no mesmo concurso),
+2. [x] Resultado e calendário por concurso: `results.ts` (snapshot por faixa, atual por concurso, conflito só no mesmo concurso),
    `caixa-results.ts` (busca com o concurso pedido), migração `contest_number` em `contest_result_versions` e job por concurso,
    `result_decide`/`result_collect`/`result_jobs_due` por concurso, cortes no primeiro concurso; testes núcleo, SQL e API.
 3. [ ] Prêmio por concurso: `settlement.ts` e `settlement.sql` (prêmio por concurso, soma na divisão, `prize_confirm` com concurso),
    `settlement_pool_balance`, cartão com `draws`; fixture de 2 concursos na paridade SQL↔núcleo; testes.
-4. [ ] Registro: `contestCount` no bilhete observado, comparação e divergências, tela Registrar com "Concursos cobertos"; testes.
+4. [ ] Registro: `contestCount` no bilhete observado, comparação e divergências, tela Registrar com "Concursos cobertos"; o calendário
+   usado no registro e no corte da cota passa a ser o do primeiro concurso (hoje é o último calendário do bolão); a guarda do bolão
+   recusa diminuir `contestCount` abaixo de um concurso que já tem resultado ou calendário; testes.
 5. [ ] Telas: formulário do bolão ("Concursos seguidos"), Sorteio com uma seção por concurso (busca, manual, calendário, resultado e
    acertos de cada um; o próximo pendente em destaque), Dividir com um prêmio por concurso, Início e contagem pelo próximo concurso
    pendente, cartão com os sorteios da série, convite em Arrecadar ("4 concursos seguidos, 3072 a 3075"), demonstração com uma

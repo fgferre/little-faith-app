@@ -115,6 +115,33 @@ describe('append-only result versions and explicit conflict review', () => {
     expect(view.currentResult(REG_POOL)).toMatchObject({ status: 'complete', result: { id: caixa.id } });
     expect(view.currentCalendar(REG_POOL)).toBeNull();
   });
+  it("keeps a teimosinha's results per contest", () => {
+    const draw = (contestNumber: number, version: number, drawnNumbers: number[] = [1, 2, 3, 4, 5, 6], lotteryId: LotteryId = 'mega-sena'): ContestResultVersion => manualResult({ lotteryId, contestNumber, drawDate: contestNumber === 3000 ? '2026-10-08' : '2026-10-15', drawnNumbers, payouts: null }, version);
+    const first = draw(3000, 1), second = draw(3001, 2, [7, 8, 9, 10, 11, 12]);
+    const action: Extract<ResultAction, { type: 'calendar_confirm' }> = { type: 'calendar_confirm', poolId: REG_POOL, poolVersion: 2, lotteryId: 'mega-sena', contestNumber: 3001, drawDate: '2026-10-15', expectedDrawAt: '2026-10-16T00:00:00.000Z', registrationClosesAt: '2026-10-15T23:30:00.000Z', sourceReference: 'Configuração sintética por concurso', reason: 'Fixture sintética.' };
+    const rawText = manualResultRaw(action);
+    const calendar: ContestCalendarVersion = { ...registrationCalendar(), id: fixtureId(6001), contestNumber: 3001, rawText, sha256: sha256Hex(rawText), drawDate: action.drawDate, expectedDrawAt: action.expectedDrawAt, registrationClosesAt: action.registrationClosesAt, receiptId: fixtureId(6101) };
+    const snapshot = { ...resultSnapshot([first, second]), calendarVersions: [calendar] };
+    expect(validateResultSnapshot(snapshot).results).toHaveLength(2);
+    expect(() => validateResultSnapshot(resultSnapshot([first, draw(3001, 2, [1, 2, 3, 4, 5], 'quina')]))).toThrow('mesma modalidade');
+    const view = createResultView(snapshot);
+    expect(view.contestsOf(REG_POOL)).toEqual([3000, 3001]);
+    expect(view.currentResult(REG_POOL).result?.id).toBe(first.id);
+    expect(view.currentResult(REG_POOL, 3001).result?.id).toBe(second.id);
+    expect(view.currentCalendar(REG_POOL, 3001)).toEqual(calendar);
+    expect(view.currentCalendar(REG_POOL, 3000)).toBeNull();
+  });
+  it('a resolution covers one contest', () => {
+    const draw = (contestNumber: number, version: number, drawnNumbers: number[]): ContestResultVersion => manualResult({ lotteryId: 'mega-sena', contestNumber, drawDate: contestNumber === 3000 ? '2026-10-08' : '2026-10-15', drawnNumbers, payouts: null }, version);
+    const first = draw(3000, 1, [1, 2, 3, 4, 5, 6]), kept = draw(3001, 2, [1, 2, 3, 4, 5, 6]), other = draw(3001, 3, [7, 8, 9, 10, 11, 12]);
+    const snapshot = resultSnapshot([first, kept, other]);
+    expect(createResultView(snapshot).currentResult(REG_POOL, 3001).status).toBe('conflict');
+    const selection = { id: fixtureId(8000), groupId: REG_GROUP, poolId: REG_POOL, version: 1, resultId: kept.id, observedResultIds: [kept.id, other.id], reason: 'Conferência humana sintética.', selectedAt: '2026-10-08T15:20:00.000Z', receiptId: fixtureId(8100) };
+    const view = createResultView({ ...snapshot, selections: [selection] });
+    expect(view.currentResult(REG_POOL, 3001)).toMatchObject({ status: 'manual', result: { id: kept.id }, selectedResultId: kept.id });
+    expect(view.currentResult(REG_POOL, 3000)).toMatchObject({ status: 'manual', result: { id: first.id }, selectedResultId: null });
+    expect(() => validateResultSnapshot({ ...snapshot, selections: [{ ...selection, observedResultIds: [first.id, kept.id, other.id] }] })).toThrow('um concurso só');
+  });
   it('rejects omitted history, cross-pool selections and forged approvals', () => {
     const manual = manualResult(), caixa = official(MEGA_RAW, 2), snapshot = resultSnapshot([manual, caixa]);
     expect(() => validateResultSnapshot(resultSnapshot([caixa]))).toThrow('contínuas');

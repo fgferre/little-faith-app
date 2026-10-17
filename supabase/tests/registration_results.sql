@@ -248,6 +248,56 @@ begin
   insert into stage5_contract_samples values('late registration frozen calendar','registration-receipt',r);
 end; $$;
 
+-- A teimosinha keeps results, reviews, calendars and collection jobs per contest; any contest of its range is in scope.
+create function pg_temp.teimosinha_action(p_action jsonb) returns jsonb
+language sql as $$ select pg_temp.command('91000000-0000-4000-8000-000000000001',jsonb_build_object('poolId','94000000-0000-4000-8000-000000000021',
+  'poolVersion',(select version from public.draft_records where id = '94000000-0000-4000-8000-000000000021')) || p_action); $$;
+create function pg_temp.teimosinha_manual(p_contest integer,p_numbers jsonb) returns jsonb
+language sql as $$ select pg_temp.teimosinha_action(jsonb_build_object('type','result_manual','sourceReference','Conferência humana do concurso ' || p_contest,
+  'data',jsonb_build_object('lotteryId','mega-sena','contestNumber',p_contest,'drawDate','2026-10-08','drawnNumbers',p_numbers,'payouts',null),
+  'reason','Resultado de um dos concursos da teimosinha.')); $$;
+do $$ declare g uuid := '91000000-0000-4000-8000-000000000001'; p uuid := '94000000-0000-4000-8000-000000000021'; r jsonb; first_id uuid; ids jsonb;
+begin
+  r := public.sync_push(pg_temp.draft(g,p,'pool','{"title":"Teimosinha","lotteryId":"mega-sena","contestNumber":42,"contestCount":2,"deadlineAt":null,
+    "quotaPriceCents":"2500","participationMode":"undecided","status":"draft"}'));
+  perform pg_temp.assert_true(r ->> 'status' = 'accepted','teimosinha draft covers contests 42 and 43');
+  perform pg_temp.assert_true(public.result_decide(pg_temp.teimosinha_manual(42,'[1,2,3,4,5,6]')) ->> 'status' = 'accepted','manual result of the first contest');
+  perform pg_temp.assert_true(public.result_decide(pg_temp.teimosinha_manual(43,'[7,8,9,10,11,12]')) ->> 'status' = 'accepted','manual result of the second contest');
+  perform pg_temp.assert_true((select jsonb_agg(contest_number order by version) from public.contest_result_versions where pool_id = p) = '[42,43]','results stored with their contest');
+  r := public.result_decide(pg_temp.teimosinha_manual(44,'[1,2,3,4,5,6]'));
+  perform pg_temp.assert_true(r ->> 'status' = 'rejected' and r ->> 'message' = 'O resultado manual pertence a outra modalidade ou concurso.','contest after the range refused');
+  perform pg_temp.assert_true(public.result_decide(pg_temp.teimosinha_manual(43,'[8,9,10,11,12,13]')) ->> 'status' = 'accepted','conflicting version of contest 43 preserved');
+  select id into first_id from public.contest_result_versions where pool_id = p and contest_number = 42;
+  select jsonb_agg(id order by version) into ids from public.contest_result_versions where pool_id = p and contest_number = 43;
+  r := public.result_decide(pg_temp.teimosinha_action(jsonb_build_object('type','result_resolve','resultId',ids -> 1,'observedResultIds',ids || to_jsonb(first_id),
+    'reason','Revisão que mistura concursos.')));
+  perform pg_temp.assert_true(r ->> 'status' = 'rejected','a review of contest 43 cannot list the version of contest 42');
+  r := public.result_decide(pg_temp.teimosinha_action(jsonb_build_object('type','result_resolve','resultId',ids -> 1,'observedResultIds',ids,
+    'reason','Fonte do concurso 43 escolhida explicitamente.')));
+  perform pg_temp.assert_true(r ->> 'status' = 'accepted','a review lists exactly the versions of one contest');
+  insert into stage5_contract_samples values('teimosinha contest resolved','result-receipt',r);
+  r := public.result_decide(pg_temp.teimosinha_action('{"type":"calendar_confirm","lotteryId":"mega-sena","contestNumber":42,"drawDate":"2099-01-03",
+    "expectedDrawAt":"2099-01-03T23:00:00.000Z","registrationClosesAt":"2099-01-03T22:00:00.000Z","sourceReference":"Calendário do concurso 42","reason":"Sorteio do primeiro concurso."}'));
+  perform pg_temp.assert_true(r ->> 'status' = 'accepted','calendar of the first contest');
+  r := public.result_decide(pg_temp.teimosinha_action('{"type":"calendar_confirm","lotteryId":"mega-sena","contestNumber":43,"drawDate":"2099-01-06",
+    "expectedDrawAt":"2099-01-06T23:00:00.000Z","registrationClosesAt":"2099-01-06T22:00:00.000Z","sourceReference":"Calendário do concurso 43","reason":"Sorteio do segundo concurso."}'));
+  perform pg_temp.assert_true(r ->> 'status' = 'accepted'
+    and (select jsonb_agg(jsonb_build_array(j.contest_number,c.contest_number) order by j.contest_number) from public.result_collection_jobs j
+      join public.contest_calendar_versions c on c.id = j.calendar_id where j.pool_id = p) = '[[42,42],[43,43]]','calendar of contest 43 adds its own job and keeps the job of 42');
+  perform pg_temp.assert_true(public.result_collection_context(g,p,43) ->> 'contestNumber' = '43' and public.result_collection_context(g,p) ->> 'contestNumber' = '42','collection context per contest, first by default');
+  begin perform public.result_collection_context(g,p,44); raise exception 'contest outside the range accepted';
+  exception when invalid_parameter_value then perform pg_temp.assert_true(sqlerrm = 'contest_out_of_range','collection context refuses a contest outside the range'); end;
+end; $$;
+reset role;
+do $$ declare g uuid := '91000000-0000-4000-8000-000000000001'; p uuid := '94000000-0000-4000-8000-000000000021';
+begin
+  perform pg_temp.assert_true(private.settlement_current_result(g,p) -> 'result' ->> 'id' = (select id::text from public.contest_result_versions where pool_id = p and contest_number = 42),
+    'settlement reads the first contest by default');
+  perform pg_temp.assert_true(private.settlement_current_result(g,p,43) ->> 'status' = 'manual'
+    and private.settlement_current_result(g,p,43) -> 'result' ->> 'id' = (select result_id::text from public.result_selections where pool_id = p),'settlement reads the resolved version of contest 43');
+end; $$;
+set local role authenticated;
+
 -- Actual public JSON fixtures were collected read-only; SQL stores exact bytes as UTF-8 text.
 do $$ declare g uuid := '91000000-0000-4000-8000-000000000001'; p uuid; i integer; r jsonb; data jsonb;
 begin
