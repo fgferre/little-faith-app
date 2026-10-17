@@ -1,6 +1,6 @@
 Teimosinha de verdade: um bolão só com vários concursos seguidos, pagamento único e conferência de cada sorteio — decisão do dono em 17/10 ("a Confraria pediu para repetir os números"). Plano escrito em 17/10 a partir do inventário de tudo que hoje assume um concurso por bolão.
 
-Estado em 17/10 (noite): passos 1, 2 e 3 feitos e commitados (113a7c1, 17fc468 e o commit do passo 3); nada publicado (3 migrações
+Estado em 17/10 (noite): passos 1, 2 e 3 feitos e commitados (113a7c1, 17fc468, dcb5368); nada publicado (3 migrações
 novas: 20261017000000, 20261017010000, 20261017020000, mais a função api e o app). `npm run done` verde depois do passo 3 (351 unitários, 52 fluxos). Faltam os
 passos 4, 5 e 6. Achado em 17/10 (passo 3): a comparação do registro não conhece `contestCount` e acusa `bet-cost-mismatch` num recibo
 de teimosinha (o custo observado é N vezes o de um sorteio); o teste do núcleo `teimosinha: one prize per contest` contorna com uma
