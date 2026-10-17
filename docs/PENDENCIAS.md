@@ -2,26 +2,28 @@
 
 Lista viva do que está aberto. Leia só a seção O BASTÃO e o item da vez; o resto, por `grep`.
 Item resolvido sai da lista e vira commit com o número entre parênteses; a história de cada número fica no git (`git log --all --grep="(NNN)"`).
-Número é identidade, não posição: item novo entra no fim da sua seção. **Próximo número livre: 14.**
+Número é identidade, não posição: item novo entra no fim da sua seção. **Próximo número livre: 16.**
 
-## O BASTÃO — onde a rodada parou (16/10) — CONCEITO NOVO NO QUADRO, NADA PUBLICADO; PRÓXIMO: RESPONDER PELO CARTÃO
+## O BASTÃO — onde a rodada parou (16/10, noite) — RODADA DE 15 E 16/10 PUBLICADA; PRÓXIMO: RESPONDER PELO CARTÃO
 
 **Para quem pega agora:** leia este bastão e o `PLAN-cartao.md` (próxima tarefa, nesta ordem: responder pelo cartão, próximo
 sorteio automático, botão de doação com QR; decisões fechadas lá, inclusive chave, nome e cidade do Pix da doação). Antes de começar,
 leia `.tmp/critica/astra-2.md` (crítica do GPT-6 Astra com leitura do repositório: cuidados do cartão e do próximo sorteio). `PLAN.md`
 é o quadro https://claude.ai/artifact/AfAkydz8o4DtoQjhmRVWFU (versão 16, conceito novo; falta ele escolher a versão da linha, A
-recomendada). `main` local 27 commits à frente do GitHub; nada de 15 e 16/10 foi publicado (item 5 da fila e item 14: ordem e
-conferência antes). `npm run done` verde em 16/10 (338 unitários, 48 fluxos). Decidido por ele em 16/10: o app é o organizador, a pessoa
-do dinheiro e do bilhete é o tesoureiro, o app lembra e nunca cobra, "little faith" brinca com "fezinha", os apps dele assinam "um app da
-Pipo Labs" (pipolabs.com está à venda por US$ 10.595; sugerido pipo-labs.com, livre, compra dele). Esperando ele: ler a política de
-privacidade (`apps/web/public/privacidade.html`), que destrava tirar o login do Google do modo de teste depois de publicada (item 11).
+recomendada). Produção em dia desde 16/10 à noite, com o sim dele: as 7 migrações de 15 e 16/10 aplicadas (`db push --yes`), função
+`api` republicada (cartão, PIN e telefones conferidos no ar) e app republicado a partir de `main` 34a56cc. `npm run done` verde
+(339 unitários, 48 fluxos). Decidido por ele em 16/10: o app é o organizador, a pessoa do dinheiro e do bilhete é o tesoureiro, o app
+lembra e nunca cobra, "little faith" brinca com "fezinha", os apps dele assinam "um app da Pipo Labs" (pipolabs.com está à venda por
+US$ 10.595; sugerido pipo-labs.com, livre, compra dele). Esperando ele: ler a política de privacidade, que já está no ar em
+https://fgferre.github.io/little-faith-app/privacidade.html com o texto ainda não aprovado; o sim dele destrava o item 10 da fila.
 
-**Revisão externa (15/10, sobre b7baa26):** consertado e verificado no mesmo dia: o cartão mostrava e contava acertos no plano,
-não no bilhete registrado (podia anunciar prêmio que não existe); o "Manter o Supabase acordado" mandava um token mal formado e
-nunca chegava ao banco; o demonstrativo privado voltou a Dividir. Já resolvidos antes: colar bilhetes, busca do resultado pelo aparelho,
-tela branca (bundle velho). Depois, decididos por ele no mesmo dia e feitos (o plano saiu ao terminar; está no git): sobra como reserva do grupo, reenvio
-do link guardado no aparelho ("Trocar o link" em outro aparelho), cota depois do prazo até a trava, hora do pagamento em Brasília com
-aviso, PIN opcional no cartão e prêmio até um limite combinado ficando no caixa do grupo.
+**Revisão de 16/10 sobre tudo o que não estava publicado:** 14 achados, consertados em 34a56cc a pedido dele. O que muda no uso:
+passada a hora do sorteio (quando o app tem o calendário do concurso), não entra cota, plano nem trava, então um ensaio retroativo
+como o de 15/10 não dá mais; trocar ou tirar o PIN sempre pede o atual (o aparelho onde ele foi digitado continua abrindo o cartão
+sozinho, como ele decidiu); colar jogos ignora "1)", "2.", "Jogo 3 -" e "15/10:" e deixa de fora, com aviso, o que já está no bolão
+("1 - 05…" com traço solto ainda conta o 1); a data do pagamento volta a começar vazia; o cartão não conta duas vezes o prêmio que fica
+no caixa. A migração da reserva do grupo para sozinha se houver devolução de sobra paga em bolão com sobra no caixa do grupo; em
+produção não havia nenhuma.
 
 **Rodada de 15/10:** ensaio retroativo do bolão real "Mega 14/10 150MM" (concurso 3070) até a divisão, com o resultado, a
 mensagem da surpresa e os 10 links pessoais mandados só para o grupo "Teste" dele (só ele está lá); nada foi ao grupo da
@@ -30,7 +32,7 @@ sem prêmio, sobra R$ 2; o prazo foi mudado para 15/10 23h só para o ensaio (o 
 correções que o ensaio pediu (commits 1b59ae2 a d5699a5): revisão do registro clara, colar bilhetes, cartão com resultado
 no topo e faixa de boas-vindas, resultado oficial buscado pelo aparelho (a proteção do site da CAIXA barra o servidor com
 403), telefone de cada pessoa guardado à parte no servidor e link pessoal abrindo direto na conversa. Quadro da revelação:
-https://claude.ai/artifact/6iCZS5eDry2cGmwcGWR1an (as três novidades dele estão feitas). O que continua aberto: itens 14 e 15.
+https://claude.ai/artifact/6iCZS5eDry2cGmwcGWR1an (as três novidades dele estão feitas). O que continua aberto: item 15.
 
 **Contexto que não está no código:**
 - Modo sombra (decisão dele, 13/10): a turma não sabe do app; nada vai ao grupo pela nossa mão. Ensaios vão para o grupo
@@ -38,8 +40,9 @@ https://claude.ai/artifact/6iCZS5eDry2cGmwcGWR1an (as três novidades dele estã
   nomes de terceiros; nunca CPF, chave Pix ou id de transação no repositório). Pipo = ele; peri = Rodrigo Vieira.
 - O WhatsApp Web ficou ligado no Chrome dele (código por telefone): dá para ler o grupo pelo Claude in Chrome. O acesso
   ao WhatsApp do Mac pede a janela de permissão, que ele só aprova estando no Mac.
-- O CLI do Supabase trava quando ele está remoto (chaveiro do Mac); migração vai pelo SQL Editor no Chrome dele (texto
-  da migração mais o `insert` em `supabase_migrations.schema_migrations`). Antes de publicar: `gh run list --workflow=deploy.yml --limit 1`.
+- O CLI do Supabase trava quando ele está remoto (chaveiro do Mac); aí a migração vai pelo SQL Editor no Chrome dele (texto
+  da migração mais o `insert` em `supabase_migrations.schema_migrations`). Com ele no Mac (16/10), `npx -y supabase@2 migration list`,
+  `db push --yes` e `functions deploy api` funcionaram. O app só republica à mão: `gh workflow run deploy.yml --ref main` depois do push.
 - Trabalho no navegador sai caro na conversa principal: preencher telas com um comando de página por lote, ler a área de
   transferência com `pbpaste` (o app só copia com clique de verdade), e o Claude in Chrome esconde saídas com base64 ou
   query string.
@@ -57,34 +60,22 @@ o Pix. Decisão dele em 16/10; cuidados de produto e dados na resposta do Astra 
 lateral; desenho no quadro (`PLAN.md`), riscos no item d da mesma resposta. Esperando o sim dele ao desenho.
 3. Doação: o app é grátis e aceita doação; falta ele dizer o canal (chave Pix ou link). Lugares sugeridos: rodapé da página, depois de
 encerrar a rodada (raro) e em Dados.
-4. Quadro: escolher a versão da linha da pessoa (A recomendada). Página de venda só vai ao ar com o app do Google em produção (item 11).
-5. Publicar a rodada de 15/10 (item 14), quando ele disser.
-6. Revelação de verdade para a Confraria (rodada nova), depois de publicar; anotar o que a turma estranhar.
-7. Pagamento confirmado sozinho por provedor de Pix (provedor e conta são dele; tarifa por transação) (~1 dia).
-8. Jogos lidos da foto do bilhete, para o organizador só conferir (~1 dia).
-9. Busca automática do resultado no horário: o servidor é barrado pela CAIXA (403); repensar antes de agendar.
-10. Teimosinha e série de concursos (a Confraria pediu para "repetir os números") (~1 dia).
-11. (16/10) O Google só tira do modo de teste com página inicial e política de privacidade públicas no domínio do app; o app não
-tem página de privacidade. Texto escrito em `apps/web/public/privacidade.html` (16/10), esperando ele aprovar; vai ao ar com a
-próxima publicação (https://fgferre.github.io/little-faith-app/privacidade.html); então preencher no console a página inicial, a política e o
+4. Quadro: escolher a versão da linha da pessoa (A recomendada). Página de venda só vai ao ar com o app do Google em produção (item 10).
+5. Revelação de verdade para a Confraria (rodada nova), agora que está publicado; anotar o que a turma estranhar.
+6. Pagamento confirmado sozinho por provedor de Pix (provedor e conta são dele; tarifa por transação) (~1 dia).
+7. Jogos lidos da foto do bilhete, para o organizador só conferir (~1 dia).
+8. Busca automática do resultado no horário: o servidor é barrado pela CAIXA (403); repensar antes de agendar.
+9. Teimosinha e série de concursos (a Confraria pediu para "repetir os números") (~1 dia).
+10. (16/10) O Google só tira do modo de teste com página inicial e política de privacidade públicas no domínio do app. Texto em
+`apps/web/public/privacidade.html`, no ar desde 16/10 (https://fgferre.github.io/little-faith-app/privacidade.html), esperando ele
+aprovar; depois do sim, ajustar o que ele pedir, republicar e preencher no console a página inicial, a política e o
 domínio autorizado fgferre.github.io, e publicar. Antes: publicar o app do Google "em produção" ou cadastrar e-mails (conta dele).
-12. Backup completo com senha (etapa 8 da especificação) (~4 h).
-13. Pesquisa, rodada 2: ele abre o Loterias Online (maioridade) e conversa com 5 organizadores; eu cruzo.
-14. O assistente que lê o WhatsApp (etapa do agente). Depois: participante com conta e convites; foto do bilhete no
+11. Backup completo com senha (etapa 8 da especificação) (~4 h).
+12. Pesquisa, rodada 2: ele abre o Loterias Online (maioridade) e conversa com 5 organizadores; eu cruzo.
+13. O assistente que lê o WhatsApp (etapa do agente). Depois: participante com conta e convites; foto do bilhete no
 cartão por URL temporária; limite de taxa na rota pública (ver BACKLOG).
 
 ## ALTA — bloqueia a entrega ou pode perder trabalho
-
-**14. Publicar a rodada de 15/10 (pede o sim dele).** Ordem: 0) no SQL Editor, conferir `select count(*) from public.settlement_closures;` e se há devolução de sobra já paga em
-bolão com "Reserva identificada no grupo" (a validação nova só refaz fechamentos antigos com a regra velha; devolução de sobra
-paga antes não tem esse cuidado); se houver qualquer um, parar e avisar. 1) aplicar, nesta ordem, `20261015000000_person_phones`,
-`20261016000000_participant_card_registered_games`, `20261016010000_settlement_group_reserve`, `20261016020000_quota_after_deadline`,
-`20261016030000_participant_pins`, `20261016040000_plan_group_prize_limit` e `20261016050000_settlement_group_prize` pelo SQL Editor
-(texto de cada migração mais o `insert` em `supabase_migrations.schema_migrations`, como em 14/10; o app novo sem elas mostra os jogos do
-cartão como "Ainda não conferido" e não abre cartão com PIN); 2) publicar a função `api` (rotas de
-telefone e do PIN; o CLI trava com ele remoto, ver o bastão de 14/10); 3) enviar `main` ao GitHub e republicar o app. Sem o passo 2 o app publicado
-segue funcionando e só o campo de WhatsApp avisa que não carregou. A tela em branco do Sorteio vista em 15/10 era um bundle velho
-guardado no navegador (o arquivo nem existe mais no servidor); a correção já estava publicada desde 13/10.
 
 ## MÉDIA — afeta o produto
 
