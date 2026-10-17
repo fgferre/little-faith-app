@@ -4,21 +4,29 @@ Lista viva do que está aberto. Leia só a seção O BASTÃO e o item da vez; o 
 Item resolvido sai da lista e vira commit com o número entre parênteses; a história de cada número fica no git (`git log --all --grep="(NNN)"`).
 Número é identidade, não posição: item novo entra no fim da sua seção. **Próximo número livre: 16.**
 
-## O BASTÃO — onde a rodada parou (17/10, manhã) — CARTÃO, ARRECADAR, DOAÇÃO E PRÓXIMO SORTEIO FEITOS, NÃO PUBLICADOS; PRÓXIMO: PUBLICAR COM O SIM DELE
+## O BASTÃO — onde a rodada parou (17/10, tarde) — RODADA DO CARTÃO PUBLICADA; PRÓXIMO: TEIMOSINHA, DEPOIS BACKUP COM SENHA
 
 **Para quem pega agora:** o plano do cartão (`PLAN-cartao.md`, apagado em 17/10; git guarda) terminou: responder pelo cartão
 (44c678a, e3005ed, 8f3cc85), doação (808121c) e próximo sorteio automático (a5afbad, desenho aprovado por ele em 17/10 depois de ver as
 imagens), mais o ajuste dos testes (4403fc2). `PLAN.md` é o quadro https://claude.ai/artifact/AfAkydz8o4DtoQjhmRVWFU (versão 16).
-Produção: em dia até 34a56cc (16/10 à noite). O que veio depois NÃO está publicado e sobe junto, com o sim dele, nesta ordem:
-(1) `npx -y supabase@2 db push --yes` com a migração nova `20261016060000_participant_responses.sql` (tabelas de respostas, comprovantes
-e lembretes, bucket privado `participant-proofs`, cartão com convite); (2) `npx -y supabase@2 functions deploy api` (5 rotas novas:
-responder, comprovante, baixar comprovante, respostas do grupo, lembrete); (3) as 3 variáveis da doação no GitHub (Settings > Variables):
-`VITE_DONATION_PIX_KEY` = fgferre@gmail.com, `VITE_DONATION_PIX_NAME` = Felipe Ferreira, `VITE_DONATION_PIX_CITY` = Rio de Janeiro
-(sem elas o botão fica escondido); (4) push e `gh workflow run deploy.yml --ref main`. `npm run done` verde em 17/10 (343 unitários,
-20 da API, SQL no PGlite, 52 fluxos; os fluxos do cartão rodam depois dos financeiros, projeto "cartão" do Playwright, porque os dois
-reiniciam o mesmo cenário; a consulta à CAIXA é simulada em todos os fluxos por `tests/e2e/caixa.ts`). Esperando ele: o sim para
-publicar; ler a política de privacidade (https://fgferre.github.io/little-faith-app/privacidade.html) para destravar o item 10;
-pipo-labs.com (compra dele).
+Produção: publicada em 17/10 à tarde com o sim dele, a partir de 78431cc: migração `20261016060000_participant_responses.sql`
+aplicada (`db push --yes`, o CLI respondeu mesmo com ele remoto), função `api` republicada (as 5 rotas novas conferidas no ar), as 3
+variáveis da doação cadastradas pelo `gh variable set` (`VITE_DONATION_PIX_KEY` = fgferre@gmail.com, `..._NAME` = Felipe Ferreira,
+`..._CITY` = Rio de Janeiro) e o app republicado (`gh workflow run deploy.yml --ref main`); no ar a barra lateral já dizia "Acumulou.
+Dia de fezinha" com o prêmio de domingo. Um aparelho que já tinha o app guardado pelo service worker mostra a versão velha até a
+próxima abertura (vi isso no navegador embutido). Depois da publicação entrou o resultado automático ao abrir (commit seguinte), que
+ainda precisa de push e republicação do app. `npm run done` verde em 17/10 (343 unitários, 20 da API, SQL no PGlite, 52 fluxos; os
+fluxos do cartão rodam depois dos financeiros, projeto "cartão" do Playwright; a consulta à CAIXA é simulada em todos os fluxos por
+`tests/e2e/caixa.ts`). Esperando ele: ler a política de privacidade
+(https://fgferre.github.io/little-faith-app/privacidade.html) para destravar o item 10.
+
+**Decisões dele em 17/10 (respondendo à minha lista do que faltava):** publicar, ok (feito); política de privacidade, ele lê; quadro,
+fechado como linha A; revelação para a Confraria, "depois decidimos"; teimosinha, ok (próximo); foto do bilhete, pediu recomendação
+(está no item 7); backup com senha, "não precisamos de ninguém para testar isso" (fazer já, sem esperar rodada real); Pix automático,
+ele acha que "pix não tem tarifa" (o Pix em si é grátis; o que custa é o serviço que avisa o app quando o dinheiro cai, por transação,
+ou exige conta de empresa com API; item 6 fica esperando saber que conta ele tem); resultado automático, "urgente" (feito ao abrir);
+assistente do WhatsApp, ele perguntou por que precisamos (com a resposta pelo cartão, deixa de ser necessário: dispensado, volta só se
+a turma não usar o cartão); Pipo Labs, "quero só usar o nome por enquanto nos meus apps", domínio depois.
 
 **O que mudou no uso (16 e 17/10), para contar a ele:**
 - Cartão: lista também os bolões abertos em que a pessoa ainda não tem cota ("Vai entrar nesta rodada?"), com "Estou dentro",
@@ -40,6 +48,10 @@ pipo-labs.com (compra dele).
   atualizado …". Barra lateral: "Acumulou. Dia de fezinha." com o prêmio, ou "Vai uma fezinha?". Convite do grupo começa com
   "Mega-Sena 3071 · domingo, 18/10. Acumulou. Prêmio estimado: R$ 170 milhões." quando o concurso do bolão é o próximo (ou não tem
   número). Cartão: "R$ 170 mi estimado · acumulou" e o dia, no bolão em rascunho sem resultado. Conferido ao vivo em 17/10.
+- Resultado automático (17/10, "urgente"): ao abrir o Sorteio de um bolão com concurso definido e sem resultado guardado, se a consulta
+  compartilhada diz que a CAIXA já sorteou esse concurso, o cartão "Informar resultado" abre sozinho e o formulário vazio se preenche com
+  o oficial em silêncio (sem mensagem quando ainda não saiu); quem confirma continua sendo a pessoa, na Revisão. Com a consulta fresca
+  dizendo que o concurso ainda não correu, não tenta; sem ela, tenta uma vez por abertura.
 - Decidido por mim, sem ele (dizer): "Já paguei" aceita sem comprovante; o comprovante vai para um bucket próprio, só o organizador lê,
   nada é apagado; quando já existe proposta pendente, a linha mostra "Pix avisado" e o "Conferir" não aparece (o resto se resolve na
   Revisão); o botão "Ver comprovante" do descasamento de valor virou "Ver na Revisão"; os selos entraram na lista atual de Arrecadar,
@@ -72,21 +84,22 @@ pipo-labs.com (compra dele).
   "sem prefers-reduced-motion: reduce".
 
 **A FILA (uma lista só, nesta ordem; quem pegar começa pelo primeiro aberto):**
-16. Publicar a rodada de 16 e 17/10 (ordem acima no bastão), com o sim dele.
-4. Quadro: escolher a versão da linha da pessoa (A recomendada). Página de venda só vai ao ar com o app do Google em produção (item 10).
-5. Revelação de verdade para a Confraria (rodada nova), agora que está publicado; anotar o que a turma estranhar.
-6. Pagamento confirmado sozinho por provedor de Pix (provedor e conta são dele; tarifa por transação) (~1 dia).
-7. Jogos lidos da foto do bilhete, para o organizador só conferir (~1 dia).
-8. Busca automática do resultado no horário: o servidor é barrado pela CAIXA (403); repensar antes de agendar.
-9. Teimosinha e série de concursos (a Confraria pediu para "repetir os números") (~1 dia).
+9. Teimosinha e série de concursos (a Confraria pediu para "repetir os números") (~1 dia). Ok dele em 17/10: é o próximo.
+11. Backup completo com senha (etapa 8 da especificação) (~4 h). Ele em 17/10: fazer já, sem esperar rodada real.
+7. Jogos lidos da foto do bilhete, para o organizador só conferir (~1 dia). Recomendação (17/10): leitura no próprio aparelho
+(Tesseract.js, só dígitos, sem servidor e sem custo), um jogo por linha, cada um conferido pelo organizador antes de entrar; medir a
+precisão com as fotos reais dos bilhetes dele em `.tmp/bastao/` antes de prometer; se errar muito, fica só o colar.
+5. Revelação de verdade para a Confraria (rodada nova); "depois decidimos" (17/10). Sugerido: 3071 em modo sombra com ele respondendo
+pelo cartão no grupo "Teste", revelar na rodada seguinte; anotar o que a turma estranhar.
+6. Pagamento confirmado sozinho: depende de saber que conta ele tem (pessoa física quase nunca tem API; empresa às vezes tem de graça,
+provedores cobram por transação). "Pix avisado" + confirmação do tesoureiro cobre o resto por enquanto.
 10. (16/10) O Google só tira do modo de teste com página inicial e política de privacidade públicas no domínio do app. Texto em
 `apps/web/public/privacidade.html`, no ar desde 16/10 (https://fgferre.github.io/little-faith-app/privacidade.html), esperando ele
 aprovar; depois do sim, ajustar o que ele pedir, republicar e preencher no console a página inicial, a política e o
 domínio autorizado fgferre.github.io, e publicar. Antes: publicar o app do Google "em produção" ou cadastrar e-mails (conta dele).
-11. Backup completo com senha (etapa 8 da especificação) (~4 h).
 12. Pesquisa, rodada 2: ele abre o Loterias Online (maioridade) e conversa com 5 organizadores; eu cruzo.
-13. O assistente que lê o WhatsApp (etapa do agente). Depois: participante com conta e convites; foto do bilhete no
-cartão por URL temporária; limite de taxa na rota pública (ver BACKLOG).
+13. Depois, se precisar: participante com conta e convites; foto do bilhete no cartão por URL temporária; limite de taxa na rota
+pública (ver BACKLOG). O assistente que lê o WhatsApp foi dispensado por ele em 17/10 (a resposta pelo cartão faz o papel).
 
 ## ALTA — bloqueia a entrega ou pode perder trabalho
 
