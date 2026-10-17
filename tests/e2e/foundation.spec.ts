@@ -1,5 +1,8 @@
 import { expect, test } from "@playwright/test";
+import { mockCaixa } from "./caixa";
 import type { Page } from "@playwright/test";
+
+test.beforeEach(({ context }) => mockCaixa(context));
 
 async function createGroup(page: Page) {
   await page.goto("/");

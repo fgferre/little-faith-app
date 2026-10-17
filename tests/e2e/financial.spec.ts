@@ -1,8 +1,11 @@
 import { expect, test } from "@playwright/test";
+import { mockCaixa } from "./caixa";
 import type { APIRequestContext, Page } from "@playwright/test";
 import { createHash, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import type { PoolManifest } from "@bolao/core";
+
+test.beforeEach(({ context }) => mockCaixa(context));
 
 test.describe.configure({ mode: "serial" });
 const actorId = "50100000-0000-4000-8000-000000000001";

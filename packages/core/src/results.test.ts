@@ -73,13 +73,21 @@ describe('official CAIXA raw result parser', () => {
     expect(() => validateResultVersion({ ...manual, rawText: manual.rawText.replace('"contestNumber":3000', '"contestNumber":3000.000000000000001'), sha256: sha256Hex(manual.rawText.replace('"contestNumber":3000', '"contestNumber":3000.000000000000001')) })).toThrow('fração');
     expect(() => validateResultVersion({ ...manual, sourceReference: 'Outra referência' })).toThrow('correspondentes');
   });
-  it('reads rollover and next estimate for display only, deriving rollover from the top tier when unflagged', () => {
-    expect(readCaixaExtras(MEGA_RAW)).toEqual({ accumulated: true, nextEstimatedPrizeCents: '11500000000', nextContestNumber: 3001 });
-    expect(readCaixaExtras(raw('caixa-lotofacil-3600.json')).accumulated).toBe(false);
-    expect(readCaixaExtras(editedRaw((value) => { delete value.acumulado; delete value.valorEstimadoProximoConcurso; delete value.numeroConcursoProximo; }))).toEqual({ accumulated: true, nextEstimatedPrizeCents: null, nextContestNumber: null });
+  it('reads rollover, next draw and the amounts kept apart for display only, deriving rollover from the top tier when unflagged', () => {
+    expect(readCaixaExtras(MEGA_RAW)).toEqual({
+      accumulated: true, nextEstimatedPrizeCents: '11500000000', nextContestNumber: 3001, nextDrawDate: '2026-04-28',
+      contestNumber: 3000, lotteryId: 'mega-sena', drawDate: '2026-04-25',
+      specialAccumulatedCents: '8916738833', finalFiveAccumulatedCents: '710905308', finalFiveContestNumber: 3005,
+    });
+    const lotofacil = readCaixaExtras(raw('caixa-lotofacil-3600.json'));
+    expect(lotofacil.accumulated).toBe(false);
+    // A published zero is nothing kept; the date stays a civil date, never a UTC instant.
+    expect([lotofacil.finalFiveAccumulatedCents, lotofacil.lotteryId, lotofacil.nextDrawDate, lotofacil.specialAccumulatedCents])
+      .toEqual([null, 'lotofacil', '2026-01-30', '6211850627']);
+    expect(readCaixaExtras(raw('caixa-quina-7000.json'))).toMatchObject({ lotteryId: 'quina', nextContestNumber: 7001, nextDrawDate: '2026-04-14', finalFiveContestNumber: 7005 });
+    expect(readCaixaExtras(editedRaw((value) => { delete value.acumulado; delete value.valorEstimadoProximoConcurso; delete value.numeroConcursoProximo; }))).toMatchObject({ accumulated: true, nextEstimatedPrizeCents: null, nextContestNumber: null });
     expect(readCaixaExtras(editedRaw((value) => { delete value.acumulado; value.listaRateioPremio = null; })).accumulated).toBeNull();
-    const none = { accumulated: null, nextEstimatedPrizeCents: null, nextContestNumber: null };
-    expect(readCaixaExtras(manualResult().rawText)).toEqual(none); expect(readCaixaExtras('')).toEqual(none);
+    for (const text of [manualResult().rawText, '']) expect(Object.values(readCaixaExtras(text)).every((value) => value === null)).toBe(true);
   });
 });
 

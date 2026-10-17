@@ -88,6 +88,27 @@ export function formatInstant(value: string | null, timeZone: string) {
     : "A definir";
 }
 
+/**
+ * Dinheiro grande em palavras, como a CAIXA anuncia: "R$ 170 milhões", "R$ 97,4 milhões", "R$ 1,8 milhão", "R$ 850 mil";
+ * abaixo de mil, em reais. `short` dá a forma curta do cartão: "R$ 170 mi", "R$ 850 mil".
+ */
+export function reaisGrandes(cents: string, short = false) {
+  const value = Number(BigInt(cents) / 100n);
+  if (value >= 1e6) {
+    const millions = three.format(value / 1e6);
+    return `R$ ${millions} ${short ? "mi" : millions === "1" ? "milhão" : "milhões"}`;
+  }
+  if (value >= 1e3) return `R$ ${three.format(value / 1e3)} mil`;
+  return reais(cents);
+}
+
+/** Uma data civil "AAAA-MM-DD" como "domingo, 18/10", sem virar instante (meia-noite UTC mudaria o dia). */
+export function diaSemana(date: string) {
+  const [year, month, day] = date.split("-").map(Number) as [number, number, number];
+  const weekday = new Intl.DateTimeFormat("pt-BR", { weekday: "long" }).format(new Date(year, month - 1, day));
+  return `${weekday}, ${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}`;
+}
+
 /** Dia e hora em Brasília, "16/10, 14:02": quando uma resposta ou um lembrete aconteceu. */
 export function quando(at: string) {
   return new Intl.DateTimeFormat("pt-BR", {

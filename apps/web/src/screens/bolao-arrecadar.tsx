@@ -51,7 +51,9 @@ import {
   ProblemBox,
   reais,
 } from "../ui";
-import { quando } from "../ui/texto";
+import { diaSemana, quando, reaisGrandes } from "../ui/texto";
+import { useProximoSorteio } from "../proximo-sorteio";
+import type { ProximoSorteio } from "../proximo-sorteio";
 import type { AvatarStatus } from "../ui";
 import { joinNames } from "./bolao-etapas";
 import type { PoolPerson, PoolView } from "./bolao-etapas";
@@ -132,8 +134,13 @@ function chargeText(view: PoolView, pix: PixReceiver | null) {
  * O convite da chamada: quem continua no bolão novo responde no grupo. Se o concurso do bolão passado
  * acumulou, vai junto o prêmio estimado do concurso seguinte que a CAIXA publicou.
  */
-function callText(view: PoolView, rollover?: ReturnType<typeof rolloverOf>) {
-  const { title, contestNumber, quotaPriceCents, deadlineAt } = view.pool.data;
+function callText(
+  view: PoolView,
+  rollover?: ReturnType<typeof rolloverOf>,
+  next?: ProximoSorteio | null,
+) {
+  const { title, contestNumber, quotaPriceCents, deadlineAt, lotteryId } =
+    view.pool.data;
   const contest = contestNumber === null
     ? "o próximo concurso"
     : `o concurso ${contestNumber}`;
@@ -143,6 +150,21 @@ function callText(view: PoolView, rollover?: ReturnType<typeof rolloverOf>) {
   const call = `${title}, ${contest}. Vai entrar nesta rodada? Cota de ${
     formatBRL(quotaPriceCents)
   }${until}. Responda no seu cartão: dentro ou fora.`;
+  // Com o próximo sorteio lido da CAIXA (o do concurso do bolão, ou o próximo quando o bolão não tem número), o convite
+  // começa por ele: modalidade, concurso, dia, "Acumulou." e o prêmio estimado. Sem ele, o que o resultado anterior disse.
+  const extras = next?.extras;
+  if (
+    extras && extras.nextContestNumber &&
+    (contestNumber === null || contestNumber === extras.nextContestNumber)
+  ) {
+    const when = extras.nextDrawDate ? ` · ${diaSemana(extras.nextDrawDate)}` : "";
+    const prize = extras.nextEstimatedPrizeCents
+      ? ` Prêmio estimado: ${reaisGrandes(extras.nextEstimatedPrizeCents)}.`
+      : "";
+    return `${LOTTERIES[lotteryId].label} ${extras.nextContestNumber}${when}.${
+      extras.accumulated ? " Acumulou." : ""
+    }${prize}\n${call}`;
+  }
   if (!rollover) return call;
   const { nextContestNumber, nextEstimatedPrizeCents } = rollover;
   return `${call}\n${
@@ -507,6 +529,7 @@ export function BolaoArrecadar(
   const pixPayload = codigoPix(pix, pixMissing);
   const [busy, setBusy] = useState<string | null>(null);
   const [proposing, setProposing] = useState(false);
+  const { data: proximo } = useProximoSorteio(view.pool.data.lotteryId);
   // Quem está no painel "WhatsApp de ...".
   const [phoneId, setPhoneId] = useState<string | null>(null);
   const phonePerson = people.find((person) => person.id === phoneId) ?? null;
@@ -738,7 +761,7 @@ export function BolaoArrecadar(
   }
 
   async function callMessage() {
-    const copied = await copiar(callText(view, rollover));
+    const copied = await copiar(callText(view, rollover, proximo));
     setNotice(
       copied
         ? { text: "Mensagem copiada. Cole no grupo do WhatsApp." }
@@ -1009,7 +1032,10 @@ export function BolaoArrecadar(
             </p>
             <div className="pool-call-action">
               <div className="ui-pair">
-                <EnviarWhatsApp small text={callText(view, rollover)} />
+                <EnviarWhatsApp
+                  small
+                  text={callText(view, rollover, proximo)}
+                />
                 <Button
                   variant="ghost"
                   small

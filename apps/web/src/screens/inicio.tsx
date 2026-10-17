@@ -1,8 +1,8 @@
 import type { MouseEvent } from "react";
 import { ChevronRight, MessageCircle, Plus } from "lucide-react";
 import { useReducedMotion } from "motion/react";
-import { formatBRL } from "@bolao/core";
-import type { FinancialView, LocalRecord } from "@bolao/core";
+import { formatBRL, LOTTERIES } from "@bolao/core";
+import type { FinancialView, LocalRecord, LotteryId } from "@bolao/core";
 import type { BolaoDatabase } from "@bolao/local";
 import type { FormKind, Route, Snapshot } from "../app-shared";
 import {
@@ -11,12 +11,16 @@ import {
   Button,
   calendarDaysUntil,
   Card,
+  Chip,
   Countdown,
+  Disclosure,
   Eyebrow,
   formatWhen,
   Money,
   PoolRow,
 } from "../ui";
+import { diaSemana, quando, reaisGrandes } from "../ui/texto";
+import { useProximoSorteio } from "../proximo-sorteio";
 import { useSettlement } from "./bolao-dividir";
 import { joinNames, usePoolViews } from "./bolao-etapas";
 import { poolSituation } from "./boloes";
@@ -249,6 +253,12 @@ export function InicioScreen(
                   </Button>
                 </Card>
               )}
+            <ProximoSorteioCard
+              lotteryId={hero?.pool.data.lotteryId ?? "mega-sena"}
+              open={hero && hero.pool.data.status === "draft"
+                ? () => route.navigate("boloes", hero.pool.id, "arrecadar")
+                : () => openForm("pool")}
+            />
             {reviewCount > 0 && (
               <Card
                 className="home-attention"
@@ -291,5 +301,73 @@ export function InicioScreen(
           </>
         )}
     </div>
+  );
+}
+
+/**
+ * O próximo sorteio da modalidade do bolão da vez, lido da CAIXA pelo aparelho: prêmio estimado em destaque, concurso e
+ * dia, "Acumulou" quando acumulou, e os valores guardados à parte num detalhe, nunca somados. Diz de quando é o dado e
+ * quando não deu para atualizar; sem dado nenhum, só "estimativa indisponível" (desenho aprovado pelo dono em 17/10).
+ */
+function ProximoSorteioCard(
+  { lotteryId, open }: { lotteryId: LotteryId; open: () => void },
+) {
+  const { data, status } = useProximoSorteio(lotteryId);
+  const label = LOTTERIES[lotteryId].label;
+  const extras = data?.extras ?? null;
+  const special = extras?.specialAccumulatedCents;
+  const finalFive = extras?.finalFiveAccumulatedCents;
+  return (
+    <Card className={`home-next ${extras?.accumulated ? "gold" : ""}`}>
+      <div className="pool-card-head">
+        <Eyebrow>Próximo sorteio · {label}</Eyebrow>
+        {extras?.accumulated && <Chip status="pending">Acumulou</Chip>}
+      </div>
+      {extras?.nextEstimatedPrizeCents
+        ? (
+          <>
+            <p className="ui-sec home-next-label">Prêmio estimado</p>
+            <p className="home-next-prize">
+              {reaisGrandes(extras.nextEstimatedPrizeCents)}
+            </p>
+          </>
+        )
+        : (
+          <p className="home-next-prize home-next-none">
+            {status === "loading" ? "Consultando a CAIXA…" : "Estimativa indisponível"}
+          </p>
+        )}
+      {extras?.nextContestNumber && (
+        <p className="home-next-when">
+          Concurso {extras.nextContestNumber}
+          {extras.nextDrawDate && ` · ${diaSemana(extras.nextDrawDate)}`}
+        </p>
+      )}
+      {(special || finalFive) && (
+        <Disclosure summary="Acumulado para concursos especiais" className="home-next-special">
+          {special && (
+            <p>
+              Concurso especial: <b>{reaisGrandes(special)}</b> guardados
+            </p>
+          )}
+          {finalFive && (
+            <p>
+              {extras?.finalFiveContestNumber
+                ? `Concurso ${extras.finalFiveContestNumber}, final 5: `
+                : "Final 5: "}
+              <b>{reaisGrandes(finalFive)}</b> acumulados
+            </p>
+          )}
+        </Disclosure>
+      )}
+      <Button onClick={open}>Abrir a rodada</Button>
+      <p className="ui-sec home-next-source">
+        {data
+          ? status === "stale"
+            ? `Não deu para atualizar agora · dado de ${quando(data.fetchedAt)}`
+            : `Fonte: CAIXA · atualizado ${quando(data.fetchedAt)}`
+          : "Fonte: CAIXA, lida pelo seu aparelho."}
+      </p>
+    </Card>
   );
 }

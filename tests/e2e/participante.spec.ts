@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { Browser, Page, Route } from "@playwright/test";
+import { mockCaixa } from "./caixa";
 
 // The Node fixture on :4190 does not serve the participant routes (the real `api` runs in Deno,
 // covered by `npm run test:api`), so the four routes are simulated here with `page.route`.
@@ -42,6 +43,7 @@ async function organizerPage(browser: Browser) {
     reminders: [] as Record<string, unknown>[],
   };
   const context = await browser.newContext();
+  await mockCaixa(context);
   await context.grantPermissions(["clipboard-read", "clipboard-write"], {
     origin,
   });
@@ -165,6 +167,7 @@ async function openCard(
   changes: { group?: object; pool?: object } = {},
 ) {
   const context = await browser.newContext();
+  await mockCaixa(context);
   const page = await context.newPage();
   await page.route("**/v1/participant_card", (route) => {
     if (route.request().method() !== "POST") return reply(route, 204, {});
@@ -269,6 +272,7 @@ test("the group's Pix key gives a Pix code in Arrecadar and on the participant's
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
   });
+  await mockCaixa(context);
   await context.grantPermissions(["clipboard-read", "clipboard-write"], {
     origin: demo,
   });
@@ -461,7 +465,8 @@ test("after the draw the card opens with the result and the games with most hits
   await waiting.context.close();
 });
 
-test("the welcome band closes and stays closed on this device", async ({ page }) => {
+test("the welcome band closes and stays closed on this device", async ({ page, context }) => {
+  await mockCaixa(context);
   await page.goto("/#/p/demo");
   const band = page.getByRole("complementary", { name: "Boas-vindas" });
   await expect(band).toContainText("Seu cartão do bolão");
@@ -480,6 +485,7 @@ test("a card with a PIN asks for it, opens with the right one and lets the perso
     changes: [] as unknown[],
   };
   const context = await browser.newContext();
+  await mockCaixa(context);
   const page = await context.newPage();
   await page.route("**/v1/participant_card", (route) => {
     if (route.request().method() !== "POST") return reply(route, 204, {});

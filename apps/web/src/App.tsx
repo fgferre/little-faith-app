@@ -40,6 +40,8 @@ import {
 import type { EntityDataMap, EntityKind } from "@bolao/core";
 import { createLocalStore, listRecords, saveDraft, sync } from "@bolao/local";
 import { BrandMark, Button, initials, useSlidingIndicator } from "./ui";
+import { diaSemana, reaisGrandes } from "./ui/texto";
+import { useProximoSorteio } from "./proximo-sorteio";
 import { createAccountTransport, supabase } from "./auth";
 import { seedDemo } from "./demo";
 import { saveLocalDraft } from "./repository";
@@ -335,6 +337,15 @@ function OrganizerApp() {
   }, [mode, synchronize]);
 
   const group = snapshot?.groups.find((g) => g.id === groupId);
+  // A barra lateral fala do próximo sorteio da modalidade do bolão mais novo (Mega-Sena sem bolão) e abre a rodada em rascunho.
+  const rodada = (snapshot?.pools ?? [])
+    .filter((pool) => pool.data.status === "draft")
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+  const newestPool = [...(snapshot?.pools ?? [])]
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+  const { data: proximo } = useProximoSorteio(
+    newestPool?.data.lotteryId ?? "mega-sena",
+  );
   const financeEnabled = mode === "account" && !!session && !!supabase &&
     online;
   const financeAvailability = isDemo
@@ -626,10 +637,36 @@ function OrganizerApp() {
             ))}
           </nav>
           <div className="sidebar-bottom">
-            <div className="sidebar-note">
+            <div className={`sidebar-note ${proximo?.extras.accumulated ? "gold" : ""}`}>
               <Sparkles aria-hidden="true" />
-              <strong>Um pouco de fé.</strong>
-              <p>Um cuidado de cada vez.</p>
+              {proximo?.extras.accumulated && proximo.extras.nextEstimatedPrizeCents
+                ? (
+                  <>
+                    <strong>Acumulou. Dia de fezinha.</strong>
+                    <p>
+                      {LOTTERIES[proximo.lotteryId].label}{" "}
+                      {proximo.extras.nextContestNumber}
+                      {proximo.extras.nextDrawDate &&
+                        `, ${diaSemana(proximo.extras.nextDrawDate).split(",")[0]}`}:{" "}
+                      {reaisGrandes(proximo.extras.nextEstimatedPrizeCents)} estimados.
+                    </p>
+                  </>
+                )
+                : (
+                  <>
+                    <strong>Vai uma fezinha?</strong>
+                    <p>Junte a turma e o app organiza o bolão.</p>
+                  </>
+                )}
+              {!isDemo && rodada && (
+                <Button
+                  variant="ghost"
+                  small
+                  onClick={() => route.navigate("boloes", rodada.id, "arrecadar")}
+                >
+                  Abrir a rodada
+                </Button>
+              )}
               {isDemo && (
                 <Button
                   variant="ghost"

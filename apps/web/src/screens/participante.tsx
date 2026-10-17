@@ -46,7 +46,8 @@ import {
   unfoldDetails,
 } from "../ui";
 import type { ChipStatus } from "../ui";
-import { hoje, prazoResgate, quando } from "../ui/texto";
+import { diaSemana, hoje, prazoResgate, quando, reaisGrandes } from "../ui/texto";
+import { useProximoSorteio } from "../proximo-sorteio";
 import { cotas } from "./bolao-arrecadar";
 
 type Share = NonNullable<Pool["share"]>;
@@ -108,17 +109,40 @@ function PoolHead(
   { pool, as: Title = "h2" }: { pool: Pool; as?: "h1" | "h2" },
 ) {
   const label = LOTTERIES[pool.modality].label;
+  // Antes do sorteio, o prêmio estimado e o dia vêm da CAIXA pelo aparelho, quando o concurso é o próximo dela.
+  const { data } = useProximoSorteio(
+    pool.status === "draft" && !pool.result ? pool.modality : null,
+  );
+  const next = data &&
+      (pool.contest === null || pool.contest === data.extras.nextContestNumber)
+    ? data.extras
+    : null;
+  const when = pool.drawAt
+    ? drawWhen(pool.drawAt)
+    : next?.nextDrawDate
+    ? diaSemana(next.nextDrawDate)
+    : null;
   return (
     <>
       <Title className="ui-title pool-title">{pool.title}</Title>
       <p className="pool-meta">
         <Chip modality={pool.modality}>
-          {pool.drawAt ? `${label} · ${drawWhen(pool.drawAt)}` : label}
+          {when ? `${label} · ${when}` : label}
         </Chip>
         <span className="ui-sec">
-          {pool.contest ? `Concurso ${pool.contest}` : "Concurso a definir"}
+          {pool.contest
+            ? `Concurso ${pool.contest}`
+            : next?.nextContestNumber
+            ? `Concurso ${next.nextContestNumber}`
+            : "Concurso a definir"}
         </span>
         {pool.closed && <Chip family>Encerrado</Chip>}
+        {next?.nextEstimatedPrizeCents && (
+          <span className="pool-next">
+            <b>{reaisGrandes(next.nextEstimatedPrizeCents, true)}</b>
+            {next.accumulated ? " estimado · acumulou" : " estimado"}
+          </span>
+        )}
       </p>
     </>
   );

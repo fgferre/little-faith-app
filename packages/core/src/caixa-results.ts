@@ -109,20 +109,43 @@ export interface CaixaExtras {
   /** Exact integer cents of the published estimate; a zero estimate counts as not published. */
   nextEstimatedPrizeCents: string | null;
   nextContestNumber: number | null;
+  /** The next draw's civil date (YYYY-MM-DD) as CAIXA publishes it, with no time of day: never a UTC midnight. */
+  nextDrawDate: string | null;
+  /** The drawn contest the text describes, its lottery (from tipoJogo) and its civil date; null when the text is not a CAIXA result. */
+  contestNumber: number | null;
+  lotteryId: LotteryId | null;
+  drawDate: string | null;
+  /** Kept apart from the next prize, never added to it: the special contest's reserve and the "final 0/5" accumulation with its contest. */
+  specialAccumulatedCents: string | null;
+  finalFiveAccumulatedCents: string | null;
+  finalFiveContestNumber: number | null;
 }
+const NO_EXTRAS: CaixaExtras = {
+  accumulated: null, nextEstimatedPrizeCents: null, nextContestNumber: null, nextDrawDate: null, contestNumber: null, lotteryId: null, drawDate: null,
+  specialAccumulatedCents: null, finalFiveAccumulatedCents: null, finalFiveContestNumber: null,
+};
 /** Display-only facts from a stored CAIXA text; never part of the validated result data. Missing or malformed fields stay null. */
 export function readCaixaExtras(rawText: string): CaixaExtras {
   const read = <T>(field: () => T): T | null => { try { return field(); } catch { return null; } };
   const source = read(() => object(parseLosslessJSON(rawText), 'rawText'));
-  if (!source) return { accumulated: null, nextEstimatedPrizeCents: null, nextContestNumber: null };
-  const estimate = read(() => optionalPrize(source.valorEstimadoProximoConcurso));
+  if (!source) return { ...NO_EXTRAS };
+  // A published zero is "nothing kept", shown as absent.
+  const prize = (field: string) => { const value = read(() => optionalPrize(source[field])); return value === '0' ? null : value; };
+  const contest = (field: string) => read(() => integer(source[field], field, 1, 999_999));
   // Without the flag, the jackpot rolls over when the top tier (faixa 1) published zero winners.
   const top = Array.isArray(source.listaRateioPremio) ? source.listaRateioPremio.find((row) => read(() => integer(object(row, 'listaRateioPremio').faixa, 'faixa')) === 1) : undefined;
   const topWinners = top === undefined ? null : read(() => optionalInteger(object(top, 'listaRateioPremio').numeroDeGanhadores, 'numeroDeGanhadores'));
   return {
     accumulated: typeof source.acumulado === 'boolean' ? source.acumulado : topWinners === null ? null : topWinners === '0',
-    nextEstimatedPrizeCents: estimate === '0' ? null : estimate,
-    nextContestNumber: read(() => integer(source.numeroConcursoProximo, 'numeroConcursoProximo', 1, 999_999)),
+    nextEstimatedPrizeCents: prize('valorEstimadoProximoConcurso'),
+    nextContestNumber: contest('numeroConcursoProximo'),
+    nextDrawDate: read(() => caixaDate(source.dataProximoConcurso, 'dataProximoConcurso')),
+    contestNumber: contest('numero'),
+    lotteryId: (Object.keys(GAME_TYPES) as LotteryId[]).find((id) => GAME_TYPES[id] === source.tipoJogo) ?? null,
+    drawDate: read(() => caixaDate(source.dataApuracao, 'dataApuracao')),
+    specialAccumulatedCents: prize('valorAcumuladoConcursoEspecial'),
+    finalFiveAccumulatedCents: prize('valorAcumuladoConcurso_0_5'),
+    finalFiveContestNumber: contest('numeroConcursoFinal_0_5'),
   };
 }
 

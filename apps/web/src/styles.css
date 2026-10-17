@@ -2038,6 +2038,50 @@ tr:last-child td {
 .pool-actions {
   margin-top: var(--e16);
 }
+/* O próximo sorteio no Início: prêmio estimado em destaque; borda dourada quando acumulou. A linha curta do cartão idem. */
+.home-next.gold,
+.sidebar-note.gold {
+  border-color: rgb(255 207 74 / 45%);
+  background: radial-gradient(120% 90% at 100% 0%, rgb(255 207 74 / 16%) 0%, rgb(31 23 46 / 0%) 60%), var(--surface);
+}
+.home-next-label {
+  margin: var(--e8) 0 0;
+  color: var(--gold);
+  font-weight: 600;
+}
+.home-next-prize {
+  margin: 0;
+  font-family: var(--f-titulo);
+  font-size: var(--t-capa);
+  font-weight: 800;
+  line-height: var(--lh-titulo);
+  letter-spacing: -0.02em;
+}
+.home-next-none {
+  font-size: var(--t-cartao);
+  color: var(--muted);
+}
+.home-next-when {
+  margin: var(--e4) 0 0;
+  font-weight: 600;
+}
+.home-next-special {
+  margin-top: var(--e12);
+}
+.home-next-special p {
+  margin: var(--e4) 0 0;
+}
+.home-next > .ui-btn {
+  margin-top: var(--e16);
+}
+.home-next-source {
+  margin: var(--e12) 0 0;
+}
+.pool-next {
+  margin-left: auto;
+  color: var(--gold);
+  text-align: right;
+}
 .pool-people-label {
   display: flex;
   align-items: center;
