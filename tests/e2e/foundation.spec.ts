@@ -380,3 +380,44 @@ test("offline portfolio planning and simulation resume saved batches after closi
   await expect(reopened.getByRole("button", { name: "Retomar simulação", exact: true })).toBeVisible();
   await reopened.screenshot({ path: "test-results/planning-simulation-mobile.png", fullPage: true });
 });
+
+test("a password backup downloads and restores into an empty device", async ({ page, browser }) => {
+  await createGroup(page);
+  await createPool(page);
+  // enquanto a folha do bolão fecha, a página fica inerte e o campo não recebe o texto
+  await expect(page.getByRole("dialog")).not.toBeVisible();
+  await page.goto("/#/dados");
+  await expect(page.getByText("Nenhum backup baixado ainda.")).toBeVisible();
+  await page.getByLabel("Senha do backup").first().fill("senha-forte-123");
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Baixar backup com senha" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename())
+    .toMatch(/^little-faith-backup-\d{4}-\d{2}-\d{2}\.zip$/);
+  const file = ".tmp/backup/e2e-backup.zip";
+  await download.saveAs(file);
+  await expect(page.getByText(/^Último backup: /)).toBeVisible();
+
+  // outro aparelho, vazio: sai da demonstração e restaura
+  const context = await browser.newContext();
+  await mockCaixa(context);
+  const fresh = await context.newPage();
+  await fresh.goto("/#/dados");
+  await fresh.getByRole("button", { name: "Usar só este aparelho" }).click();
+  await fresh.goto("/#/dados");
+  await expect(fresh.getByText("Nenhum backup baixado ainda.")).toBeVisible();
+  await fresh.getByLabel("Arquivo do backup").setInputFiles(file);
+  await fresh.getByLabel("Senha do backup", { exact: true })
+    .fill("senha-forte-123");
+  await fresh.getByRole("button", { name: "Conferir o arquivo" }).click();
+  await expect(fresh.getByRole("status").filter({ hasText: "Backup de" }))
+    .toContainText("1 grupo · 1 bolão");
+  const reloaded = fresh.waitForEvent("load");
+  await fresh.getByRole("button", { name: "Restaurar neste aparelho" }).click();
+  await expect(fresh.getByText(/^Backup restaurado: 1 bolão/)).toBeVisible();
+  await reloaded;
+  await fresh.goto("/#/boloes");
+  await expect(fresh.getByRole("button", { name: /Bolão de teste/ }))
+    .toBeVisible();
+  await context.close();
+});

@@ -4,7 +4,7 @@ Lista viva do que está aberto. Leia só a seção O BASTÃO e o item da vez; o 
 Item resolvido sai da lista e vira commit com o número entre parênteses; a história de cada número fica no git (`git log --all --grep="(NNN)"`).
 Número é identidade, não posição: item novo entra no fim da sua seção. **Próximo número livre: 16.**
 
-## O BASTÃO — onde a rodada parou (17/10, noite) — TEIMOSINHA PRONTA E PUBLICADA; PRÓXIMO: AS DUAS PERGUNTAS DE GOSTO DELE E O BACKUP COM SENHA
+## O BASTÃO — onde a rodada parou (17/10, noite) — TEIMOSINHA PUBLICADA E BACKUP COM SENHA FEITO (NÃO PUBLICADO); PRÓXIMO: PUBLICAR O BACKUP E AS DUAS PERGUNTAS DE GOSTO DELE
 
 **Para quem pega agora:** a teimosinha (um bolão só com vários concursos seguidos, pagamento único e conferência de cada sorteio;
 escolha dele em 17/10) está pronta e publicada em 17/10 à noite com o sim dele: 4 migrações (`20261017000000` a `20261017030000`)
@@ -14,9 +14,12 @@ foi apagado (git guarda: 6 passos, decisões e o que ficou fora). `npm run done`
 respostas de divisão conferidas pelo núcleo, 20 da API, 53 fluxos (o fluxo "teimosinha" leva um bolão de 2 concursos do plano ao
 encerramento). O que ele ainda não viu com calma: a fileira de concursos do Sorteio e os blocos do Dividir (fotos em
 `.tmp/teimosinha/shots/`, somem com a limpeza; o fluxo Playwright "teimosinha" as gera de novo) e o campo "Concursos cobertos" do
-Registrar, que começa em 1 e aparece em todo recibo: perguntar se fica só na teimosinha. Depois, pela fila dele de 17/10: backup com
-senha ("não precisamos de ninguém para testar isso", fazer já), item 10 (política de privacidade, ele lê), item 7 (foto do bilhete, ele
-pediu recomendação), item 6 (Pix automático, esperando saber que conta ele tem). Comece numa conversa nova. A teimosinha é um bolão só com vários concursos seguidos, pagamento único e conferência
+Registrar, que começa em 1 e aparece em todo recibo: perguntar se fica só na teimosinha. Depois da teimosinha, ainda em 17/10 à noite, o backup
+com senha (item 11, "não precisamos de ninguém para testar isso") foi feito e verificado (`npm run done` verde: 360 unitários, 54
+fluxos; o fluxo "backup" baixa o zip e restaura num navegador vazio), commitado e NÃO publicado: é só app (sem migração nem
+função), publica com `git push` e `gh workflow run deploy.yml --ref main` depois do sim dele. Como ficou: nota 4 abaixo. Fila dele
+de 17/10 depois disso: item 10 (política de privacidade, ele lê), item 7 (foto do bilhete, ele pediu recomendação), item 6 (Pix
+automático, esperando saber que conta ele tem). Comece numa conversa nova. A teimosinha é um bolão só com vários concursos seguidos, pagamento único e conferência
 de cada sorteio (escolha dele em 17/10 entre isso e uma série de bolões). O plano do cartão (`PLAN-cartao.md`, apagado em 17/10; git
 guarda) terminou: responder pelo cartão
 (44c678a, e3005ed, 8f3cc85), doação (808121c) e próximo sorteio automático (a5afbad, desenho aprovado por ele em 17/10 depois de ver as
@@ -98,7 +101,6 @@ a turma não usar o cartão); Pipo Labs, "quero só usar o nome por enquanto nos
 **A FILA (uma lista só, nesta ordem; quem pegar começa pelo primeiro aberto):**
 9. Teimosinha de verdade: um bolão com vários concursos seguidos, pagamento único, conferência de cada sorteio (escolha dele em 17/10;
 plano com decisões e passos em `PLAN-teimosinha.md`, ~2 dias). É o próximo: passo 1.
-11. Backup completo com senha (etapa 8 da especificação) (~4 h). Ele em 17/10: fazer já, sem esperar rodada real.
 7. Jogos lidos da foto do bilhete, para o organizador só conferir (~1 dia). Recomendação (17/10): leitura no próprio aparelho
 (Tesseract.js, só dígitos, sem servidor e sem custo), um jogo por linha, cada um conferido pelo organizador antes de entrar; medir a
 precisão com as fotos reais dos bilhetes dele em `.tmp/bastao/` antes de prometer; se errar muito, fica só o colar.
@@ -129,9 +131,13 @@ barra o servidor (403 da proteção Azion), telefone por pessoa com o link abrin
 - No celular, com WhatsApp salvo, o número fica numa linha e "Enviar link pessoal" na de baixo; ele decide pela imagem.
 - Do grupo: a turma confere à mão numa planilha depois do sorteio, mantém a lista "Pagos" em corrente e pediu para repetir os números.
 
-**4. A exportação de emergência não é backup (10/10).**
-O export atual é `bolao-emergency-v5`, sem criptografia; não apresentar como backup completo. `@zip.js/zip.js@2.23.0`
-já está instalado no web; codec e interface do backup (etapa 8) não foram escritos.
+**4. O backup completo com senha existe desde 17/10; a cópia de emergência continua sem senha.**
+Em Dados e integrações, "Baixar backup com senha" gera um zip AES-256 (zip.js, sem web workers) com todas as tabelas locais da
+conta (menos os links pessoais) e os originais dos comprovantes como arquivos conferidos por SHA-256 (`bolao-backup-v1`;
+`collectBackup`/`restoreBackup` em `packages/local`, zip em `apps/web/src/backup-zip.ts`). "Restaurar um backup" só entra num
+aparelho vazio e da mesma conta, mostra o que vai recuperar antes, confere cada arquivo e grava tudo numa transação só; depois o
+app recarrega e a sincronização reconcilia (pendências já aceitas são reconhecidas pela chave de idempotência; os convites
+precisam ser recriados). A cópia de emergência (`bolao-emergency-v5`, sem senha) ficou dobrada dentro do cartão do backup.
 
 **5. O piloto está no ar; faltam o cron, a produção do login e o lembrete da pausa (12/10).**
 Feito em 12/10 com ele presente: projeto Supabase `little-faith` (São Paulo), seis migrations aplicadas pela CLI

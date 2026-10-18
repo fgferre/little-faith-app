@@ -13,6 +13,9 @@ export type { SaveDraftInput } from './drafts';
 export { getSyncSummary, resolveConflict, sync } from './sync';
 export type { LocalSyncTransport, ResolveConflictInput, SyncResult, SyncSummary } from './sync';
 export { exportEmergencySnapshot } from './backup';
+export type { BackupBundle, BackupFileRef, BackupManifest, BackupSummary } from './backup-types';
+export { BACKUP_FORMAT } from './backup-types';
+export { collectBackup, restoreBackup, summarizeBackup, validateBackupManifest } from './backup-core';
 export {
   applyFinancialSnapshot, executeFinancialCommand, getFinancialSnapshot, prepareFinancialCommand,
   recoverFinancialCommand, recoveryFinancialCommand,

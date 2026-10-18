@@ -1,15 +1,37 @@
 import type { Session } from "@supabase/supabase-js";
 import { useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
 import { Download, LogIn, Plus, RefreshCw } from "lucide-react";
 import type { LocalRecord } from "@bolao/core";
-import { exportEmergencySnapshot } from "@bolao/local";
-import type { BolaoDatabase } from "@bolao/local";
+import {
+  collectBackup,
+  exportEmergencySnapshot,
+  restoreBackup,
+  summarizeBackup,
+} from "@bolao/local";
+import type { BackupBundle, BackupSummary, BolaoDatabase } from "@bolao/local";
 import { loginWithGoogle, supabase } from "../auth";
-import { downloadText } from "../registration-handoff";
-import { Button, Card, Chip, Eyebrow, PageHead, ProblemBox } from "../ui";
+import { MIN_BACKUP_PASSWORD, readBackupZip, writeBackupZip } from "../backup-zip";
+import { downloadBlob, downloadText } from "../registration-handoff";
+import {
+  Button,
+  Card,
+  Chip,
+  Disclosure,
+  Eyebrow,
+  formatInstant,
+  PageHead,
+  ProblemBox,
+} from "../ui";
 import { DoacaoCard } from "../doacao";
 import { errorMessage, formatDate, supportedTimeZones } from "../app-shared";
 import type { FormKind, Notice, Snapshot } from "../app-shared";
+
+/** Quando o último backup com senha foi baixado neste aparelho (linha de `metadata`, valor ISO). */
+const LAST_BACKUP_KEY = "backup:last-export";
+
+const contagem = (n: number, um: string, varios: string) =>
+  `${n} ${n === 1 ? um : varios}`;
 
 export function DadosScreen(
   {
@@ -59,6 +81,18 @@ export function DadosScreen(
   },
 ) {
   const [exporting, setExporting] = useState(false);
+  const lastBackup = useLiveQuery(
+    async () => (await db.metadata.get(LAST_BACKUP_KEY))?.value,
+    [db],
+  );
+  const [backupBusy, setBackupBusy] = useState(false);
+  const [backupPassword, setBackupPassword] = useState("");
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [restorePassword, setRestorePassword] = useState("");
+  const [checked, setChecked] = useState<
+    { bundle: BackupBundle; summary: BackupSummary; empty: boolean } | null
+  >(null);
+  const backupOff = mode === "demo";
   const connection = !online
     ? <Chip status="pending">Sem internet</Chip>
     : isDemo
@@ -91,7 +125,7 @@ export function DadosScreen(
       setNotice({
         text: granted
           ? "Este navegador vai guardar seus dados de forma permanente."
-          : "Espaço consultado. O navegador ainda pode apagar dados se faltar espaço; baixe uma cópia de emergência de vez em quando.",
+          : "Espaço consultado. O navegador ainda pode apagar dados se faltar espaço; baixe um backup com senha de vez em quando.",
       });
     } catch (e) {
       setNotice({ text: errorMessage(e), error: true });
@@ -116,6 +150,67 @@ export function DadosScreen(
       setNotice({ text: errorMessage(e), error: true });
     } finally {
       setExporting(false);
+    }
+  }
+
+  async function exportBackup() {
+    setBackupBusy(true);
+    try {
+      const zip = await writeBackupZip(await collectBackup(db), backupPassword);
+      downloadBlob(
+        zip,
+        `little-faith-backup-${new Date().toISOString().slice(0, 10)}.zip`,
+      );
+      await db.metadata.put({
+        key: LAST_BACKUP_KEY,
+        value: new Date().toISOString(),
+      });
+      setBackupPassword("");
+      setNotice({
+        text:
+          "Backup baixado. Guarde o arquivo e a senha: sem a senha ele não abre.",
+      });
+    } catch (e) {
+      setNotice({ text: errorMessage(e), error: true });
+    } finally {
+      setBackupBusy(false);
+    }
+  }
+
+  async function checkBackup() {
+    if (!restoreFile) return;
+    setBackupBusy(true);
+    setChecked(null);
+    try {
+      const bundle = await readBackupZip(restoreFile, restorePassword);
+      const summary = summarizeBackup(bundle.manifest);
+      const empty = (await db.records.count()) === 0 &&
+        (await db.serverRecords.count()) === 0;
+      setChecked({ bundle, summary, empty });
+    } catch (e) {
+      setNotice({ text: errorMessage(e), error: true });
+    } finally {
+      setBackupBusy(false);
+    }
+  }
+
+  async function restore() {
+    if (!checked) return;
+    setBackupBusy(true);
+    try {
+      const summary = await restoreBackup(db, checked.bundle);
+      setNotice({
+        text: `Backup restaurado: ${
+          contagem(summary.pools, "bolão", "bolões")
+        }, ${contagem(summary.persons, "pessoa", "pessoas")}, ${
+          contagem(summary.files, "comprovante", "comprovantes")
+        }. Recarregando…`,
+      });
+      // continua ocupado até recarregar: o aparelho já não está vazio
+      setTimeout(() => window.location.reload(), 1_500);
+    } catch (e) {
+      setNotice({ text: errorMessage(e), error: true });
+      setBackupBusy(false);
     }
   }
 
@@ -254,26 +349,130 @@ export function DadosScreen(
             </Button>
           </div>
         </Card>
-        <Card className="finance-card" label="Cópia de emergência">
-          <Eyebrow>Cópia de emergência</Eyebrow>
+        <Card className="finance-card" label="Backup">
+          <Eyebrow>Backup</Eyebrow>
           <p className="settings-copy">
-            Baixa um arquivo com tudo o que está neste aparelho, para guardar
-            se o navegador falhar.
+            Um arquivo com tudo deste aparelho, trancado com uma senha que só
+            você sabe. Sem a senha ninguém abre, nem o app. Guarde o arquivo e
+            a senha fora do aparelho.
           </p>
-          <ProblemBox title="Não é a cópia completa">
-            Não traz o que está só no servidor e não tem senha: quem tiver o
-            arquivo vê os dados do grupo.
-          </ProblemBox>
+          <p className="ui-sec">
+            {typeof lastBackup === "string"
+              ? `Último backup: ${formatInstant(lastBackup, timeZone)}`
+              : "Nenhum backup baixado ainda."}
+          </p>
+          <div className="pool-form">
+            <label>
+              Senha do backup<input
+                type="password"
+                autoComplete="new-password"
+                value={backupPassword}
+                onChange={(event) => setBackupPassword(event.target.value)}
+              />
+              <small className="ui-sec">Pelo menos 8 caracteres.</small>
+            </label>
+          </div>
+          <div className="settings-actions">
+            <Button
+              disabled={backupBusy ||
+                backupPassword.length < MIN_BACKUP_PASSWORD || backupOff}
+              icon={<Download aria-hidden="true" />}
+              onClick={() => void exportBackup()}
+            >
+              Baixar backup com senha
+            </Button>
+          </div>
+          {backupOff && (
+            <p className="ui-sec">Na demonstração o backup fica desligado.</p>
+          )}
+          <Eyebrow>Restaurar um backup</Eyebrow>
+          <div className="pool-form">
+            <label>
+              Arquivo do backup<input
+                type="file"
+                accept=".zip,application/zip"
+                onChange={(event) => {
+                  setRestoreFile(event.target.files?.[0] ?? null);
+                  setChecked(null);
+                }}
+              />
+            </label>
+            <label>
+              Senha do backup<input
+                type="password"
+                autoComplete="current-password"
+                value={restorePassword}
+                onChange={(event) => {
+                  setRestorePassword(event.target.value);
+                  setChecked(null);
+                }}
+              />
+            </label>
+          </div>
           <div className="settings-actions">
             <Button
               variant="ghost"
-              disabled={exporting}
-              icon={<Download aria-hidden="true" />}
-              onClick={() => void exportCopy()}
+              disabled={backupBusy || !restoreFile || !restorePassword ||
+                backupOff}
+              onClick={() => void checkBackup()}
             >
-              Baixar cópia de emergência
+              Conferir o arquivo
             </Button>
           </div>
+          {checked && (
+            <>
+              <p className="settings-copy" role="status">
+                {[
+                  `Backup de ${
+                    formatInstant(checked.summary.createdAt, timeZone)
+                  }`,
+                  contagem(checked.summary.groups, "grupo", "grupos"),
+                  contagem(checked.summary.pools, "bolão", "bolões"),
+                  contagem(checked.summary.persons, "pessoa", "pessoas"),
+                  contagem(
+                    checked.summary.files,
+                    "comprovante",
+                    "comprovantes",
+                  ),
+                ].join(" · ")}
+              </p>
+              {checked.empty
+                ? (
+                  <div className="settings-actions">
+                    <Button
+                      disabled={backupBusy || backupOff}
+                      onClick={() => void restore()}
+                    >
+                      Restaurar neste aparelho
+                    </Button>
+                  </div>
+                )
+                : (
+                  <ProblemBox title="Este aparelho já tem dados">
+                    Restaure num aparelho vazio, ou apague os dados deste
+                    aparelho antes.
+                  </ProblemBox>
+                )}
+            </>
+          )}
+          <Disclosure summary="Cópia de emergência, sem senha">
+            <div className="pool-form">
+              <ProblemBox title="Não é a cópia completa">
+                Não traz o que está só no servidor e não tem senha: quem tiver o
+                arquivo vê os dados do grupo.
+              </ProblemBox>
+              <div className="settings-actions">
+                <Button
+                  variant="ghost"
+                  disabled={exporting}
+                  icon={<Download aria-hidden="true" />}
+                  onClick={() => void exportCopy()}
+                >
+                  Baixar cópia de emergência
+                </Button>
+              </div>
+            </div>
+          </Disclosure>
         </Card>
         <Card className="finance-card" label="Demonstração">
           <Eyebrow>Demonstração</Eyebrow>
