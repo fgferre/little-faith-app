@@ -4,7 +4,7 @@ Lista viva do que está aberto. Leia só a seção O BASTÃO e o item da vez; o 
 Item resolvido sai da lista e vira commit com o número entre parênteses; a história de cada número fica no git (`git log --all --grep="(NNN)"`).
 Número é identidade, não posição: item novo entra no fim da sua seção. **Próximo número livre: 16.**
 
-## O BASTÃO — onde a rodada parou (17/10, noite) — TEIMOSINHA E BACKUP COM SENHA PUBLICADOS; PRÓXIMO: AS DUAS PERGUNTAS DE GOSTO DELE E O ITEM 10
+## O BASTÃO — onde a rodada parou (17/10, noite) — TEIMOSINHA E BACKUP PUBLICADOS; CAMPO "CONCURSOS COBERTOS" SÓ NA TEIMOSINHA (COMMITADO, NÃO PUBLICADO); PRÓXIMO: A PERGUNTA DAS TELAS E O ITEM 10
 
 **Para quem pega agora:** a teimosinha (um bolão só com vários concursos seguidos, pagamento único e conferência de cada sorteio;
 escolha dele em 17/10) está pronta e publicada em 17/10 à noite com o sim dele: 4 migrações (`20261017000000` a `20261017030000`)
@@ -13,8 +13,9 @@ aplicadas por `npx -y supabase@2 db push --yes` (a lista remota confere), funç�
 foi apagado (git guarda: 6 passos, decisões e o que ficou fora). `npm run done` verde depois do passo 5: 352 unitários, SQL com 29
 respostas de divisão conferidas pelo núcleo, 20 da API, 53 fluxos (o fluxo "teimosinha" leva um bolão de 2 concursos do plano ao
 encerramento). O que ele ainda não viu com calma: a fileira de concursos do Sorteio e os blocos do Dividir (fotos em
-`.tmp/teimosinha/shots/`, somem com a limpeza; o fluxo Playwright "teimosinha" as gera de novo) e o campo "Concursos cobertos" do
-Registrar, que começa em 1 e aparece em todo recibo: perguntar se fica só na teimosinha. Depois da teimosinha, ainda em 17/10 à noite, o backup
+`.tmp/teimosinha/shots/`, somem com a limpeza; o fluxo Playwright "teimosinha" as gera de novo). O campo "Concursos cobertos" do
+Registrar, por decisão dele em 17/10 à noite, aparece só na teimosinha (num bolão comum o recibo vale como um concurso); feito,
+`npm run done` verde, commitado, esperando o sim dele para publicar (só app). Depois da teimosinha, ainda em 17/10 à noite, o backup
 com senha (item 11, "não precisamos de ninguém para testar isso") foi feito e verificado (`npm run done` verde: 360 unitários, 54
 fluxos; o fluxo "backup" baixa o zip e restaura num navegador vazio), commitado (79293d8) e publicado em 17/10 à noite com o sim dele
 (só app: `git push` e `gh workflow run deploy.yml --ref main`). Como ficou: nota 4 abaixo. Produção em dia com o bastão de 17/10 à noite. Fila dele

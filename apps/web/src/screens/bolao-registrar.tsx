@@ -867,6 +867,16 @@ function RegistrationForm({
   }
   const ticket = manifest.content.plan.tickets[selected]!;
   const value = draft.tickets[ticket.key] ?? emptyTicket();
+  const teimosinha = (manifest.content.plan.contestCount ?? 1) > 1;
+  const contestField = (
+    <label>
+      Concurso lido no recibo<input
+        inputMode="numeric"
+        value={value.contest}
+        onChange={(event) => update(ticket.key, { contest: event.target.value })}
+      />
+    </label>
+  );
   return (
     <div className="pool-form">
       <p className="ui-sec">
@@ -948,41 +958,39 @@ function RegistrationForm({
                 </p>
               )}
           </fieldset>
-          <label>
-            Modalidade lida no recibo<select
-              value={value.lottery}
-              onChange={(event) =>
-                update(ticket.key, {
-                  lottery: event.target.value as LotteryId | "",
-                })}
-            >
-              <option value="">Não legível</option>
-              {Object.values(LOTTERIES).map((lottery) => (
-                <option value={lottery.id} key={lottery.id}>
-                  {lottery.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="form-columns">
+          {/* Só a teimosinha pergunta quantos concursos o recibo cobre (decisão do dono em 17/10); um recibo comum cobre um. */}
+          <div className={teimosinha ? undefined : "form-columns"}>
             <label>
-              Concurso lido no recibo<input
-                inputMode="numeric"
-                value={value.contest}
+              Modalidade lida no recibo<select
+                value={value.lottery}
                 onChange={(event) =>
-                  update(ticket.key, { contest: event.target.value })}
-              />
+                  update(ticket.key, {
+                    lottery: event.target.value as LotteryId | "",
+                  })}
+              >
+                <option value="">Não legível</option>
+                {Object.values(LOTTERIES).map((lottery) => (
+                  <option value={lottery.id} key={lottery.id}>
+                    {lottery.label}
+                  </option>
+                ))}
+              </select>
             </label>
-            <label>
-              Concursos cobertos<input
-                inputMode="numeric"
-                placeholder="1 se não é teimosinha"
-                value={value.contestCount}
-                onChange={(event) =>
-                  update(ticket.key, { contestCount: event.target.value })}
-              />
-            </label>
+            {!teimosinha && contestField}
           </div>
+          {teimosinha && (
+            <div className="form-columns">
+              {contestField}
+              <label>
+                Concursos cobertos<input
+                  inputMode="numeric"
+                  value={value.contestCount}
+                  onChange={(event) =>
+                    update(ticket.key, { contestCount: event.target.value })}
+                />
+              </label>
+            </div>
+          )}
           <label>
             Dezenas lidas no recibo<textarea
               rows={Math.min(ticket.betKeys.length + 1, 6)}
